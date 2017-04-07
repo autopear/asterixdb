@@ -47,11 +47,30 @@ public class GlobalConfig {
 
     public static final String DEFAULT_FILTERED_DATASET_COMPACTION_POLICY_NAME = "correlated-prefix";
 
+    public static final String DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME = "leveled-partitioning";
+
     public static final Map<String, String> DEFAULT_COMPACTION_POLICY_PROPERTIES;
     static {
         DEFAULT_COMPACTION_POLICY_PROPERTIES = new LinkedHashMap<String, String>();
         DEFAULT_COMPACTION_POLICY_PROPERTIES.put("max-mergable-component-size", "1073741824"); // 1GB
         DEFAULT_COMPACTION_POLICY_PROPERTIES.put("max-tolerance-component-count", "5"); // 5 components
+    }
+    public static final Map<String, String> CONSTANT_COMPACTION_POLICY_PROPERTIES;
+    static {
+        CONSTANT_COMPACTION_POLICY_PROPERTIES = new LinkedHashMap<String, String>();
+        CONSTANT_COMPACTION_POLICY_PROPERTIES.put("num-components", "5"); // 5 components
+    }
+
+    public static final Map<String, String> DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES;
+    static {
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES = new LinkedHashMap<String, String>();
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level", "7"); // 7 Level
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level0-components-count", "4"); // 4 components
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level1-components-count", "10");
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-component-size", "134217728");
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("components-order-policy", "zorder");
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("components-partition-policy", "STR");
+
     }
 
     public static int getFrameSize() {

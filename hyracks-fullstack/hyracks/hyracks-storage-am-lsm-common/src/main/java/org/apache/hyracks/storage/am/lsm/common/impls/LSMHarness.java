@@ -427,16 +427,13 @@ public class LSMHarness implements ILSMHarness {
     }
 
     @Override
-    public void forceModify(ILSMIndexOperationContext ctx, ITupleReference tuple) throws HyracksDataException {
-        LSMOperationType opType = LSMOperationType.FORCE_MODIFICATION;
-        modify(ctx, false, tuple, opType);
+    public ILSMMergePolicy getMergePolicy() {
+        return mergePolicy;
     }
 
-    @Override
-    public boolean modify(ILSMIndexOperationContext ctx, boolean tryOperation, ITupleReference tuple)
-            throws HyracksDataException {
+    public void forceModify(ILSMIndexOperationContext ctx, ITupleReference tuple) throws HyracksDataException {
         LSMOperationType opType = LSMOperationType.MODIFICATION;
-        return modify(ctx, tryOperation, tuple, opType);
+        return modify(ctx, false, tuple, opType);
     }
 
     @Override

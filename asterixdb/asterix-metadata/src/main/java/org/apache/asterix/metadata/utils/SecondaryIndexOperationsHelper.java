@@ -24,8 +24,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.asterix.common.config.DatasetConfig;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.ExternalFilePendingOp;
+import org.apache.asterix.common.config.GlobalConfig;
+//import org.apache.asterix.common.config.IPropertiesProvider;
+import org.apache.asterix.common.context.ITransactionSubsystemProvider;
+import org.apache.asterix.common.context.TransactionSubsystemProvider;
+import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.external.indexing.ExternalFile;
@@ -75,6 +81,10 @@ import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDropOperatorDescriptor.DropOption;
 import org.apache.hyracks.storage.am.common.dataflow.TreeIndexBulkLoadOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicy;
+import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.LeveledPartitioningMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 
 @SuppressWarnings("rawtypes")
 // TODO: We should eventually have a hierarchy of classes that can create all
@@ -200,10 +210,29 @@ public abstract class SecondaryIndexOperationsHelper {
         }
         setSecondaryRecDescAndComparators();
         numElementsHint = metadataProvider.getCardinalityPerPartitionHint(dataset);
+
         Pair<ILSMMergePolicyFactory, Map<String, String>> compactionInfo =
                 DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
         mergePolicyFactory = compactionInfo.first;
         mergePolicyProperties = compactionInfo.second;
+        if(index.getIndexType()== DatasetConfig.IndexType.RTREE)
+        {
+//            mergePolicyFactory =  new LeveledPartitioningMergePolicyFactory();
+//            mergePolicyFactoryProperties = GlobalConfig.DEFAULT_COMPACTION_POLICY_PROPERTIES;
+            mergePolicyFactory =  new NoMergePolicyFactory();
+            mergePolicyProperties = null;
+//            mergePolicyFactoryProperties = GlobalConfig.DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES;
+            mergePolicyFactory =  new ConstantMergePolicyFactory();
+            mergePolicyProperties = GlobalConfig.CONSTANT_COMPACTION_POLICY_PROPERTIES;
+        }
+        else
+        {
+            Pair<ILSMMergePolicyFactory, Map<String, String>> compactionInfo =
+                    DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
+            mergePolicyFactory = compactionInfo.first;
+            mergePolicyProperties = compactionInfo.second;
+        }
+
         if (numFilterFields > 0) {
             setFilterTypeTraitsAndComparators();
         }

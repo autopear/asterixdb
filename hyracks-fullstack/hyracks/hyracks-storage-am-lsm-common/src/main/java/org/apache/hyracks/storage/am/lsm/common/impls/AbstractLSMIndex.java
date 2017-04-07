@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.exceptions.ErrorCode;
@@ -87,6 +88,11 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     // components with lower indexes are newer than components with higher index
     protected final List<ILSMDiskComponent> diskComponents;
     protected final List<ILSMDiskComponent> inactiveDiskComponents;
+
+    //Specialized level based organization of components for LeveledPartitionMergePolicy
+    protected final List<List<ILSMDiskComponent>> diskComponentsInLevels;
+    //protected final List<ILSMDiskComponent> inactiveDiskComponents;
+
     protected final double bloomFilterFalsePositiveRate;
     protected final IComponentFilterHelper filterHelper;
     protected final ILSMComponentFilterFrameFactory filterFrameFactory;
@@ -136,6 +142,15 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         for (int i = 0; i < virtualBufferCaches.size(); i++) {
             flushRequests[i] = new AtomicBoolean();
         }
+        diskComponentsInLevels = new ArrayList<>();
+
+        if (lsmHarness.getMergePolicy().getClass().equals(LeveledParitioningMergePolicy.class)) {
+            int l = ((LeveledParitioningMergePolicy) lsmHarness.getMergePolicy()).getMaxLevel();
+
+            for (int i = 0; i < l; i++) {
+                diskComponentsInLevels.add(new ArrayList<>());
+            }
+        }
     }
 
     // The constructor used by external indexes
@@ -168,6 +183,9 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         filterManager = null;
         treeFields = null;
         filterFields = null;
+        diskComponentsInLevels = new LinkedList<>();
+
+        //To Do. Add diskComponentsInLevels code for external indexes
     }
 
     @Override
