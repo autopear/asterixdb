@@ -23,8 +23,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.hyracks.api.context.IHyracksTaskContext;
-import org.apache.hyracks.storage.am.common.api.IResourceLifecycleManager;
+import org.apache.hyracks.api.application.INCServiceContext;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 
@@ -33,13 +32,15 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
  */
 public class LeveledPartitioningMergePolicyFactory implements ILSMMergePolicyFactory {
 
+    public static final String NAME = "leveled-partitioning";
+
     private static final long serialVersionUID = 1L;
 
     private static final String[] SET_VALUES = new String[] {};
     private static final Set<String> PROPERTIES_NAMES = new HashSet<String>(Arrays.asList(SET_VALUES));
 
     @Override
-    public ILSMMergePolicy createMergePolicy(Map<String, String> properties, IHyracksTaskContext ctx) {
+    public ILSMMergePolicy createMergePolicy(Map<String, String> properties, INCServiceContext ctx) {
 
         ILSMMergePolicy policy = new NoMergePolicy();
         policy.configure(properties);
@@ -49,7 +50,7 @@ public class LeveledPartitioningMergePolicyFactory implements ILSMMergePolicyFac
 
     @Override
     public String getName() {
-        return "leveled-partitioning";
+        return NAME;
     }
 
     @Override
@@ -57,10 +58,4 @@ public class LeveledPartitioningMergePolicyFactory implements ILSMMergePolicyFac
         return PROPERTIES_NAMES;
     }
 
-    @Override
-    public ILSMMergePolicy createMergePolicy(Map<String, String> properties, IResourceLifecycleManager ilcm) {
-        ILSMMergePolicy policy = new NoMergePolicy();
-        policy.configure(properties);
-        return policy;
-    }
 }

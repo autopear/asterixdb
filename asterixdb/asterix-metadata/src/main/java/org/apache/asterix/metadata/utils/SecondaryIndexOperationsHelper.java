@@ -211,22 +211,19 @@ public abstract class SecondaryIndexOperationsHelper {
         setSecondaryRecDescAndComparators();
         numElementsHint = metadataProvider.getCardinalityPerPartitionHint(dataset);
 
-        Pair<ILSMMergePolicyFactory, Map<String, String>> compactionInfo =
-                DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
-        mergePolicyFactory = compactionInfo.first;
-        mergePolicyProperties = compactionInfo.second;
-        if(index.getIndexType()== DatasetConfig.IndexType.RTREE)
-        {
-//            mergePolicyFactory =  new LeveledPartitioningMergePolicyFactory();
-//            mergePolicyFactoryProperties = GlobalConfig.DEFAULT_COMPACTION_POLICY_PROPERTIES;
-            mergePolicyFactory =  new NoMergePolicyFactory();
-            mergePolicyProperties = null;
-//            mergePolicyFactoryProperties = GlobalConfig.DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES;
-            mergePolicyFactory =  new ConstantMergePolicyFactory();
+        //Pair<ILSMMergePolicyFactory, Map<String, String>> compactionInfo =
+        //      DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
+        //mergePolicyFactory = compactionInfo.first;
+        //mergePolicyProperties = compactionInfo.second;
+        if (index.getIndexType() == DatasetConfig.IndexType.RTREE) {
+            //            mergePolicyFactory =  new LeveledPartitioningMergePolicyFactory();
+            //            mergePolicyFactoryProperties = GlobalConfig.DEFAULT_COMPACTION_POLICY_PROPERTIES;
+            //mergePolicyFactory = new NoMergePolicyFactory();
+            //mergePolicyProperties = null;
+            //            mergePolicyFactoryProperties = GlobalConfig.DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES;
+            mergePolicyFactory = new ConstantMergePolicyFactory();
             mergePolicyProperties = GlobalConfig.CONSTANT_COMPACTION_POLICY_PROPERTIES;
-        }
-        else
-        {
+        } else {
             Pair<ILSMMergePolicyFactory, Map<String, String>> compactionInfo =
                     DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
             mergePolicyFactory = compactionInfo.first;

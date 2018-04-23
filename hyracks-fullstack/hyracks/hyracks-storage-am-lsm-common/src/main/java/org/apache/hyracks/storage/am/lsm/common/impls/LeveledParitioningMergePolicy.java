@@ -19,7 +19,6 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.storage.am.common.api.IndexException;
 import org.apache.hyracks.storage.am.lsm.common.api.*;
 
 import java.util.List;
@@ -38,8 +37,7 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
     private IComponentPartitionPolicy partitionPolicy;
 
     @Override
-    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested)
-            throws HyracksDataException, IndexException {
+    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
         // Do nothing
 
     }
