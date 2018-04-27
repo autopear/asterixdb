@@ -35,4 +35,5 @@ public interface ILSMDiskComponentFactory {
      */
     ILSMDiskComponent createComponent(AbstractLSMIndex lsmIndex, LSMComponentFileReferences cfr)
             throws HyracksDataException;
+
 }

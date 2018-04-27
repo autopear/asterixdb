@@ -215,7 +215,7 @@ public abstract class SecondaryIndexOperationsHelper {
         //      DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
         //mergePolicyFactory = compactionInfo.first;
         //mergePolicyProperties = compactionInfo.second;
-        if (index.getIndexType() == DatasetConfig.IndexType.RTREE) {
+        if (index.getIndexType() == DatasetConfig.IndexType.RTREE && dataset.getDatasetType() == DatasetType.INTERNAL) {
             //            mergePolicyFactory =  new LeveledPartitioningMergePolicyFactory();
             //            mergePolicyFactoryProperties = GlobalConfig.DEFAULT_COMPACTION_POLICY_PROPERTIES;
             //mergePolicyFactory = new NoMergePolicyFactory();

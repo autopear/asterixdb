@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.invertedindex.impls;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -99,6 +100,10 @@ public class LSMInvertedIndexDiskComponent extends AbstractLSMWithBuddyDiskCompo
     @Override
     public String toString() {
         return getClass().getSimpleName() + ":" + invIndex.getInvListsFile().getRelativePath();
+    }
+
+    @Override public List<Double> GetMBR() {
+        return null;
     }
 
     @Override

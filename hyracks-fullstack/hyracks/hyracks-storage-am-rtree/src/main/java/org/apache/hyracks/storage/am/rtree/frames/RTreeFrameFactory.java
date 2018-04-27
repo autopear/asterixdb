@@ -43,6 +43,10 @@ public abstract class RTreeFrameFactory implements ITreeIndexFrameFactory {
         this.isPointMBR = isPointMBR;
     }
 
+    public IPrimitiveValueProviderFactory[] GetkeyValueProviderFactories() {
+        return keyValueProviderFactories;
+    }
+
     @Override
     public RTreeTypeAwareTupleWriterFactory getTupleWriterFactory() {
         return tupleWriterFactory;

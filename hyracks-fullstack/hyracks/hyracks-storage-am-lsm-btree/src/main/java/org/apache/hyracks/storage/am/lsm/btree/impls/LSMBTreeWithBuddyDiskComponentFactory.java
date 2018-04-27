@@ -22,6 +22,7 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilterFactory;
 import org.apache.hyracks.storage.am.btree.impls.BTree;
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
@@ -56,4 +57,16 @@ public class LSMBTreeWithBuddyDiskComponentFactory implements ILSMDiskComponentF
                 bloomFilterFactory.createBloomFiltertInstance(cfr.getBloomFilterFileReference()),
                 filterHelper == null ? null : filterHelper.createFilter());
     }
+
+    @Override public ILSMDiskComponent createComponentInLevels(AbstractLSMIndex lsmIndex,
+            LSMComponentFileReferences cfr, int level) throws HyracksDataException {
+        return new LSMBTreeWithBuddyDiskComponent(lsmIndex,
+                btreeFactory.createIndexInstance(cfr.getInsertIndexFileReference()),
+                buddyBtreeFactory.createIndexInstance(cfr.getDeleteIndexFileReference()),
+                bloomFilterFactory.createBloomFiltertInstance(cfr.getBloomFilterFileReference()),
+                filterHelper == null ? null : filterHelper.createFilter());
+
+    }
+
+
 }

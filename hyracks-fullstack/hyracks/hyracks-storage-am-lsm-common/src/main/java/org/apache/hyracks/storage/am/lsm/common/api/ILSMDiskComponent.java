@@ -157,4 +157,8 @@ public interface ILSMDiskComponent extends ILSMComponent {
     ChainedLSMDiskComponentBulkLoader createBulkLoader(LSMIOOperationType opType, float fillFactor, boolean verifyInput,
             long numElementsHint, boolean checkIfEmptyIndex, boolean withFilter, boolean cleanupEmptyComponent)
             throws HyracksDataException;
+
+    int getLevel();
+    void setLevel(int level);
+
 }

@@ -34,6 +34,9 @@ import org.apache.hyracks.storage.common.MultiComparator;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 import org.apache.hyracks.storage.common.buffercache.IExtraPageBlockHelper;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public abstract class RTreeNSMFrame extends TreeIndexNSMFrame implements IRTreeFrame {
     protected static final int PAGE_NSN_OFFSET = TreeIndexNSMFrame.RESERVED_HEADER_SIZE;
     protected static final int RIGHT_PAGE_OFFSET = PAGE_NSN_OFFSET + 8;
@@ -140,6 +143,33 @@ public abstract class RTreeNSMFrame extends TreeIndexNSMFrame implements IRTreeF
             }
         }
     }
+
+    public List<Double> getMBRinDoubles() {
+        List<Double> mbr = new ArrayList<>();
+        for (int i = 0; i < keyValueProviders.length; i++) {
+            double valA = keyValueProviders[i].getValue(mbrTuples[i].getFieldData(i), mbrTuples[i].getFieldStart(i));
+            mbr.add(valA);
+        }
+        return mbr;
+//        int maxFieldPos = keyValueProviders.length / 2;
+//        for (int i = 1; i < getTupleCount(); i++) {
+//            frameTuple.resetByTupleIndex(this, i);
+//            for (int j = 0; j < maxFieldPos; j++) {
+//                int k = maxFieldPos + j;
+//                double valA = keyValueProviders[j].getValue(frameTuple.getFieldData(j), frameTuple.getFieldStart(j));
+//                double valB = keyValueProviders[j].getValue(tuples[j].getFieldData(j), tuples[j].getFieldStart(j));
+//                if (valA < valB) {
+//                    tuples[j].resetByTupleIndex(this, i);
+//                }
+//                valA = keyValueProviders[k].getValue(frameTuple.getFieldData(k), frameTuple.getFieldStart(k));
+//                valB = keyValueProviders[k].getValue(tuples[k].getFieldData(k), tuples[k].getFieldStart(k));
+//                if (valA > valB) {
+//                    tuples[k].resetByTupleIndex(this, i);
+//                }
+//            }
+//        }
+    }
+
 
     @Override
     public void adjustMBR() {

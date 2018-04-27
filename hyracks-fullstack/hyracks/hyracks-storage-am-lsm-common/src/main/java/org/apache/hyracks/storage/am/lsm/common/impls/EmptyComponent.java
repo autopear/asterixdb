@@ -150,4 +150,12 @@ public class EmptyComponent implements ILSMDiskComponent {
             boolean cleanupEmptyComponent) throws HyracksDataException {
         return null;
     }
+
+    @Override public int getLevel() {
+        return 0;
+    }
+
+    @Override public void setLevel(int level) {
+
+    }
 }

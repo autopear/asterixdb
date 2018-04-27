@@ -53,4 +53,6 @@ public class LSMInvertedIndexDiskComponentFactory implements ILSMDiskComponentFa
                 bloomFilterFactory.createBloomFiltertInstance(cfr.getBloomFilterFileReference()),
                 filterHelper == null ? null : filterHelper.createFilter());
     }
+
+
 }

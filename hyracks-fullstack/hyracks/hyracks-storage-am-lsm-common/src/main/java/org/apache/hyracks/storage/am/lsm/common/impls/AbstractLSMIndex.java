@@ -40,28 +40,9 @@ import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.common.impls.AbstractSearchPredicate;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
-import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilterFrameFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
+import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId.IdCompareResult;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMHarness;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexFileManager;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMMemoryComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
-import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
-import org.apache.hyracks.storage.am.lsm.common.api.LSMOperationType;
 import org.apache.hyracks.storage.common.IIndexAccessParameters;
 import org.apache.hyracks.storage.common.IIndexBulkLoader;
 import org.apache.hyracks.storage.common.IIndexCursor;
@@ -133,7 +114,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         this.inactiveDiskComponents = new LinkedList<>();
         this.durable = durable;
         this.tracer = tracer;
-        lsmHarness = new LSMHarness(this, mergePolicy, opTracker, diskBufferCache.isReplicationEnabled(), tracer);
+
         isActive = false;
         diskComponents = new ArrayList<>();
         memoryComponents = new ArrayList<>();
@@ -144,12 +125,18 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         }
         diskComponentsInLevels = new ArrayList<>();
 
-        if (lsmHarness.getMergePolicy().getClass().equals(LeveledParitioningMergePolicy.class)) {
-            int l = ((LeveledParitioningMergePolicy) lsmHarness.getMergePolicy()).getMaxLevel();
+        if (mergePolicy.getClass().equals(LeveledParitioningMergePolicy.class)) {
+
+            lsmHarness = new LeveledLSMHarness(this, mergePolicy, opTracker, diskBufferCache.isReplicationEnabled(), tracer);
+            int l = ((LeveledParitioningMergePolicy) mergePolicy).getMaxLevel();
 
             for (int i = 0; i < l; i++) {
                 diskComponentsInLevels.add(new ArrayList<>());
             }
+        }
+        else
+        {
+            lsmHarness = new LSMHarness(this, mergePolicy, opTracker, diskBufferCache.isReplicationEnabled(), tracer);
         }
     }
 
@@ -186,6 +173,13 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         diskComponentsInLevels = new LinkedList<>();
 
         //To Do. Add diskComponentsInLevels code for external indexes
+//        if (lsmHarness.getMergePolicy().getClass().equals(LeveledParitioningMergePolicy.class)) {
+//            int l = ((LeveledParitioningMergePolicy) lsmHarness.getMergePolicy()).getMaxLevel();
+//
+//            for (int i = 0; i < l; i++) {
+//                diskComponentsInLevels.add(new ArrayList<>());
+//            }
+//        }
     }
 
     @Override

@@ -18,9 +18,12 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.lsm.common.api.*;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +42,21 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
     @Override
     public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
         // Do nothing
+        List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
+        // Reverse the components order so that we look at components from oldest to newest.
+        Collections.reverse(immutableComponents);
+        for (ILSMComponent c : immutableComponents) {
+            try {
+                List<Double> mbr = ((AbstractLSMDiskComponent)c).GetMBR();
+                if(mbr==null)
+                    return;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        //Pair<Integer, Integer> mergeableIndexes = getMergableComponentsIndex(immutableComponents);
 
     }
 

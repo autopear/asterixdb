@@ -24,19 +24,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+//import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
+//import org.apache.asterix.om.types.BuiltinType;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
-import org.apache.hyracks.storage.am.common.api.IIndexOperationContext;
-import org.apache.hyracks.storage.am.common.api.IPageManager;
-import org.apache.hyracks.storage.am.common.api.ITreeIndexAccessor;
-import org.apache.hyracks.storage.am.common.api.ITreeIndexCursor;
-import org.apache.hyracks.storage.am.common.api.ITreeIndexFrame;
-import org.apache.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
-import org.apache.hyracks.storage.am.common.api.ITreeIndexTupleReference;
+import org.apache.hyracks.storage.am.common.api.*;
 import org.apache.hyracks.storage.am.common.frames.AbstractSlotManager;
 import org.apache.hyracks.storage.am.common.frames.FrameOpSpaceStatus;
 import org.apache.hyracks.storage.am.common.impls.AbstractTreeIndex;
@@ -47,8 +43,10 @@ import org.apache.hyracks.storage.am.common.util.TreeIndexUtils;
 import org.apache.hyracks.storage.am.rtree.api.IRTreeFrame;
 import org.apache.hyracks.storage.am.rtree.api.IRTreeInteriorFrame;
 import org.apache.hyracks.storage.am.rtree.api.IRTreeLeafFrame;
+import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeNSMFrame;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeNSMInteriorFrame;
+import org.apache.hyracks.storage.am.rtree.frames.RTreeNSMLeafFrame;
 import org.apache.hyracks.storage.am.rtree.tuples.RTreeTypeAwareTupleWriter;
 import org.apache.hyracks.storage.common.IIndexAccessParameters;
 import org.apache.hyracks.storage.common.IIndexBulkLoader;
@@ -61,6 +59,7 @@ import org.apache.hyracks.storage.common.buffercache.BufferCache;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 import org.apache.hyracks.storage.common.buffercache.ICachedPage;
 import org.apache.hyracks.storage.common.file.BufferedFileHandle;
+//import org.apache.asterix.om.base.ADouble;
 
 public class RTree extends AbstractTreeIndex {
 
@@ -86,6 +85,40 @@ public class RTree extends AbstractTreeIndex {
         return globalNsn.incrementAndGet();
     }
 
+    public List<Double> getRootMBR() throws Exception
+    {
+        ICachedPage node = bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), rootPage), false);
+        node.acquireReadLatch();
+        try {
+            IRTreeInteriorFrame interiorFrame = (IRTreeInteriorFrame) interiorFrameFactory.createFrame();
+            IRTreeLeafFrame leafFrame = (IRTreeLeafFrame) leafFrameFactory.createFrame();
+            interiorFrame.setPage(node);
+
+//            String keyString;
+//            IPrimitiveValueProviderFactory[] keyValueProviderFactories = ((RTreeFrameFactory)interiorFrameFactory).GetkeyValueProviderFactories();
+//            interiorFrame.
+//            ISerializerDeserializer<ADouble>[] doubleSerde = new ISerializerDeserializer[];
+                    //SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADOUBLE);
+
+
+            if (interiorFrame.isLeaf()) {
+                leafFrame.setPage(node);
+                //keyString = TreeIndexUtils.printFrameTuples(leafFrame, keySerdes);
+                return ((RTreeNSMLeafFrame)leafFrame).getMBRinDoubles();
+
+            } else {
+                //keyString = TreeIndexUtils.printFrameTuples(interiorFrame, keySerdes);
+               return ((RTreeNSMInteriorFrame)interiorFrame).getMBRinDoubles();
+            }
+
+        }
+        catch (Exception e) {
+        node.releaseReadLatch();
+        bufferCache.unpin(node);
+        e.printStackTrace();
+        }
+        return null;
+    }
     @SuppressWarnings("rawtypes")
     public String printTree(IRTreeLeafFrame leafFrame, IRTreeInteriorFrame interiorFrame,
             ISerializerDeserializer[] keySerdes) throws Exception {

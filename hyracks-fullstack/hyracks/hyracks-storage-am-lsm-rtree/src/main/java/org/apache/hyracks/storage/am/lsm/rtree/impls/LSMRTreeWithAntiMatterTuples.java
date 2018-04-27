@@ -235,7 +235,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
 
         // Bulk load the tuples from all on-disk RTrees into the new RTree.
         ILSMDiskComponent component = createDiskComponent(componentFactory, mergeOp.getTarget(), null, null, true);
-
+        //component.setLevel(0);
         ILSMDiskComponentBulkLoader componentBulkLoader =
                 component.createBulkLoader(LSMIOOperationType.MERGE, 1.0f, false, 0L, false, false, false);
         try {

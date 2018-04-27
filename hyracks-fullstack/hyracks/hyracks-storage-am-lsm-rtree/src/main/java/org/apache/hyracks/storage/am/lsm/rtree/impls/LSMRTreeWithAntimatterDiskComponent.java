@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
+import java.util.List;
 import java.util.Set;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -31,6 +32,10 @@ public class LSMRTreeWithAntimatterDiskComponent extends AbstractLSMDiskComponen
 
     public LSMRTreeWithAntimatterDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, ILSMComponentFilter filter) {
         super(lsmIndex, LSMRTreeDiskComponent.getMetadataPageManager(rtree), filter);
+        this.rtree = rtree;
+    }
+    public LSMRTreeWithAntimatterDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, ILSMComponentFilter filter, int level) {
+        super(lsmIndex, LSMRTreeDiskComponent.getMetadataPageManager(rtree), filter, level);
         this.rtree = rtree;
     }
 
@@ -62,6 +67,15 @@ public class LSMRTreeWithAntimatterDiskComponent extends AbstractLSMDiskComponen
     @Override
     public String toString() {
         return getClass().getSimpleName() + ":" + rtree.getFileReference().getRelativePath();
+    }
+
+    @Override public List<Double> GetMBR(){
+        try {
+            return this.rtree.getRootMBR();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @Override

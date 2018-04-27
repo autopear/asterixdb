@@ -44,4 +44,5 @@ public class LSMRTreeWithAntiMatterTuplesDiskComponentFactory implements ILSMDis
                 rtreeFactory.createIndexInstance(cfr.getInsertIndexFileReference()),
                 filterHelper == null ? null : filterHelper.createFilter());
     }
+
 }

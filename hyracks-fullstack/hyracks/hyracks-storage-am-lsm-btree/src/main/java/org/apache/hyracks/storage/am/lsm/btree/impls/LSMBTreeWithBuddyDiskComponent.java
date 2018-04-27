@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
+import java.util.List;
 import java.util.Set;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -59,6 +60,10 @@ public class LSMBTreeWithBuddyDiskComponent extends AbstractLSMWithBuddyDiskComp
         LSMBTreeWithBloomFilterDiskComponent.addFiles(files, bloomFilter);
         files.add(buddyBtree.getFileReference().getFile().getAbsolutePath());
         return files;
+    }
+
+    @Override public List<Double> GetMBR() {
+        return null;
     }
 
     @Override

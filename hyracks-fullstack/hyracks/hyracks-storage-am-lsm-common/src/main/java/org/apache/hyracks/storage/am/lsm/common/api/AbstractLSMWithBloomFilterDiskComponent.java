@@ -32,10 +32,19 @@ import org.apache.hyracks.storage.am.lsm.common.impls.IChainedComponentBulkLoade
 import org.apache.hyracks.storage.am.lsm.common.util.ComponentUtils;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 
+import java.util.List;
+
 public abstract class AbstractLSMWithBloomFilterDiskComponent extends AbstractLSMDiskComponent {
     public AbstractLSMWithBloomFilterDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
             ILSMComponentFilter filter) {
         super(lsmIndex, mdPageManager, filter);
+    }
+    public AbstractLSMWithBloomFilterDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
+            ILSMComponentFilter filter, int level) {
+        super(lsmIndex, mdPageManager, filter, level);
+    }
+    @Override public List<Double> GetMBR() {
+        return null;
     }
 
     public abstract BloomFilter getBloomFilter();

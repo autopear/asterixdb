@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilter;
@@ -38,6 +39,13 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
     public LSMRTreeDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, BTree btree, BloomFilter bloomFilter,
             ILSMComponentFilter filter) {
         super(lsmIndex, getMetadataPageManager(rtree), filter);
+        this.rtree = rtree;
+        this.btree = btree;
+        this.bloomFilter = bloomFilter;
+    }
+    public LSMRTreeDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, BTree btree, BloomFilter bloomFilter,
+            ILSMComponentFilter filter, int level) {
+        super(lsmIndex, getMetadataPageManager(rtree), filter, level);
         this.rtree = rtree;
         this.btree = btree;
         this.bloomFilter = bloomFilter;
@@ -105,5 +113,14 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
         Set<String> files = new HashSet<>();
         files.add(rtree.getFileReference().getFile().getAbsolutePath());
         return files;
+    }
+
+    @Override public List<Double> GetMBR() {
+        try {
+            return this.rtree.getRootMBR();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

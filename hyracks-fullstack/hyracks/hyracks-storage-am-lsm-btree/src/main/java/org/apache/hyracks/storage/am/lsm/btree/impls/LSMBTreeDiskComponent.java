@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.hyracks.storage.am.btree.impls.BTree;
@@ -59,6 +60,10 @@ public class LSMBTreeDiskComponent extends AbstractLSMDiskComponent {
     @Override
     public Set<String> getLSMComponentPhysicalFiles() {
         return getFiles(btree);
+    }
+
+    @Override public List<Double> GetMBR() {
+        return null;
     }
 
     @Override

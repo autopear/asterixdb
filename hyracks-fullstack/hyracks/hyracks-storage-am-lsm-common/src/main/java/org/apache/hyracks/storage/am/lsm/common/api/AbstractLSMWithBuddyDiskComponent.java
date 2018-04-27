@@ -27,11 +27,20 @@ import org.apache.hyracks.storage.am.lsm.common.impls.IndexWithBuddyBulkLoader;
 import org.apache.hyracks.storage.am.lsm.common.util.ComponentUtils;
 import org.apache.hyracks.storage.common.IIndexBulkLoader;
 
+import java.util.List;
+
 public abstract class AbstractLSMWithBuddyDiskComponent extends AbstractLSMWithBloomFilterDiskComponent {
 
     public AbstractLSMWithBuddyDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
             ILSMComponentFilter filter) {
         super(lsmIndex, mdPageManager, filter);
+    }
+    public AbstractLSMWithBuddyDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
+            ILSMComponentFilter filter, int level) {
+        super(lsmIndex, mdPageManager, filter, level);
+    }
+    @Override public List<Double> GetMBR() {
+        return null;
     }
 
     public abstract AbstractTreeIndex getBuddyIndex();

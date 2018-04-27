@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
+import java.util.List;
 import java.util.Set;
 
 import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilter;
@@ -82,5 +83,9 @@ public class LSMBTreeWithBloomFilterDiskComponent extends AbstractLSMWithBloomFi
 
     static long getComponentSize(BloomFilter bloomFilter) {
         return bloomFilter.getFileReference().getFile().length();
+    }
+
+    @Override public List<Double> GetMBR() {
+        return null;
     }
 }

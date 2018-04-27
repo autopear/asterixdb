@@ -33,13 +33,15 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.List;
+
 public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent implements ILSMDiskComponent {
 
     private static final Logger LOGGER = LogManager.getLogger();
 
     private final DiskComponentMetadata metadata;
     private final ArrayBackedValueStorage buffer = new ArrayBackedValueStorage(Long.BYTES);
-
+    private int level;
     // a variable cache of componentId stored in metadata.
     // since componentId is immutable, we do not want to read from metadata every time the componentId
     // is requested.
@@ -50,7 +52,16 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         super(lsmIndex, filter);
         state = ComponentState.READABLE_UNWRITABLE;
         metadata = new DiskComponentMetadata(mdPageManager);
+        level = 0;
     }
+    public AbstractLSMDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
+            ILSMComponentFilter filter, int l) {
+        super(lsmIndex, filter);
+        state = ComponentState.READABLE_UNWRITABLE;
+        metadata = new DiskComponentMetadata(mdPageManager);
+        level = l;
+    }
+    public abstract List<Double> GetMBR () throws Exception;
 
     @Override
     public boolean threadEnter(LSMOperationType opType, boolean isMutableComponent) {
@@ -226,6 +237,14 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
                 : createIndexBulkLoader(fillFactor, verifyInput, numElementsHint, checkIfEmptyIndex);
         chainedBulkLoader.addBulkLoader(indexBulkloader);
         return chainedBulkLoader;
+    }
+
+    @Override public int getLevel() {
+        return level;
+    }
+
+    @Override public void setLevel(int level) {
+        this.level = level;
     }
 
     @Override
