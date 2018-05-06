@@ -58,15 +58,4 @@ public class LSMBTreeWithBuddyDiskComponentFactory implements ILSMDiskComponentF
                 filterHelper == null ? null : filterHelper.createFilter());
     }
 
-    @Override public ILSMDiskComponent createComponentInLevels(AbstractLSMIndex lsmIndex,
-            LSMComponentFileReferences cfr, int level) throws HyracksDataException {
-        return new LSMBTreeWithBuddyDiskComponent(lsmIndex,
-                btreeFactory.createIndexInstance(cfr.getInsertIndexFileReference()),
-                buddyBtreeFactory.createIndexInstance(cfr.getDeleteIndexFileReference()),
-                bloomFilterFactory.createBloomFiltertInstance(cfr.getBloomFilterFileReference()),
-                filterHelper == null ? null : filterHelper.createFilter());
-
-    }
-
-
 }
