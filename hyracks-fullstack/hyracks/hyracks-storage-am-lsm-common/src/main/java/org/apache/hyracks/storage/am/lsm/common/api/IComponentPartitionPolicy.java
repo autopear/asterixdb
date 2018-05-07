@@ -18,8 +18,11 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.api;
 
+import java.util.List;
+
 /**
  * Created by mohiuddin on 4/13/17.
  */
 public interface IComponentPartitionPolicy {
+    List<ILSMDiskComponent> mergeByPartition(List<ILSMDiskComponent> overlappingComponents);
 }

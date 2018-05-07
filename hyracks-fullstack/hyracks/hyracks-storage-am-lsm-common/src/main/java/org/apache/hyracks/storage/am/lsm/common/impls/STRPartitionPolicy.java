@@ -19,9 +19,21 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentPartitionPolicy;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by mohiuddin on 4/13/17.
  */
 public class STRPartitionPolicy implements IComponentPartitionPolicy {
+
+    @Override
+    public List<ILSMDiskComponent> mergeByPartition(List<ILSMDiskComponent> overlappingComponents)
+    {
+        List<ILSMDiskComponent> newComponents = new ArrayList<>();
+
+        return newComponents;
+    }
 }

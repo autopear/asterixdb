@@ -216,13 +216,13 @@ public abstract class SecondaryIndexOperationsHelper {
         //mergePolicyFactory = compactionInfo.first;
         //mergePolicyProperties = compactionInfo.second;
         if (index.getIndexType() == DatasetConfig.IndexType.RTREE && dataset.getDatasetType() == DatasetType.INTERNAL) {
-            //            mergePolicyFactory =  new LeveledPartitioningMergePolicyFactory();
-            //            mergePolicyFactoryProperties = GlobalConfig.DEFAULT_COMPACTION_POLICY_PROPERTIES;
+            mergePolicyFactory =  new LeveledPartitioningMergePolicyFactory();
+            mergePolicyProperties = GlobalConfig.DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES;
             //mergePolicyFactory = new NoMergePolicyFactory();
             //mergePolicyProperties = null;
             //            mergePolicyFactoryProperties = GlobalConfig.DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES;
-            mergePolicyFactory = new ConstantMergePolicyFactory();
-            mergePolicyProperties = GlobalConfig.CONSTANT_COMPACTION_POLICY_PROPERTIES;
+            //mergePolicyFactory = new ConstantMergePolicyFactory();
+            //mergePolicyProperties = GlobalConfig.CONSTANT_COMPACTION_POLICY_PROPERTIES;
         } else {
             Pair<ILSMMergePolicyFactory, Map<String, String>> compactionInfo =
                     DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());

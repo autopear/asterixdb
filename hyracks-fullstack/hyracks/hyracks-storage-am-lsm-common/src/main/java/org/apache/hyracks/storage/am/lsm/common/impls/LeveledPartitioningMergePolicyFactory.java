@@ -42,7 +42,7 @@ public class LeveledPartitioningMergePolicyFactory implements ILSMMergePolicyFac
     @Override
     public ILSMMergePolicy createMergePolicy(Map<String, String> properties, INCServiceContext ctx) {
 
-        ILSMMergePolicy policy = new NoMergePolicy();
+        ILSMMergePolicy policy = new LeveledParitioningMergePolicy();
         policy.configure(properties);
         return policy;
 

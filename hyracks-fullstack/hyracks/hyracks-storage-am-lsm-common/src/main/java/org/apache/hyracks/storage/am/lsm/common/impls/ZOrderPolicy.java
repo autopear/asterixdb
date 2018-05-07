@@ -19,9 +19,19 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentOrderPolicy;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
+
+
+import java.util.List;
 
 /**
  * Created by mohiuddin on 4/13/17.
  */
 public class ZOrderPolicy implements IComponentOrderPolicy {
+
+    private Point currentCursorPoint;
+    @Override
+    public int pickComponentToMerge(List<ILSMDiskComponent> immutableDiskComponents) {
+        return 0;
+    }
 }
