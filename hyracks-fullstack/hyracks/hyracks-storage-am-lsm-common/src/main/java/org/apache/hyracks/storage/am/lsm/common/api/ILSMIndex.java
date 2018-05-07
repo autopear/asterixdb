@@ -56,6 +56,8 @@ public interface ILSMIndex extends IIndex {
      * components with lower indexes are newer than components with higher index
      */
     List<ILSMDiskComponent> getDiskComponents();
+    //Components are indexed into different levels here
+    List<List<ILSMDiskComponent>> getDiskComponentsInLevels();
 
     boolean isPrimaryIndex();
 

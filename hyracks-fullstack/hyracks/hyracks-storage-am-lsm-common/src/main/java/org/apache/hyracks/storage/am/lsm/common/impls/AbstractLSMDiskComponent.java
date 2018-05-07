@@ -19,8 +19,10 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.data.std.primitive.LongPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.storage.am.common.api.IMetadataPageManager;
+import org.apache.hyracks.storage.am.common.freepage.MutableArrayValueReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
@@ -38,7 +40,7 @@ import java.util.List;
 public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent implements ILSMDiskComponent {
 
     private static final Logger LOGGER = LogManager.getLogger();
-
+    public static final MutableArrayValueReference LEVEL_KEY = new MutableArrayValueReference("LSN".getBytes());
     private final DiskComponentMetadata metadata;
     private final ArrayBackedValueStorage buffer = new ArrayBackedValueStorage(Long.BYTES);
     private int level;
@@ -171,6 +173,15 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         getIndex().activate();
         if (getLSMComponentFilter() != null && !createNewComponent) {
             getLsmIndex().getFilterManager().readFilter(getLSMComponentFilter(), getMetadataHolder());
+        }
+        //Load the level number from Disk Component Metadata
+        if(!createNewComponent)
+        {
+            LongPointable pointable = new LongPointable();
+            IMetadataPageManager metadataPageManager = this.getMetadata().getMetadataPageManager();
+            metadataPageManager.get(metadataPageManager.createMetadataFrame(), LEVEL_KEY, pointable);
+            int level =  pointable.getLength() == 0 ? 0 : (int)pointable.longValue();
+            this.setLevel(level);
         }
     }
 

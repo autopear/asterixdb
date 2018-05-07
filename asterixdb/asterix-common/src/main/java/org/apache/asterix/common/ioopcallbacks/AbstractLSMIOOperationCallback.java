@@ -40,6 +40,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMemoryComponent;
+import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.DiskComponentMetadata;
 import org.apache.hyracks.storage.am.lsm.common.util.ComponentUtils;
@@ -48,6 +49,7 @@ import org.apache.hyracks.storage.am.lsm.common.util.LSMComponentIdUtils;
 // A single LSMIOOperationCallback per LSM index used to perform actions around Flush and Merge operations
 public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationCallback {
     public static final MutableArrayValueReference LSN_KEY = new MutableArrayValueReference("LSN".getBytes());
+
     public static final long INVALID = -1L;
 
     protected final ILSMIndex lsmIndex;
@@ -121,6 +123,7 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
             return;
         }
         putLSNIntoMetadata(opCtx.getNewComponent(), opCtx.getComponentsToBeMerged());
+        putLevelIntoMetadata(opCtx.getNewComponent());
         putComponentIdIntoMetadata(opCtx.getIoOperationType(), opCtx.getNewComponent(),
                 opCtx.getComponentsToBeMerged());
         componentLsnMap.put(opCtx.getNewComponent().getId(), getComponentLSN(opCtx.getComponentsToBeMerged()));
@@ -173,6 +176,10 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
     private void putLSNIntoMetadata(ILSMDiskComponent newComponent, List<? extends ILSMComponent> oldComponents)
             throws HyracksDataException {
         newComponent.getMetadata().put(LSN_KEY, LongPointable.FACTORY.createPointable(getComponentLSN(oldComponents)));
+    }
+    private void putLevelIntoMetadata(ILSMDiskComponent newComponent)
+            throws HyracksDataException {
+        newComponent.getMetadata().put(AbstractLSMDiskComponent.LEVEL_KEY, LongPointable.FACTORY.createPointable((long)newComponent.getLevel()));
     }
 
     public static long getTreeIndexLSN(DiskComponentMetadata md) throws HyracksDataException {
