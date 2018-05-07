@@ -46,11 +46,6 @@ public class LSMRTreeAccessor extends LSMTreeIndexAccessor {
     }
 
     @Override
-    public void scheduleLeveledMerge(ILSMIOOperationCallback callback, List<ILSMDiskComponent> overlappingComponents, ILSMDiskComponent mergringComponent) throws HyracksDataException {
-
-    }
-
-    @Override
     public boolean tryDelete(ITupleReference tuple) throws HyracksDataException {
         getCtx().setOperation(IndexOperation.DELETE);
         dualTuple.reset(tuple);

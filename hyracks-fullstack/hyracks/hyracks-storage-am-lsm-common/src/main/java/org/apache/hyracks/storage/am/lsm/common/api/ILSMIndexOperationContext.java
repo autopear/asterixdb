@@ -34,6 +34,8 @@ public interface ILSMIndexOperationContext extends IIndexOperationContext {
 
     List<ILSMDiskComponent> getComponentsToBeMerged();
 
+    List<ILSMDiskComponent> getComponentPickedToBeMergedFromPrevLevel();
+
     ISearchOperationCallback getSearchOperationCallback();
 
     IExtendedModificationOperationCallback getModificationCallback();
@@ -116,4 +118,20 @@ public interface ILSMIndexOperationContext extends IIndexOperationContext {
      * @param component
      */
     void setNewComponent(ILSMDiskComponent component);
+
+    /**
+     * @return the new component produced by this operation if any, null otherwise
+     */
+    List<ILSMDiskComponent> getNewDiskComponentsForNextLevel();
+
+    /**
+     * Set the new component produced by this operation
+     *
+     * @param components
+     */
+    void setNewDiskComponentsForNextLevel(List<ILSMDiskComponent> components);
+
+    void setPartitionPolicy(IComponentPartitionPolicy partitionPolicy);
+    IComponentPartitionPolicy getPartitionPolicy();
+
 }

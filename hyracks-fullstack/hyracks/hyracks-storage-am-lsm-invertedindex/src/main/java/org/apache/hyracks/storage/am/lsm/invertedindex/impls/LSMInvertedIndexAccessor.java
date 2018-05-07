@@ -26,14 +26,7 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.data.std.api.IValueReference;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMHarness;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
-import org.apache.hyracks.storage.am.lsm.common.api.LSMOperationType;
+import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.invertedindex.api.IInvertedIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.invertedindex.api.InvertedListCursor;
 import org.apache.hyracks.storage.common.IIndexCursor;
@@ -105,10 +98,13 @@ public class LSMInvertedIndexAccessor implements ILSMIndexAccessor, IInvertedInd
         lsmHarness.scheduleMerge(ctx, callback);
     }
 
-    @Override
-    public void scheduleLeveledMerge(ILSMIOOperationCallback callback, List<ILSMDiskComponent> overlappingComponents, ILSMDiskComponent mergringComponent) throws HyracksDataException {
+    @Override public void scheduleLeveledMerge(ILSMIOOperationCallback callback,
+            List<ILSMDiskComponent> overlappingComponentsFromNextLevel,
+            List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel, IComponentPartitionPolicy partitionPolicy)
+            throws HyracksDataException {
 
     }
+
 
     @Override
     public void scheduleReplication(List<ILSMDiskComponent> lsmComponents, boolean bulkload, LSMOperationType opType)

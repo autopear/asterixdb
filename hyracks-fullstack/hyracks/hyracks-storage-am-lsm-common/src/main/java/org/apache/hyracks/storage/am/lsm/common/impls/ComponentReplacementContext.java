@@ -26,13 +26,9 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.common.api.IExtendedModificationOperationCallback;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.common.tuples.PermutingTupleReference;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.LSMComponentType;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.common.IModificationOperationCallback;
 import org.apache.hyracks.storage.common.ISearchOperationCallback;
 import org.apache.hyracks.storage.common.ISearchPredicate;
@@ -84,6 +80,10 @@ public class ComponentReplacementContext implements ILSMIndexOperationContext {
     @Override
     public List<ILSMDiskComponent> getComponentsToBeMerged() {
         return Collections.emptyList();
+    }
+
+    @Override public List<ILSMDiskComponent> getComponentPickedToBeMergedFromPrevLevel() {
+        return null;
     }
 
     @Override
@@ -259,5 +259,21 @@ public class ComponentReplacementContext implements ILSMIndexOperationContext {
     @Override
     public void setNewComponent(ILSMDiskComponent component) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override public List<ILSMDiskComponent> getNewDiskComponentsForNextLevel() {
+        return null;
+    }
+
+    @Override public void setNewDiskComponentsForNextLevel(List<ILSMDiskComponent> components) {
+
+    }
+
+    @Override public void setPartitionPolicy(IComponentPartitionPolicy partitionPolicy) {
+
+    }
+
+    @Override public IComponentPartitionPolicy getPartitionPolicy() {
+        return null;
     }
 }

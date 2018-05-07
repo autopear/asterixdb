@@ -631,6 +631,17 @@ public class LeveledLSMHarness implements ILSMHarness {
         lsmIndex.scheduleMerge(ctx, callback);
     }
 
+    @Override public void scheduleLeveledMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback)
+            throws HyracksDataException {
+        if (!getAndEnterComponents(ctx, LSMOperationType.MERGE, true)) {
+            LOGGER.info("Failed to enter components for merge operation. Calling finalize");
+            ctx.setIoOperationType(LSMIOOperationType.MERGE);
+            callback.afterFinalize(ctx);
+            return;
+        }
+        lsmIndex.scheduleLeveledMerge(ctx, callback);
+    }
+
     @Override
     public void scheduleFullMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback)
             throws HyracksDataException {

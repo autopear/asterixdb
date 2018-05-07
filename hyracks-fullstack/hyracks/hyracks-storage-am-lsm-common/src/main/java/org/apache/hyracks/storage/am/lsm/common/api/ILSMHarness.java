@@ -109,14 +109,21 @@ public interface ILSMHarness {
      * @throws IndexException
      */
     void scheduleMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback) throws HyracksDataException;
-
+    /**
+     * Schedule a merge
+     *
+     * @param ctx
+     * @param callback
+     * @throws HyracksDataException
+     * @throws IndexException
+     */
+    void scheduleLeveledMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback) throws HyracksDataException;
     /**
      * Schedule full merge
      *
      * @param ctx
      * @param callback
      * @throws HyracksDataException
-     * @throws IndexException
      */
     void scheduleFullMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback) throws HyracksDataException;
 

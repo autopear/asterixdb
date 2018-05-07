@@ -82,6 +82,9 @@ public interface ILSMIndex extends IIndex {
 
     void scheduleMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback) throws HyracksDataException;
 
+    void scheduleLeveledMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback) throws HyracksDataException;
+
+
     ILSMDiskComponent merge(ILSMIOOperation operation) throws HyracksDataException;
 
     void addDiskComponent(ILSMDiskComponent index) throws HyracksDataException;

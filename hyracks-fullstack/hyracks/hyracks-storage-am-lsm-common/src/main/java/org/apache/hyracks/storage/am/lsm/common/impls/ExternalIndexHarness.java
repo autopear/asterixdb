@@ -216,6 +216,16 @@ public class ExternalIndexHarness extends LSMHarness {
         lsmIndex.scheduleMerge(ctx, callback);
     }
 
+    @Override public void scheduleLeveledMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback)
+            throws HyracksDataException {
+        if (!getAndEnterComponents(ctx, LSMOperationType.MERGE, true)) {
+            ctx.setIoOperationType(LSMIOOperationType.MERGE);
+            callback.afterFinalize(ctx);
+            return;
+        }
+        lsmIndex.scheduleMerge(ctx, callback);
+    }
+
     @Override
     public void scheduleFullMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback)
             throws HyracksDataException {

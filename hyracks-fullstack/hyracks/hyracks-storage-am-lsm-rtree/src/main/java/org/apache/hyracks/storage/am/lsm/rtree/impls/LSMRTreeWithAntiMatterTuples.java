@@ -292,4 +292,10 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         return new LSMRTreeMergeOperation(accessor, cursor, mergeFileRefs.getInsertIndexFileReference(), null, null,
                 callback, fileManager.getBaseDir().getAbsolutePath());
     }
+
+    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+            LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
+        
+        return null;
+    }
 }

@@ -26,11 +26,8 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.common.api.IExtendedModificationOperationCallback;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.common.tuples.PermutingTupleReference;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.common.ISearchOperationCallback;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
@@ -46,6 +43,9 @@ public abstract class AbstractLSMIndexOperationContext implements ILSMIndexOpera
     protected final PermutingTupleReference filterTuple;
     protected final List<ILSMComponent> componentHolder;
     protected final List<ILSMDiskComponent> componentsToBeMerged;
+    protected final List<ILSMDiskComponent> componentPickedToBeMergedFromPrevLevel;
+
+
     protected final List<ILSMDiskComponent> componentsToBeReplicated;
     protected final ISearchOperationCallback searchCallback;
     protected final IExtendedModificationOperationCallback modificationCallback;
@@ -59,6 +59,8 @@ public abstract class AbstractLSMIndexOperationContext implements ILSMIndexOpera
     protected boolean recovery = false;
     private LSMIOOperationType ioOpType = LSMIOOperationType.NOOP;
     private ILSMDiskComponent newDiskComponent;
+    private List<ILSMDiskComponent> newDiskComponentsForNextLevel;
+    private IComponentPartitionPolicy partitionPolicy;
 
     public AbstractLSMIndexOperationContext(ILSMIndex index, int[] treeFields, int[] filterFields,
             IBinaryComparatorFactory[] filterCmpFactories, ISearchOperationCallback searchCallback,
@@ -69,6 +71,7 @@ public abstract class AbstractLSMIndexOperationContext implements ILSMIndexOpera
         this.componentHolder = new ArrayList<>();
         this.componentsToBeMerged = new ArrayList<>();
         this.componentsToBeReplicated = new ArrayList<>();
+        this.componentPickedToBeMergedFromPrevLevel = new ArrayList<>();
         if (filterFields != null) {
             indexTuple = new PermutingTupleReference(treeFields);
             filterCmp = MultiComparator.create(filterCmpFactories);
@@ -113,6 +116,7 @@ public abstract class AbstractLSMIndexOperationContext implements ILSMIndexOpera
         componentHolder.clear();
         componentsToBeMerged.clear();
         componentsToBeReplicated.clear();
+        componentPickedToBeMergedFromPrevLevel.clear();
     }
 
     @Override
@@ -138,6 +142,10 @@ public abstract class AbstractLSMIndexOperationContext implements ILSMIndexOpera
     @Override
     public List<ILSMDiskComponent> getComponentsToBeMerged() {
         return componentsToBeMerged;
+    }
+
+    @Override public List<ILSMDiskComponent> getComponentPickedToBeMergedFromPrevLevel() {
+        return componentPickedToBeMergedFromPrevLevel;
     }
 
     @Override
@@ -227,5 +235,21 @@ public abstract class AbstractLSMIndexOperationContext implements ILSMIndexOpera
     @Override
     public void setNewComponent(ILSMDiskComponent component) {
         this.newDiskComponent = component;
+    }
+
+    @Override public List<ILSMDiskComponent> getNewDiskComponentsForNextLevel() {
+        return newDiskComponentsForNextLevel;
+    }
+
+    @Override public void setNewDiskComponentsForNextLevel(List<ILSMDiskComponent> components) {
+        this.newDiskComponentsForNextLevel = components;
+    }
+
+    @Override public void setPartitionPolicy(IComponentPartitionPolicy partitionPolicy) {
+        this.partitionPolicy = partitionPolicy;
+    }
+
+    @Override public IComponentPartitionPolicy getPartitionPolicy() {
+        return partitionPolicy;
     }
 }
