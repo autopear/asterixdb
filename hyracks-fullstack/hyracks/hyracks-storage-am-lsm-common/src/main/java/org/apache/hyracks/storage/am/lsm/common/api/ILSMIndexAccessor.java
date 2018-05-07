@@ -64,6 +64,21 @@ public interface ILSMIndexAccessor extends IIndexAccessor {
             throws HyracksDataException;
 
     /**
+     * Schedule a merge operation
+     *
+     * @param callback
+     *            the merge operation callback
+     * @param mergringComponent
+     *            the component at leve l that are being merged with l+1 components
+     * @param overlappingComponents
+     *            the overlapping components in level l+1 to be merged
+     * @throws HyracksDataException
+     * @throws IndexException
+     */
+    void scheduleLeveledMerge(ILSMIOOperationCallback callback, List<ILSMDiskComponent> overlappingComponents, ILSMDiskComponent mergringComponent)
+            throws HyracksDataException;
+
+    /**
      * Schedule a full merge
      *
      * @param callback

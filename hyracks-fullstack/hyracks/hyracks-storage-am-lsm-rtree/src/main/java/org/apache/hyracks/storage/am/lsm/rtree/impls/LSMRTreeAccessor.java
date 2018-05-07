@@ -22,9 +22,13 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.common.tuples.DualTupleReference;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMHarness;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor;
+
+import java.util.List;
 
 public class LSMRTreeAccessor extends LSMTreeIndexAccessor {
     private final DualTupleReference dualTuple;
@@ -39,6 +43,11 @@ public class LSMRTreeAccessor extends LSMTreeIndexAccessor {
         getCtx().setOperation(IndexOperation.DELETE);
         dualTuple.reset(tuple);
         lsmHarness.modify(getCtx(), false, dualTuple);
+    }
+
+    @Override
+    public void scheduleLeveledMerge(ILSMIOOperationCallback callback, List<ILSMDiskComponent> overlappingComponents, ILSMDiskComponent mergringComponent) throws HyracksDataException {
+
     }
 
     @Override

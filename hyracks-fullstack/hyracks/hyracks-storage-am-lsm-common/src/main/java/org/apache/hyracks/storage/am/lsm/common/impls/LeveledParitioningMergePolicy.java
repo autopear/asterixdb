@@ -20,6 +20,7 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.common.api.*;
 
 import java.util.ArrayList;
@@ -43,7 +44,9 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
     public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
 
         List<List<ILSMDiskComponent>> immutableComponentsInLevels = new ArrayList<>(index.getDiskComponentsInLevels());
-
+        if (!areComponentsReadableWritableState(index.getDiskComponents())) {
+            return;
+        }
         for(int i = 0 ; i < maxLevel-1 ; i++)
         {
             List<ILSMDiskComponent> immutableComponents = immutableComponentsInLevels.get(i);
@@ -66,7 +69,12 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
 //
 //                }
 //                else
-                List<ILSMDiskComponent> newComponentsAfterMerge = partitionPolicy.mergeByPartition(overlappingComponents);
+
+
+                ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+                accessor.scheduleMerge(index.getIOOperationCallback(), overlappingComponents);
+
+                //List<ILSMDiskComponent> newComponentsAfterMerge = partitionPolicy.mergeByPartition(overlappingComponents);
             }
 //            for (ILSMComponent c : immutableComponents) {
 //                try {
