@@ -45,6 +45,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexOperationContext;
+import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
@@ -360,6 +361,11 @@ public class TestLsmBtree extends LSMBTree {
                 callback.after();
             }
         }
+    }
+
+    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+            LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
+        return null;
     }
 
     public void beforeIoOperationCalled() throws HyracksDataException {

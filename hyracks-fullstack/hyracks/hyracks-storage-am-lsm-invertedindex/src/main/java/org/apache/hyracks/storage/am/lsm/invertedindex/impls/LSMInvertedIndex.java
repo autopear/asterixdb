@@ -484,6 +484,11 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         return fileManager.getRelMergeFileReference(firstFileName, lastFileName);
     }
 
+    @Override protected LSMComponentFileReferences[] getLeveledMergeFileReferences(
+            List<ILSMDiskComponent> mergingComponentsFromNextLevel, List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException {
+        return new LSMComponentFileReferences[0];
+    }
+
     @Override
     protected ILSMIOOperation createFlushOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences componentFileRefs, ILSMIOOperationCallback callback)
@@ -501,5 +506,10 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         return new LSMInvertedIndexMergeOperation(accessor, cursor, mergeFileRefs.getInsertIndexFileReference(),
                 mergeFileRefs.getDeleteIndexFileReference(), mergeFileRefs.getBloomFilterFileReference(), callback,
                 fileManager.getBaseDir().getAbsolutePath());
+    }
+
+    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+            LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
+        return null;
     }
 }

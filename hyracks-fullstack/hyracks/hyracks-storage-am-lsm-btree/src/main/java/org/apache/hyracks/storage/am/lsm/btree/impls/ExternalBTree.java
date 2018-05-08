@@ -50,6 +50,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.ITwoPCIndex;
+import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.impls.ExternalIndexHarness;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor;
@@ -106,6 +107,11 @@ public class ExternalBTree extends LSMBTree implements ITwoPCIndex {
     @Override
     public ExternalIndexHarness getHarness() {
         return (ExternalIndexHarness) super.getHarness();
+    }
+
+    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+            LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
+        return null;
     }
 
     // The subsume merged components is overridden to account for:

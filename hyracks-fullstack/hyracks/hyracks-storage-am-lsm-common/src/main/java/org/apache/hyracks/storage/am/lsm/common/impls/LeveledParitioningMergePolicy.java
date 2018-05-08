@@ -73,7 +73,7 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
                 List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel = new ArrayList<>();
                 componentsPickedToMergeFromPrevLevel.add(immutableComponents.get(componentIndexToMerge));
                 ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-                accessor.scheduleLeveledMerge(index.getIOOperationCallback(), overlappingComponentsFromNextLevel, componentsPickedToMergeFromPrevLevel);
+                accessor.scheduleLeveledMerge(index.getIOOperationCallback(), overlappingComponentsFromNextLevel, componentsPickedToMergeFromPrevLevel, partitionPolicy);
 
                 //List<ILSMDiskComponent> newComponentsAfterMerge = partitionPolicy.mergeByPartition(overlappingComponents);
             }

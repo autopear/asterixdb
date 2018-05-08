@@ -467,6 +467,12 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
     }
 
+    @Override protected LSMComponentFileReferences[] getLeveledMergeFileReferences(
+            List<ILSMDiskComponent> mergingComponentsFromNextLevel, List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException {
+        return new LSMComponentFileReferences[0];
+    }
+
+
     @Override
     protected ILSMIOOperation createMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences mergeFileRefs, ILSMIOOperationCallback callback) {
@@ -479,5 +485,10 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         LSMBTreeRangeSearchCursor cursor = new LSMBTreeRangeSearchCursor(opCtx, returnDeletedTuples);
         return new LSMBTreeMergeOperation(accessor, cursor, mergeFileRefs.getInsertIndexFileReference(),
                 mergeFileRefs.getBloomFilterFileReference(), callback, fileManager.getBaseDir().getAbsolutePath());
+    }
+
+    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+            LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
+        return null;
     }
 }

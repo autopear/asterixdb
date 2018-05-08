@@ -636,6 +636,11 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
         return null;
     }
 
+    @Override protected LSMComponentFileReferences[] getLeveledMergeFileReferences(
+            List<ILSMDiskComponent> mergingComponentsFromNextLevel, List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException {
+        return new LSMComponentFileReferences[0];
+    }
+
     @Override
     protected AbstractLSMIndexOperationContext createOpContext(IIndexAccessParameters iap) {
         return null;
@@ -651,6 +656,11 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
     @Override
     protected ILSMIOOperation createMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
+        return null;
+    }
+
+    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+            LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
         return null;
     }
 }

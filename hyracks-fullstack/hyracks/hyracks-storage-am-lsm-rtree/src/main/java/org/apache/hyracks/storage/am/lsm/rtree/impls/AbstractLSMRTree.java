@@ -35,19 +35,10 @@ import org.apache.hyracks.storage.am.common.api.IPageManager;
 import org.apache.hyracks.storage.am.common.api.ITreeIndex;
 import org.apache.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
-import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilterFrameFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexFileManager;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
-import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
+import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.common.freepage.VirtualFreePageManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
+import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
@@ -235,6 +226,11 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
                 linearizerArray, getFilterCmpFactories(), tracer);
     }
 
+    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+            LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
+        return null;
+    }
+
     @Override
     public IBinaryComparatorFactory[] getComparatorFactories() {
         return rtreeCmpFactories;
@@ -254,4 +250,10 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         FileReference lastFile = lastTree.getFileReference();
         return fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
     }
+
+    @Override protected LSMComponentFileReferences[] getLeveledMergeFileReferences(
+            List<ILSMDiskComponent> mergingComponentsFromNextLevel, List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException {
+        return new LSMComponentFileReferences[0];
+    }
+
 }

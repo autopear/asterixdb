@@ -231,6 +231,8 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         IIndexCursor cursor = mergeOp.getCursor();
         ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
         ILSMIndexOperationContext opCtx = ((LSMIndexSearchCursor) cursor).getOpCtx();
+
+        //opCtx.getPartitionPolicy();
         search(opCtx, cursor, rtreeSearchPred);
 
         // Bulk load the tuples from all on-disk RTrees into the new RTree.
@@ -295,7 +297,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
 
     @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
-        
+
         return null;
     }
 }

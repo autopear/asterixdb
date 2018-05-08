@@ -408,10 +408,11 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         ctx.getComponentsToBeMerged().stream().map(ILSMDiskComponent.class::cast).forEach(opCtx.getComponentsToBeMerged()::add);
         ctx.getComponentPickedToBeMergedFromPrevLevel().stream().map(ILSMDiskComponent.class::cast).forEach(opCtx.getComponentPickedToBeMergedFromPrevLevel()::add);
 
-        ILSMDiskComponent firstComponent = (ILSMDiskComponent) allMergingComponents.get(0);
-        ILSMDiskComponent lastComponent = (ILSMDiskComponent) allMergingComponents.get(allMergingComponents.size() - 1);
-        LSMComponentFileReferences mergeFileRefs = getMergeFileReferences(firstComponent, lastComponent);
-        ILSMIOOperation mergeOp = createMergeOperation(opCtx, mergeFileRefs, callback);
+        //ILSMDiskComponent firstComponent = (ILSMDiskComponent) allMergingComponents.get(0);
+        //ILSMDiskComponent lastComponent = (ILSMDiskComponent) allMergingComponents.get(allMergingComponents.size() - 1);
+
+        LSMComponentFileReferences[] mergeFileRefs = getLeveledMergeFileReferences( opCtx.getComponentsToBeMerged(), opCtx.getComponentPickedToBeMergedFromPrevLevel());
+        ILSMIOOperation mergeOp = createLeveledMergeOperation(opCtx, mergeFileRefs, callback);
         ioScheduler.scheduleOperation(TracedIOOperation.wrap(mergeOp, tracer));
     }
 
@@ -831,6 +832,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     protected abstract LSMComponentFileReferences getMergeFileReferences(ILSMDiskComponent firstComponent,
             ILSMDiskComponent lastComponent) throws HyracksDataException;
+
+    protected abstract LSMComponentFileReferences[] getLeveledMergeFileReferences(List<ILSMDiskComponent> mergingComponentsFromNextLevel, List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException;
 
     protected abstract AbstractLSMIndexOperationContext createOpContext(IIndexAccessParameters iap)
             throws HyracksDataException;
