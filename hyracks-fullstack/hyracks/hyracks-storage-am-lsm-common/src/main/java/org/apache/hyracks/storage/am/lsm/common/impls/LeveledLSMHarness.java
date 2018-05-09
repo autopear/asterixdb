@@ -348,7 +348,100 @@ public class LeveledLSMHarness implements ILSMHarness {
             }
         }
     }
+    @CriticalPath
+    private void doExitComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
+            List<ILSMDiskComponent> newComponents, boolean failedOperation) throws HyracksDataException {
+        /*
+         * FLUSH and MERGE operations should always exit the components
+         * to notify waiting threads.
+         */
+        if (!ctx.isAccessingComponents() && opType != LSMOperationType.FLUSH && opType != LSMOperationType.MERGE) {
+            return;
+        }
+        List<ILSMDiskComponent> inactiveDiskComponents;
+        List<ILSMDiskComponent> inactiveDiskComponentsToBeDeleted = null;
+        try {
+            synchronized (opTracker) {
+                try {
+                    /*
+                     * [flow control]
+                     * If merge operations are lagged according to the merge policy,
+                     * flushing in-memory components are hold until the merge operation catches up.
+                     * See PrefixMergePolicy.isMergeLagging() for more details.
+                     */
+                    if (opType == LSMOperationType.FLUSH) {
+                        opTracker.notifyAll();
+                        if (!failedOperation) {
+                            waitForLaggingMerge();
+                        }
+                    } else if (opType == LSMOperationType.MERGE) {
+                        opTracker.notifyAll();
+                    }
+                    exitOperationalComponents(ctx, opType, failedOperation);
+                    ctx.setAccessingComponents(false);
+                    exitLeveledOperation(ctx, newComponents, failedOperation);
+                } catch (Throwable e) { // NOSONAR: Log and re-throw
+                    if (LOGGER.isErrorEnabled()) {
+                        LOGGER.log(Level.ERROR, e.getMessage(), e);
+                    }
+                    throw e;
+                } finally {
+                    if (failedOperation && (opType == LSMOperationType.MODIFICATION
+                            || opType == LSMOperationType.FORCE_MODIFICATION)) {
+                        //When the operation failed, completeOperation() method must be called
+                        //in order to decrement active operation count which was incremented
+                        // in beforeOperation() method.
+                        opTracker.completeOperation(lsmIndex, opType, ctx.getSearchOperationCallback(),
+                                ctx.getModificationCallback());
+                    } else {
+                        opTracker.afterOperation(lsmIndex, opType, ctx.getSearchOperationCallback(),
+                                ctx.getModificationCallback());
+                    }
 
+                    /*
+                     * = Inactive disk components lazy cleanup if any =
+                     * Prepare to cleanup inactive diskComponents which were old merged components
+                     * and not anymore accessed.
+                     * This cleanup is done outside of optracker synchronized block.
+                     */
+                    inactiveDiskComponents = lsmIndex.getInactiveDiskComponents();
+                    if (!inactiveDiskComponents.isEmpty()) {
+                        for (ILSMDiskComponent inactiveComp : inactiveDiskComponents) {
+                            if (inactiveComp.getFileReferenceCount() == 1) {
+                                inactiveDiskComponentsToBeDeleted = inactiveDiskComponentsToBeDeleted == null
+                                        ? new LinkedList<>() : inactiveDiskComponentsToBeDeleted;
+                                inactiveDiskComponentsToBeDeleted.add(inactiveComp);
+                            }
+                        }
+                        if (inactiveDiskComponentsToBeDeleted != null) {
+                            inactiveDiskComponents.removeAll(inactiveDiskComponentsToBeDeleted);
+                        }
+                    }
+                }
+            }
+        } finally {
+            /*
+             * cleanup inactive disk components if any
+             */
+            if (inactiveDiskComponentsToBeDeleted != null) {
+                try {
+                    //schedule a replication job to delete these inactive disk components from replicas
+                    if (replicationEnabled) {
+                        lsmIndex.scheduleReplication(null, inactiveDiskComponentsToBeDeleted, false,
+                                ReplicationOperation.DELETE, opType);
+                    }
+                    for (ILSMDiskComponent c : inactiveDiskComponentsToBeDeleted) {
+                        c.deactivateAndDestroy();
+                    }
+                } catch (Throwable e) { // NOSONAR Log and re-throw
+                    if (LOGGER.isWarnEnabled()) {
+                        LOGGER.log(Level.WARN, "Failure scheduling replication or destroying merged component", e);
+                    }
+                    throw e; // NOSONAR: The last call in the finally clause
+                }
+            }
+        }
+    }
     private void exitOperation(ILSMIndexOperationContext ctx, LSMOperationType opType, ILSMDiskComponent newComponent,
             boolean failedOperation) throws HyracksDataException {
         // Then, perform any action that is needed to be taken based on the operation type.
@@ -380,6 +473,22 @@ public class LeveledLSMHarness implements ILSMHarness {
             default:
                 break;
         }
+    }
+    private void exitLeveledOperation(ILSMIndexOperationContext ctx, List<ILSMDiskComponent> newComponents,
+            boolean failedOperation) throws HyracksDataException {
+
+            // newComponent is null if the merge op. was not performed.
+            if (!failedOperation && newComponents != null) {
+                lsmIndex.subsumeLeveledMergedComponents(newComponents, ctx.getComponentHolder());
+                if (replicationEnabled) {
+                    componentsToBeReplicated.clear();
+                    componentsToBeReplicated.addAll(newComponents);
+                    triggerReplication(componentsToBeReplicated, false, LSMOperationType.MERGE);
+                }
+                mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get());
+            }
+
+
     }
 
     @CriticalPath
@@ -434,7 +543,20 @@ public class LeveledLSMHarness implements ILSMHarness {
             }
         }
     }
-
+    private void exitLeveledComponents(ILSMIndexOperationContext ctx, LSMOperationType opType, List<ILSMDiskComponent> newComponents,
+            boolean failedOperation) throws HyracksDataException {
+        long before = 0L;
+        if (ctx.isTracingEnabled()) {
+            before = System.nanoTime();
+        }
+        try {
+            doExitComponents(ctx, opType, newComponents, failedOperation);
+        } finally {
+            if (ctx.isTracingEnabled()) {
+                ctx.incrementEnterExitTime(System.nanoTime() - before);
+            }
+        }
+    }
     @Override
     public ILSMMergePolicy getMergePolicy() {
         return mergePolicy;
@@ -664,14 +786,17 @@ public class LeveledLSMHarness implements ILSMHarness {
             LOGGER.info("Started a merge operation for index: " + lsmIndex + " ...");
         }
         try {
-            ILSMDiskComponent newComponent = null;
+            List<ILSMDiskComponent> newComponents = null;
             boolean failedOperation = false;
             try {
-                newComponent = lsmIndex.merge(operation);
-                ctx.setNewComponent(newComponent);
+                newComponents = lsmIndex.leveledMerge(operation);
+                ctx.setNewDiskComponentsForNextLevel(newComponents);
                 ctx.setIoOperationType(LSMIOOperationType.MERGE);
                 operation.getCallback().afterOperation(ctx);
-                newComponent.markAsValid(lsmIndex.isDurable());
+                for (ILSMDiskComponent newComponent : newComponents) {
+                    newComponent.markAsValid(lsmIndex.isDurable());
+                }
+
             } catch (Throwable e) { // NOSONAR: Log and re-throw
                 failedOperation = true;
                 if (LOGGER.isErrorEnabled()) {
@@ -679,7 +804,7 @@ public class LeveledLSMHarness implements ILSMHarness {
                 }
                 throw e;
             } finally {
-                exitComponents(ctx, LSMOperationType.MERGE, newComponent, failedOperation);
+                exitLeveledComponents(ctx, LSMOperationType.MERGE, newComponents, failedOperation);
                 operation.getCallback().afterFinalize(ctx);
             }
         } finally {

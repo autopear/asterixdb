@@ -24,12 +24,15 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 
+import java.util.List;
+
 public abstract class AbstractIoOperation implements ILSMIOOperation {
 
     protected final ILSMIndexAccessor accessor;
     protected final FileReference target;
     protected final ILSMIOOperationCallback callback;
     protected final String indexIdentifier;
+    protected final List<FileReference> leveledMergeTargets;
 
     public AbstractIoOperation(ILSMIndexAccessor accessor, FileReference target, ILSMIOOperationCallback callback,
             String indexIdentifier) {
@@ -37,6 +40,16 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
         this.target = target;
         this.callback = callback;
         this.indexIdentifier = indexIdentifier;
+        this.leveledMergeTargets = null;
+    }
+
+    public AbstractIoOperation(ILSMIndexAccessor accessor, List<FileReference> leveledMergeTargets, ILSMIOOperationCallback callback,
+            String indexIdentifier) {
+        this.accessor = accessor;
+        this.target = null;
+        this.callback = callback;
+        this.indexIdentifier = indexIdentifier;
+        this.leveledMergeTargets = leveledMergeTargets;
     }
 
     @Override
@@ -54,9 +67,17 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
         return target;
     }
 
+    @Override public List<FileReference> getLeveledMergeTargets() {
+        return leveledMergeTargets;
+    }
+
     @Override
     public ILSMIndexAccessor getAccessor() {
         return accessor;
+    }
+
+    @Override public List<LSMComponentFileReferences> getLeveledMergeComponentFiles() {
+        return null;
     }
 
     @Override

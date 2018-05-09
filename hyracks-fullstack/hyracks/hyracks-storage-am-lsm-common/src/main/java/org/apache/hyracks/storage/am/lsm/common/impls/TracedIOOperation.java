@@ -31,6 +31,8 @@ import org.apache.hyracks.util.trace.TraceUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.List;
+
 class TracedIOOperation implements ILSMIOOperation {
 
     static final Logger LOGGER = LogManager.getLogger();
@@ -97,6 +99,10 @@ class TracedIOOperation implements ILSMIOOperation {
         }
     }
 
+    @Override public List<FileReference> getLeveledMergeTargets() {
+        return ioOp.getLeveledMergeTargets();
+    }
+
     @Override
     public FileReference getTarget() {
         return ioOp.getTarget();
@@ -110,6 +116,10 @@ class TracedIOOperation implements ILSMIOOperation {
     @Override
     public LSMComponentFileReferences getComponentFiles() {
         return ioOp.getComponentFiles();
+    }
+
+    @Override public List<LSMComponentFileReferences> getLeveledMergeComponentFiles() {
+        return null;
     }
 }
 

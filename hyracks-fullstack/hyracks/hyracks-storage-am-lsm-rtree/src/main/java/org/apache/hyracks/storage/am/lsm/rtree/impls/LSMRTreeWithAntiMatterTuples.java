@@ -265,6 +265,63 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         return component;
     }
 
+    @Override protected List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException {
+        MergeOperation mergeOp = (MergeOperation) operation;
+        IIndexCursor cursor = mergeOp.getCursor();
+        ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
+        ILSMIndexOperationContext opCtx = ((LSMIndexSearchCursor) cursor).getOpCtx();
+
+        List<ITupleReference> mergingTuples = new ArrayList<>();
+        //opCtx.getPartitionPolicy();
+        search(opCtx, cursor, rtreeSearchPred);
+        try {
+            while (cursor.hasNext()) {
+                cursor.next();
+                ITupleReference frameTuple = cursor.getTuple();
+                mergingTuples.add(frameTuple);
+            }
+        } finally {
+            cursor.close();
+        }
+
+        List<ITupleReference> sortedTuples = mergeOp.getAccessor().getOpContext().getPartitionPolicy().mergeByPartition(mergingTuples);
+        int numberOfPartitions = mergeOp.getMergingComponents().size();
+        // Bulk load the tuples from all on-disk RTrees into the new RTree.
+        List<ILSMDiskComponent> components = new ArrayList<>();
+        int iterator = 0;
+        int numberOfTuplesPerComponent = sortedTuples.size()/numberOfPartitions;
+        for(int j=0; j < numberOfPartitions; j++)
+        {
+            ILSMDiskComponent component = createDiskComponent(componentFactory, mergeOp.getLeveledMergeTargets().get(j), null, null, true);
+            component.setLevel(mergeOp.getAccessor().getOpContext().getComponentPickedToBeMergedFromPrevLevel().get(0).getLevel() + 1);
+            ILSMDiskComponentBulkLoader componentBulkLoader =
+                    component.createBulkLoader(LSMIOOperationType.MERGE, 1.0f, false, 0L, false, false, false);
+
+            for(; iterator < sortedTuples.size(); iterator++ )
+            {
+                componentBulkLoader.add(sortedTuples.get(iterator));
+                if((iterator+1)%numberOfTuplesPerComponent ==0 && iterator < sortedTuples.size()-1)
+                    break;
+            }
+            if (component.getLSMComponentFilter() != null) {
+                List<ITupleReference> filterTuples = new ArrayList<>();
+                for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
+                    filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMinTuple());
+                    filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMaxTuple());
+                }
+                getFilterManager().updateFilter(component.getLSMComponentFilter(), filterTuples,
+                        NoOpOperationCallback.INSTANCE);
+                getFilterManager().writeFilter(component.getLSMComponentFilter(), component.getMetadataHolder());
+            }
+
+            components.add(component);
+        }
+
+        //component.setLevel(0);
+
+        return components;
+    }
+
     @Override
     public ILSMIndexAccessor createAccessor(IIndexAccessParameters iap) {
         LSMRTreeOpContext opCtx = createOpContext(iap);

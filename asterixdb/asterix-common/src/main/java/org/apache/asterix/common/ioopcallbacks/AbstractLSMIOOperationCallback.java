@@ -118,12 +118,18 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
     @Override
     public void afterOperation(ILSMIndexOperationContext opCtx) throws HyracksDataException {
         //TODO: Copying Filters and all content of the metadata pages for flush operation should be done here
-        if (opCtx.getNewComponent() == null) {
+        if (opCtx.getNewComponent() == null && opCtx.getNewDiskComponentsForNextLevel()==null) {
             // failed operation. Nothing to do.
             return;
         }
         putLSNIntoMetadata(opCtx.getNewComponent(), opCtx.getComponentsToBeMerged());
-        putLevelIntoMetadata(opCtx.getNewComponent());
+        if (opCtx.getIoOperationType() != LSMIOOperationType.MERGE) {
+            putLevelIntoMetadata(opCtx.getNewComponent());
+        }
+        else
+        {
+            putLevelsIntoMetadata(opCtx.getNewDiskComponentsForNextLevel());
+        }
         putComponentIdIntoMetadata(opCtx.getIoOperationType(), opCtx.getNewComponent(),
                 opCtx.getComponentsToBeMerged());
         componentLsnMap.put(opCtx.getNewComponent().getId(), getComponentLSN(opCtx.getComponentsToBeMerged()));
@@ -177,11 +183,17 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
             throws HyracksDataException {
         newComponent.getMetadata().put(LSN_KEY, LongPointable.FACTORY.createPointable(getComponentLSN(oldComponents)));
     }
+    private void putLevelsIntoMetadata(List<ILSMDiskComponent> newComponents)
+            throws HyracksDataException {
+        for (ILSMDiskComponent newComponent : newComponents) {
+            newComponent.getMetadata().put(AbstractLSMDiskComponent.LEVEL_KEY, LongPointable.FACTORY.createPointable((long)newComponent.getLevel()));
+        }
+    }
+
     private void putLevelIntoMetadata(ILSMDiskComponent newComponent)
             throws HyracksDataException {
         newComponent.getMetadata().put(AbstractLSMDiskComponent.LEVEL_KEY, LongPointable.FACTORY.createPointable((long)newComponent.getLevel()));
     }
-
     public static long getTreeIndexLSN(DiskComponentMetadata md) throws HyracksDataException {
         LongPointable pointable = new LongPointable();
         IMetadataPageManager metadataPageManager = md.getMetadataPageManager();

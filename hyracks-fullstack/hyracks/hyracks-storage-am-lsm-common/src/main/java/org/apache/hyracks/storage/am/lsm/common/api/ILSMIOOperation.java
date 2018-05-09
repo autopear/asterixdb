@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.api;
 
+import java.util.List;
 import java.util.concurrent.Callable;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -64,6 +65,10 @@ public interface ILSMIOOperation extends Callable<Boolean> {
      * @return The target of the io operation
      */
     FileReference getTarget();
+    /**
+     * @return The targets of the leveled io operation
+     */
+    List<FileReference> getLeveledMergeTargets();
 
     /**
      * @return the accessor of the operation
@@ -74,4 +79,9 @@ public interface ILSMIOOperation extends Callable<Boolean> {
      * @return the component files produced by this operation
      */
     LSMComponentFileReferences getComponentFiles();
+
+    /**
+     * @return all the component files produced by this operation
+     */
+    List<LSMComponentFileReferences> getLeveledMergeComponentFiles();
 }

@@ -360,6 +360,10 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
         return mergedComponent;
     }
 
+    @Override protected List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException {
+        return null;
+    }
+
     @Override
     public void getOperationalComponents(ILSMIndexOperationContext ctx) {
         List<ILSMComponent> operationalComponents = ctx.getComponentHolder();

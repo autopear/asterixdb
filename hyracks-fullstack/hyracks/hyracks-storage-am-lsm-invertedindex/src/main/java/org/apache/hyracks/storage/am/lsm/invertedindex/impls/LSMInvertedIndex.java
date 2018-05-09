@@ -412,6 +412,10 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         return component;
     }
 
+    @Override protected List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException {
+        return null;
+    }
+
     private void loadDeleteTuples(ILSMIndexOperationContext opCtx,
             LSMInvertedIndexDeletedKeysBTreeMergeCursor btreeCursor, RangePredicate mergePred,
             ILSMDiskComponentBulkLoader componentBulkLoader) throws HyracksDataException {

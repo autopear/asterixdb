@@ -63,7 +63,7 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
                 componentIndexToMerge = orderPolicy.pickComponentToMerge(immutableComponents);
 
                 List<ILSMDiskComponent> immutableComponentsInNextLevel = immutableComponentsInLevels.get(i+1);
-                List<ILSMDiskComponent> overlappingComponentsFromNextLevel  = findOverlappingComponents(immutableComponents.get(componentIndexToMerge), immutableComponentsInNextLevel);
+                List<ILSMDiskComponent> overlappingComponentsFromNextLevel  = partitionPolicy.findOverlappingComponents(immutableComponents.get(componentIndexToMerge), immutableComponentsInNextLevel);
 //                if(overlappingComponents.size()==0) {
 //                    immutableComponents.get(componentIndexToMerge).setLevel(i + 1);
 //
@@ -77,28 +77,12 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
 
                 //List<ILSMDiskComponent> newComponentsAfterMerge = partitionPolicy.mergeByPartition(overlappingComponents);
             }
-//            for (ILSMComponent c : immutableComponents) {
-//                try {
-//                    List<Double> mbr = ((AbstractLSMDiskComponent)c).GetMBR();
-//                    if(mbr==null)
-//                        return;
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                }
-//
-//            }
 
         }
         //Pair<Integer, Integer> mergeableIndexes = getMergableComponentsIndex(immutableComponents);
 
     }
 
-    public List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent , List<ILSMDiskComponent> immutableComponents)
-    {
-        List<ILSMDiskComponent> overlappingComponents = new ArrayList<>();
-
-        return overlappingComponents;
-    }
     @Override
     public void configure(Map<String, String> properties) {
         // Do nothing

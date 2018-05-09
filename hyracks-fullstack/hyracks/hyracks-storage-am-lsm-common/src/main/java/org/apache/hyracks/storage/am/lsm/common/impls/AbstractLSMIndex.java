@@ -538,6 +538,16 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             throws HyracksDataException {
         int swapIndex = diskComponents.indexOf(mergedComponents.get(0));
         diskComponents.removeAll(mergedComponents);
+        if (newComponent != EmptyComponent.INSTANCE) {
+            diskComponents.add(swapIndex, newComponent);
+        }
+        assert checkComponentIds();
+    }
+
+    @Override public void subsumeLeveledMergedComponents(List<ILSMDiskComponent> newComponents,
+            List<ILSMComponent> mergedComponents) throws HyracksDataException {
+        int swapIndex = diskComponents.indexOf(mergedComponents.get(0));
+        diskComponents.removeAll(mergedComponents);
 
         //Also remove from Leveled index of components
         if(diskComponentsInLevels!=null) {
@@ -546,13 +556,13 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 diskComponentsInLevels.get(level).remove(c);
             }
         }
-
-        if (newComponent != EmptyComponent.INSTANCE) {
-            diskComponents.add(swapIndex, newComponent);
-
-            //Also add the new component to the Leveled index of components
-            if(diskComponentsInLevels!=null)
-                diskComponentsInLevels.get(newComponent.getLevel()).add(newComponent);
+        for (ILSMDiskComponent newComponent : newComponents) {
+            if (newComponent != EmptyComponent.INSTANCE)
+            {
+                int level = newComponent.getLevel();
+                diskComponentsInLevels.get(level).add(newComponent);
+                diskComponents.add(newComponent);
+            }
         }
         assert checkComponentIds();
     }
@@ -813,6 +823,18 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         }
     }
 
+    @Override public List<ILSMDiskComponent> leveledMerge(ILSMIOOperation operation) throws HyracksDataException {
+        ILSMIndexAccessor accessor = operation.getAccessor();
+        ILSMIndexOperationContext opCtx = accessor.getOpContext();
+        try {
+            return opCtx.getOperation() == IndexOperation.MERGE ? doLeveledMerge(operation): null;
+        } catch (Exception e) {
+            LOGGER.error("Fail to execute merge " + this, e);
+            cleanUpLeveledFiles(operation, e);
+            throw HyracksDataException.create(e);
+        }
+    }
+
     protected void cleanUpFiles(ILSMIOOperation operation, Exception e) {
         LSMComponentFileReferences componentFiles = operation.getComponentFiles();
         if (componentFiles == null) {
@@ -829,7 +851,26 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             }
         }
     }
+    protected void cleanUpLeveledFiles(ILSMIOOperation operation, Exception e) {
+        List<LSMComponentFileReferences> leveledComponentFiles = operation.getLeveledMergeComponentFiles();
+        if (leveledComponentFiles == null) {
+            return;
+        }
+        for(int i=0; i < leveledComponentFiles.size(); i++) {
 
+            LSMComponentFileReferences componentFiles = leveledComponentFiles.get(i);
+            FileReference[] files = componentFiles.getFileReferences();
+            for (FileReference file : files) {
+                try {
+                    if (file != null) {
+                        diskBufferCache.deleteFile(file);
+                    }
+                } catch (HyracksDataException hde) {
+                    e.addSuppressed(hde);
+                }
+            }
+        }
+    }
     protected abstract LSMComponentFileReferences getMergeFileReferences(ILSMDiskComponent firstComponent,
             ILSMDiskComponent lastComponent) throws HyracksDataException;
 
@@ -852,4 +893,5 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     protected abstract ILSMDiskComponent doMerge(ILSMIOOperation operation) throws HyracksDataException;
 
+    protected abstract List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException;
 }

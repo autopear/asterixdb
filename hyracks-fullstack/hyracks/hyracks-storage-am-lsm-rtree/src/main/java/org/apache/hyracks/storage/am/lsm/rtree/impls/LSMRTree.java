@@ -311,6 +311,10 @@ public class LSMRTree extends AbstractLSMRTree {
         return mergedComponent;
     }
 
+    @Override protected List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException {
+        return null;
+    }
+
     private ILSMDiskComponentBulkLoader loadMergeBulkLoader(LSMRTreeMergeOperation mergeOp, IIndexCursor cursor,
             ILSMDiskComponent mergedComponent) throws HyracksDataException {
         ILSMDiskComponentBulkLoader componentBulkLoader = null;

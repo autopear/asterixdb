@@ -87,10 +87,16 @@ public interface ILSMIndex extends IIndex {
 
     ILSMDiskComponent merge(ILSMIOOperation operation) throws HyracksDataException;
 
+    List<ILSMDiskComponent> leveledMerge(ILSMIOOperation operation) throws HyracksDataException;
+
     void addDiskComponent(ILSMDiskComponent index) throws HyracksDataException;
 
     void subsumeMergedComponents(ILSMDiskComponent newComponent, List<ILSMComponent> mergedComponents)
             throws HyracksDataException;
+
+    void subsumeLeveledMergedComponents(List<ILSMDiskComponent> newComponents, List<ILSMComponent> mergedComponents)
+            throws HyracksDataException;
+
 
     void changeMutableComponent();
 

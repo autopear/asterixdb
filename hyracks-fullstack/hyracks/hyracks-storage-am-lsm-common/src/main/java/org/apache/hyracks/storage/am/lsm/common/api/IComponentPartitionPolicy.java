@@ -18,11 +18,16 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.api;
 
+import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
+
 import java.util.List;
 
 /**
  * Created by mohiuddin on 4/13/17.
  */
 public interface IComponentPartitionPolicy {
-    List<ILSMDiskComponent> mergeByPartition(List<ILSMDiskComponent> overlappingComponents);
+    List<ITupleReference> mergeByPartition(List<ITupleReference> mergingTuples);
+
+    List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
+            List<ILSMDiskComponent> immutableComponents);
 }

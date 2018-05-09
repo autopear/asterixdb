@@ -35,7 +35,11 @@ public abstract class MergeOperation extends AbstractIoOperation {
         super(accessor, target, callback, indexIdentifier);
         this.cursor = cursor;
     }
-
+    public MergeOperation(ILSMIndexAccessor accessor, List<FileReference> targets, ILSMIOOperationCallback callback,
+            String indexIdentifier, IIndexCursor cursor) {
+        super(accessor, targets, callback, indexIdentifier);
+        this.cursor = cursor;
+    }
     public List<ILSMComponent> getMergingComponents() {
         return accessor.getOpContext().getComponentHolder();
     }

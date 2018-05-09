@@ -36,4 +36,21 @@ public class STRPartitionPolicy implements IComponentPartitionPolicy {
 
         return newComponents;
     }
+    @Override
+    public List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
+            List<ILSMDiskComponent> immutableComponents)
+    {
+        List<ILSMDiskComponent> overlappingComponents = new ArrayList<>();
+        for (ILSMDiskComponent c : immutableComponents) {
+            try {
+                List<Double> mbr = ((AbstractLSMDiskComponent)c).GetMBR();
+                if(mbr==null)
+                    continue;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+        return overlappingComponents;
+    }
 }
