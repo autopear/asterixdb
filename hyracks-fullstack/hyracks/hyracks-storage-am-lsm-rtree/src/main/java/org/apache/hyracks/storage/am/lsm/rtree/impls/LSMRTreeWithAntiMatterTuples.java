@@ -20,6 +20,7 @@
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
@@ -27,10 +28,12 @@ import org.apache.hyracks.api.dataflow.value.ILinearizeComparatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.IIOManager;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
+import org.apache.hyracks.dataflow.common.utils.TupleUtils;
 import org.apache.hyracks.storage.am.btree.impls.BTree.BTreeAccessor;
 import org.apache.hyracks.storage.am.btree.impls.BTreeRangeSearchCursor;
 import org.apache.hyracks.storage.am.btree.impls.RangePredicate;
 import org.apache.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
+import org.apache.hyracks.storage.am.common.api.ITreeIndexTupleReference;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.common.impls.NoOpOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
@@ -50,14 +53,11 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
-import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexOperationContext;
-import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
-import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
-import org.apache.hyracks.storage.am.lsm.common.impls.LSMIndexSearchCursor;
-import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor;
+import org.apache.hyracks.storage.am.lsm.common.impls.*;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor.ICursorFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.MergeOperation;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
+import org.apache.hyracks.storage.am.rtree.frames.RTreeNSMFrame;
+import org.apache.hyracks.storage.am.rtree.impls.DoublePrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.rtree.impls.RTree.RTreeAccessor;
 import org.apache.hyracks.storage.am.rtree.impls.RTreeSearchCursor;
 import org.apache.hyracks.storage.am.rtree.impls.SearchPredicate;
@@ -271,37 +271,45 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
         ILSMIndexOperationContext opCtx = ((LSMIndexSearchCursor) cursor).getOpCtx();
 
-        List<ITupleReference> mergingTuples = new ArrayList<>();
+        HashMap<Point, ITupleReference> mergingTuples = new HashMap<>();
         //opCtx.getPartitionPolicy();
         search(opCtx, cursor, rtreeSearchPred);
+        RTreeNSMFrame rtreeframe = (RTreeNSMFrame)rtreeLeafFrameFactory.createFrame();
         try {
             while (cursor.hasNext()) {
                 cursor.next();
                 ITupleReference frameTuple = cursor.getTuple();
-                mergingTuples.add(frameTuple);
+                List<Double> points  = rtreeframe.getPointsFromTuple((ITreeIndexTupleReference) frameTuple);
+                if(points.size() ==2) {
+                    Point point;
+                    point =new Point(points.get(0), points.get(1));
+                    mergingTuples.put(point, frameTuple);
+                }
+                    //TupleUtils.deserializeTuple(frameTuple, rtreeframe.getKeyValueProviders());
             }
         } finally {
             cursor.close();
         }
-
-        List<ITupleReference> sortedTuples = mergeOp.getAccessor().getOpContext().getPartitionPolicy().mergeByPartition(mergingTuples);
         int numberOfPartitions = mergeOp.getMergingComponents().size();
+        List<List<ITupleReference>> sortedTuples;
+        //List<Rectangle> mbrsOfNewComponents = new ArrayList<>();
+        sortedTuples = mergeOp.getAccessor().getOpContext().getPartitionPolicy().mergeByPartition(mergingTuples, numberOfPartitions);
+
         // Bulk load the tuples from all on-disk RTrees into the new RTree.
         List<ILSMDiskComponent> components = new ArrayList<>();
         int iterator = 0;
-        int numberOfTuplesPerComponent = sortedTuples.size()/numberOfPartitions;
+        //int numberOfTuplesPerComponent = sortedTuples.size()/numberOfPartitions;
         for(int j=0; j < numberOfPartitions; j++)
         {
             ILSMDiskComponent component = createDiskComponent(componentFactory, mergeOp.getLeveledMergeTargets().get(j), null, null, true);
             component.setLevel(mergeOp.getAccessor().getOpContext().getComponentPickedToBeMergedFromPrevLevel().get(0).getLevel() + 1);
+
             ILSMDiskComponentBulkLoader componentBulkLoader =
                     component.createBulkLoader(LSMIOOperationType.MERGE, 1.0f, false, 0L, false, false, false);
 
-            for(; iterator < sortedTuples.size(); iterator++ )
+            for(iterator = 0 ; iterator < sortedTuples.get(j).size(); iterator++ )
             {
-                componentBulkLoader.add(sortedTuples.get(iterator));
-                if((iterator+1)%numberOfTuplesPerComponent ==0 && iterator < sortedTuples.size()-1)
-                    break;
+                componentBulkLoader.add(sortedTuples.get(j).get(iterator));
             }
             if (component.getLSMComponentFilter() != null) {
                 List<ITupleReference> filterTuples = new ArrayList<>();
@@ -312,6 +320,12 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                 getFilterManager().updateFilter(component.getLSMComponentFilter(), filterTuples,
                         NoOpOperationCallback.INSTANCE);
                 getFilterManager().writeFilter(component.getLSMComponentFilter(), component.getMetadataHolder());
+            }
+            try {
+                Rectangle newComponentMBR = new Rectangle(((AbstractLSMDiskComponent)component).GetMBR());
+                rangesOflevelsAsMBRorLine.get(component.getLevel()).adjustMBR(newComponentMBR);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
 
             components.add(component);

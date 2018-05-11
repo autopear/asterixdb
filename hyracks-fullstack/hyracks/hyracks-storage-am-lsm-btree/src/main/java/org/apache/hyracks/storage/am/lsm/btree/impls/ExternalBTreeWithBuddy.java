@@ -364,6 +364,10 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
         return null;
     }
 
+    @Override protected void computeRangesOfLevel(int level) throws HyracksDataException {
+
+    }
+
     @Override
     public void getOperationalComponents(ILSMIndexOperationContext ctx) {
         List<ILSMComponent> operationalComponents = ctx.getComponentHolder();

@@ -72,6 +72,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     //Specialized level based organization of components for LeveledPartitionMergePolicy
     protected final List<List<ILSMDiskComponent>> diskComponentsInLevels;
+
     //protected final List<ILSMDiskComponent> inactiveDiskComponents;
 
     protected final double bloomFilterFalsePositiveRate;
@@ -89,6 +90,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     protected final ILSMDiskComponentFactory componentFactory;
     // Factory for creating on-disk index components during bulkload.
     protected final ILSMDiskComponentFactory bulkLoadComponentFactory;
+    //Whole ranges MBRs of different levels in the index
+    protected final List<Rectangle> rangesOflevelsAsMBRorLine;
 
     public AbstractLSMIndex(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,
             IBufferCache diskBufferCache, ILSMIndexFileManager fileManager, double bloomFilterFalsePositiveRate,
@@ -130,15 +133,19 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
             lsmHarness = new LeveledLSMHarness(this, mergePolicy, opTracker, diskBufferCache.isReplicationEnabled(), tracer);
             int l = ((LeveledParitioningMergePolicy) mergePolicy).getMaxLevel();
-
-            for (int i = 0; i < l; i++) {
+            rangesOflevelsAsMBRorLine = new ArrayList<>();
+            for (int i = 0; i <= l; i++) {
                 diskComponentsInLevels.add(new ArrayList<>());
+                rangesOflevelsAsMBRorLine.add(new Rectangle());
             }
+
+
         }
         else
         {
             lsmHarness = new LSMHarness(this, mergePolicy, opTracker, diskBufferCache.isReplicationEnabled(), tracer);
             diskComponentsInLevels = null;
+            rangesOflevelsAsMBRorLine = null;
         }
     }
 
@@ -174,7 +181,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         filterFields = null;
 
         diskComponentsInLevels = null; //new LinkedList<>();
-
+        rangesOflevelsAsMBRorLine = null;
         //To Do. Add diskComponentsInLevels code for external indexes
 //        if (lsmHarness.getMergePolicy().getClass().equals(LeveledParitioningMergePolicy.class)) {
 //            int l = ((LeveledParitioningMergePolicy) lsmHarness.getMergePolicy()).getMaxLevel();
@@ -194,6 +201,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             for (int i = 0; i < l; i++) {
                 diskComponentsInLevels.get(i).clear();
             }
+
+            //rangesOflevelsAsMBRorLine.clear();
         }
     }
     @Override
@@ -232,7 +241,17 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 int level = component.getLevel();
                 diskComponentsInLevels.get(level).add(component);
             }
+
+            for(int i=1; i<rangesOflevelsAsMBRorLine.size();i++)
+            {
+                computeRangesOfLevel(i);
+            }
         }
+    }
+
+    @Override
+    public List<Rectangle> getRangesOflevelsAsMBRorLine() {
+        return rangesOflevelsAsMBRorLine;
     }
 
     @Override
@@ -894,4 +913,6 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     protected abstract ILSMDiskComponent doMerge(ILSMIOOperation operation) throws HyracksDataException;
 
     protected abstract List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException;
+
+    protected abstract void computeRangesOfLevel(int level) throws HyracksDataException;
 }

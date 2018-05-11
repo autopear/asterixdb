@@ -26,6 +26,7 @@ import org.apache.hyracks.api.replication.IReplicationJob.ReplicationOperation;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.common.api.IIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMHarness;
+import org.apache.hyracks.storage.am.lsm.common.impls.Rectangle;
 import org.apache.hyracks.storage.common.IIndex;
 import org.apache.hyracks.storage.common.IIndexAccessParameters;
 import org.apache.hyracks.storage.common.IIndexCursor;
@@ -40,6 +41,8 @@ import org.apache.hyracks.storage.common.ISearchPredicate;
  * concurrent searches/updates/merges may be ongoing.
  */
 public interface ILSMIndex extends IIndex {
+
+    List<Rectangle> getRangesOflevelsAsMBRorLine();
 
     void deactivate(boolean flush) throws HyracksDataException;
 

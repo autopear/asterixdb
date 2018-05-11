@@ -19,15 +19,21 @@
 package org.apache.hyracks.storage.am.lsm.common.api;
 
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
+import org.apache.hyracks.storage.am.lsm.common.impls.Point;
+import org.apache.hyracks.storage.am.lsm.common.impls.Rectangle;
 
+import java.util.HashMap;
 import java.util.List;
 
 /**
  * Created by mohiuddin on 4/13/17.
  */
 public interface IComponentPartitionPolicy {
-    List<ITupleReference> mergeByPartition(List<ITupleReference> mergingTuples);
+    List<List<ITupleReference>> mergeByPartition(HashMap<Point, ITupleReference> mergingTuples, int numberOfPartitions);
 
     List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
             List<ILSMDiskComponent> immutableComponents);
+
+    Rectangle computeMBROfALevel(List<ILSMDiskComponent> immutableComponents );
+    void adjustMBROfALevel(Rectangle mbr, Rectangle newMBR);
 }

@@ -144,6 +144,17 @@ public abstract class RTreeNSMFrame extends TreeIndexNSMFrame implements IRTreeF
         }
     }
 
+    public List<Double> getPointsFromTuple(ITreeIndexTupleReference tuple) {
+        List<Double> mbrOrPoints = new ArrayList<>();
+        int size = Math.min(tuple.getFieldCount(), keyValueProviders.length);
+        for (int i = 0; i < size; i++) {
+            double valA = keyValueProviders[i].getValue(tuple.getFieldData(i), tuple.getFieldStart(i));
+            mbrOrPoints.add(valA);
+        }
+
+        return mbrOrPoints;
+    }
+
     public List<Double> getMBRinDoubles() {
         List<Double> mbr = new ArrayList<>();
         for (int i = 0; i < keyValueProviders.length; i++) {

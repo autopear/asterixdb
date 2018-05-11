@@ -83,6 +83,11 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
 
     }
 
+    public IComponentPartitionPolicy getPartitionPolicy()
+    {
+        return partitionPolicy;
+    }
+
     @Override
     public void configure(Map<String, String> properties) {
         // Do nothing

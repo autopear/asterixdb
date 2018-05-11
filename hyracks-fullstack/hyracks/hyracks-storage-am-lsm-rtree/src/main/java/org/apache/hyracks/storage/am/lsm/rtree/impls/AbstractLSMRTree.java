@@ -19,6 +19,7 @@
 
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
@@ -37,10 +38,7 @@ import org.apache.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.common.freepage.VirtualFreePageManager;
-import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
-import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexOperationContext;
-import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
-import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
+import org.apache.hyracks.storage.am.lsm.common.impls.*;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
 import org.apache.hyracks.storage.am.rtree.impls.RTree;
 import org.apache.hyracks.storage.common.IIndexAccessParameters;
@@ -105,8 +103,8 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         this.comparatorFields = comparatorFields;
         this.linearizerArray = linearizerArray;
         this.isPointMBR = isPointMBR;
-    }
 
+    }
     /*
      * For External indexes with no memory components
      */
@@ -229,6 +227,11 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
     @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
         return null;
+    }
+
+    @Override protected void computeRangesOfLevel(int level) throws HyracksDataException {
+        Rectangle mbr = ((LeveledParitioningMergePolicy)lsmHarness.getMergePolicy()).getPartitionPolicy().computeMBROfALevel(diskComponentsInLevels.get(level));
+        rangesOflevelsAsMBRorLine.get(level).set(mbr);
     }
 
     @Override

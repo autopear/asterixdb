@@ -16,6 +16,25 @@ public class Point {
         this.x = 0;
         this.y = 0;
     }
+
+    public boolean equals(Object obj) {
+        if (obj == null)
+            return false;
+        Point r2 = (Point) obj;
+        return this.x == r2.x && this.y == r2.y;
+    }
+    public int compareTo(Point o) {
+        if (x < o.x)
+            return -1;
+        if (x > o.x)
+            return 1;
+        if (y < o.y)
+            return -1;
+        if (y > o.y)
+            return 1;
+        return 0;
+    }
+
     public double getX(){return x;}
     public double getY(){return y;}
     public void getY(double y){this.y = y;}

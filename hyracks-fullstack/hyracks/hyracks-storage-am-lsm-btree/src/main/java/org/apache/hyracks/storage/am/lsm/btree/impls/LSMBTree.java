@@ -380,6 +380,10 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return null;
     }
 
+    @Override protected void computeRangesOfLevel(int level) throws HyracksDataException {
+
+    }
+
     private long getNumberOfElements(List<ILSMComponent> mergedComponents) throws HyracksDataException {
         long numElements = 0L;
         if (hasBloomFilter) {
