@@ -47,7 +47,7 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
         if (!areComponentsReadableWritableState(index.getDiskComponents())) {
             return;
         }
-        for(int i = 0 ; i < maxLevel-1 ; i++)
+        for(int i = 0 ; i < maxLevel ; i++)
         {
             List<ILSMDiskComponent> immutableComponents = immutableComponentsInLevels.get(i);
             double maxComponentCountInALevel = 0;
@@ -60,7 +60,10 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
 
             int componentIndexToMerge = 0;
             if(immutableComponents.size() >= maxComponentCountInALevel) {
-                componentIndexToMerge = orderPolicy.pickComponentToMerge(immutableComponents);
+                try {
+                    if(i>0)
+                        componentIndexToMerge = orderPolicy.pickComponentToMerge(immutableComponents, index.getRangesOflevelsAsMBRorLine().get(i));
+
 
                 List<ILSMDiskComponent> immutableComponentsInNextLevel = immutableComponentsInLevels.get(i+1);
                 List<ILSMDiskComponent> overlappingComponentsFromNextLevel  = partitionPolicy.findOverlappingComponents(immutableComponents.get(componentIndexToMerge), immutableComponentsInNextLevel);
@@ -69,12 +72,13 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
 //
 //                }
 //                else
-
                 List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel = new ArrayList<>();
                 componentsPickedToMergeFromPrevLevel.add(immutableComponents.get(componentIndexToMerge));
                 ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
                 accessor.scheduleLeveledMerge(index.getIOOperationCallback(), overlappingComponentsFromNextLevel, componentsPickedToMergeFromPrevLevel, partitionPolicy);
-
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 //List<ILSMDiskComponent> newComponentsAfterMerge = partitionPolicy.mergeByPartition(overlappingComponents);
             }
 

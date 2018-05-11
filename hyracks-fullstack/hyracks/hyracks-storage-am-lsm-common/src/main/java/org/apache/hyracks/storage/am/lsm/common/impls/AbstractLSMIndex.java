@@ -198,7 +198,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         {
             int l = ((LeveledParitioningMergePolicy) lsmHarness.getMergePolicy()).getMaxLevel();
 
-            for (int i = 0; i < l; i++) {
+            for (int i = 0; i <= l; i++) {
                 diskComponentsInLevels.get(i).clear();
             }
 

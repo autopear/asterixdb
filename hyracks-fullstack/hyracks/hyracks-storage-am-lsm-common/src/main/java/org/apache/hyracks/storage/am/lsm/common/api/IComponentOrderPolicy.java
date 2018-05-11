@@ -18,6 +18,8 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.api;
 
+import org.apache.hyracks.storage.am.lsm.common.impls.Rectangle;
+
 import java.util.List;
 
 /**
@@ -27,5 +29,5 @@ import java.util.List;
 This Policy will maintain an order of an component based on some attributes
  */
 public interface IComponentOrderPolicy {
-    int pickComponentToMerge(List<ILSMDiskComponent> immutableDiskComponents);
+    int pickComponentToMerge(List<ILSMDiskComponent> immutableDiskComponents, Rectangle mbrOfThisLevel) throws Exception;
 }

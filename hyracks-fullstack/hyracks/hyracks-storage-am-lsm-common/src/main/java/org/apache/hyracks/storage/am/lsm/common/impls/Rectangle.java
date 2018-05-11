@@ -88,4 +88,12 @@ public class Rectangle {
             if (r.y2 > this.y2)
                 this.y2 = r.y2;
         }
+
+        public double getHeight() {
+            return y2 - y1;
+        }
+
+        public double getWidth() {
+            return x2 - x1;
+        }
     }
