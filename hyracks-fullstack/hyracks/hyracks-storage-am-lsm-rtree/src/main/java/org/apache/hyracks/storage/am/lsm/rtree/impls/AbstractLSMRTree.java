@@ -256,7 +256,12 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
 
     @Override protected LSMComponentFileReferences[] getLeveledMergeFileReferences(
             List<ILSMDiskComponent> mergingComponentsFromNextLevel, List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException {
-        return new LSMComponentFileReferences[0];
+        int numberOfNewComponents = mergingComponentsFromNextLevel.size() + mergingComponentsFromprevLevel.size();
+        LSMComponentFileReferences[] fileReferences = new LSMComponentFileReferences[numberOfNewComponents];
+        for(int i = 0 ;i < numberOfNewComponents; i++) {
+            fileReferences[i] = fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
+        }
+        return fileReferences;
     }
 
 }

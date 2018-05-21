@@ -23,6 +23,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.MergeOperation;
+import org.apache.hyracks.storage.am.lsm.common.impls.Rectangle;
 import org.apache.hyracks.storage.common.IIndexCursor;
 
 import java.util.ArrayList;
@@ -35,6 +36,8 @@ public class LSMRTreeMergeOperation extends MergeOperation {
     private final List<FileReference> btreeMergeTargets;
     private final List<FileReference> bloomFilterMergeTargets;
 
+    private final Rectangle newMBR;
+
     public LSMRTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, FileReference target,
             FileReference btreeMergeTarget, FileReference bloomFilterMergeTarget, ILSMIOOperationCallback callback,
             String indexIdentifier) {
@@ -44,17 +47,19 @@ public class LSMRTreeMergeOperation extends MergeOperation {
 
         this.btreeMergeTargets = null;
         this.bloomFilterMergeTargets = null;
+        newMBR = null;
     }
 
     public LSMRTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, List<FileReference> targets,
             List<FileReference> btreeMergeTargets,  List<FileReference> bloomFilterMergeTargets, ILSMIOOperationCallback callback,
-            String indexIdentifier) {
+            String indexIdentifier, Rectangle newMBR) {
         super(accessor, targets, callback, indexIdentifier, cursor);
         this.btreeMergeTargets = btreeMergeTargets;
         this.bloomFilterMergeTargets = bloomFilterMergeTargets;
 
         this.btreeMergeTarget = null;
         this.bloomFilterMergeTarget = null;
+        this.newMBR = newMBR;
     }
 
 

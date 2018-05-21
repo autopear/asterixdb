@@ -34,6 +34,9 @@ public interface IComponentPartitionPolicy {
     List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
             List<ILSMDiskComponent> immutableComponents);
 
+    List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
+            List<ILSMDiskComponent> immutableComponents, Rectangle newMBR);
+
     Rectangle computeMBROfALevel(List<ILSMDiskComponent> immutableComponents );
     void adjustMBROfALevel(Rectangle mbr, Rectangle newMBR);
 }
