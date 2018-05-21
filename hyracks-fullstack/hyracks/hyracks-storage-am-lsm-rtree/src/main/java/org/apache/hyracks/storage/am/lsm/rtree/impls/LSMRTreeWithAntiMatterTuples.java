@@ -26,6 +26,7 @@ import java.util.List;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.ILinearizeComparatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.io.IIOManager;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.dataflow.common.utils.TupleUtils;
@@ -36,23 +37,8 @@ import org.apache.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
 import org.apache.hyracks.storage.am.common.api.ITreeIndexTupleReference;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.common.impls.NoOpOperationCallback;
-import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilterFrameFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentBulkLoader;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
+import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexFileManager;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
-import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.impls.*;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor.ICursorFactory;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
@@ -303,7 +289,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         {
             ILSMDiskComponent component = createDiskComponent(componentFactory, mergeOp.getLeveledMergeTargets().get(j), null, null, true);
             component.setLevel(mergeOp.getAccessor().getOpContext().getComponentPickedToBeMergedFromPrevLevel().get(0).getLevel() + 1);
-
+            //ILSMComponentId id  = new LSMComponentId();
             ILSMDiskComponentBulkLoader componentBulkLoader =
                     component.createBulkLoader(LSMIOOperationType.MERGE, 1.0f, false, 0L, false, false, false);
 
@@ -368,10 +354,25 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
 
     @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
+        boolean returnDeletedTuples = false;
+        List<ILSMComponent> mergingComponents = opCtx.getComponentHolder();
+//        if (mergingComponents.get(mergingComponents.size() - 1) != diskComponents.get(diskComponents.size() - 1)) {
+//            returnDeletedTuples = true;
+//        }
+        LSMRTreeWithAntiMatterTuplesSearchCursor cursor =
+                new LSMRTreeWithAntiMatterTuplesSearchCursor(opCtx, returnDeletedTuples);
+        ILSMIndexAccessor accessor = new LSMTreeIndexAccessor(getHarness(), opCtx, cursorFactory);
+        List<FileReference> indexfilerefs = new ArrayList<>();
+        for(int i =0; i<mergeFileRefs.length; i++)
+        {
+            indexfilerefs.add(mergeFileRefs[i].getInsertIndexFileReference());
+        }
 
+        return new LSMRTreeMergeOperation(accessor, cursor, indexfilerefs, null, null,
+                callback, fileManager.getBaseDir().getAbsolutePath());
         //return new LSMRTreeMergeOperation(accessor, cursor, mergeFileRefs.getInsertIndexFileReference(), null, null,
           //      callback, fileManager.getBaseDir().getAbsolutePath());
-        return null;
+
 
     }
 }

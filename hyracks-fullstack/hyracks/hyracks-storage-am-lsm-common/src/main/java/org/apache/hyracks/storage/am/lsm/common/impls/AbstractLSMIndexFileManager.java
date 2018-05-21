@@ -214,6 +214,16 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
                 baseDir.getChild(firstTimestampRange[0] + DELIMITER + lastTimestampRange[1]), null, null);
     }
 
+
+    @Override
+    public LSMComponentFileReferences getRelLeveledMergeFileReference()
+            throws HyracksDataException {
+        // Begin timestamp and end timestamp are identical
+        String ts = getCurrentTimestamp();
+        return new LSMComponentFileReferences(baseDir.getChild(ts + DELIMITER + ts), null, null);
+    }
+
+
     @Override
     public List<LSMComponentFileReferences> cleanupAndGetValidFiles() throws HyracksDataException {
         List<LSMComponentFileReferences> validFiles = new ArrayList<>();

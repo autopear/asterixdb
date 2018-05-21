@@ -36,7 +36,7 @@ public class LSMRTreeMergeOperation extends MergeOperation {
     private final List<FileReference> btreeMergeTargets;
     private final List<FileReference> bloomFilterMergeTargets;
 
-    private final Rectangle newMBR;
+    //private final Rectangle newMBR;
 
     public LSMRTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, FileReference target,
             FileReference btreeMergeTarget, FileReference bloomFilterMergeTarget, ILSMIOOperationCallback callback,
@@ -47,19 +47,19 @@ public class LSMRTreeMergeOperation extends MergeOperation {
 
         this.btreeMergeTargets = null;
         this.bloomFilterMergeTargets = null;
-        newMBR = null;
+        //newMBR = null;
     }
 
     public LSMRTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, List<FileReference> targets,
             List<FileReference> btreeMergeTargets,  List<FileReference> bloomFilterMergeTargets, ILSMIOOperationCallback callback,
-            String indexIdentifier, Rectangle newMBR) {
+            String indexIdentifier) {
         super(accessor, targets, callback, indexIdentifier, cursor);
         this.btreeMergeTargets = btreeMergeTargets;
         this.bloomFilterMergeTargets = bloomFilterMergeTargets;
 
         this.btreeMergeTarget = null;
         this.bloomFilterMergeTarget = null;
-        this.newMBR = newMBR;
+        //this.newMBR = newMBR;
     }
 
 

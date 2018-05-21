@@ -122,7 +122,18 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
             // failed operation. Nothing to do.
             return;
         }
-        putLSNIntoMetadata(opCtx.getNewComponent(), opCtx.getComponentsToBeMerged());
+        if(opCtx.getNewComponent() == null && opCtx.getNewDiskComponentsForNextLevel()!=null)
+        {
+            putLSNsIntoMetadata(opCtx.getNewDiskComponentsForNextLevel(), opCtx.getComponentsToBeMerged());
+
+        }
+        else if(opCtx.getNewComponent() != null && opCtx.getNewDiskComponentsForNextLevel()==null) {
+            putLSNIntoMetadata(opCtx.getNewComponent(), opCtx.getComponentsToBeMerged());
+            putComponentIdIntoMetadata(opCtx.getIoOperationType(), opCtx.getNewComponent(),
+                    opCtx.getComponentsToBeMerged());
+        }
+
+  //      putLSNIntoMetadata(opCtx.getNewComponent(), opCtx.getComponentsToBeMerged());
         if (opCtx.getIoOperationType() != LSMIOOperationType.MERGE) {
             putLevelIntoMetadata(opCtx.getNewComponent());
         }
@@ -130,8 +141,7 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
         {
             putLevelsIntoMetadata(opCtx.getNewDiskComponentsForNextLevel());
         }
-        putComponentIdIntoMetadata(opCtx.getIoOperationType(), opCtx.getNewComponent(),
-                opCtx.getComponentsToBeMerged());
+
         componentLsnMap.put(opCtx.getNewComponent().getId(), getComponentLSN(opCtx.getComponentsToBeMerged()));
         if (opCtx.getIoOperationType() == LSMIOOperationType.MERGE) {
             if (opCtx.getComponentsToBeMerged().isEmpty()) {
@@ -183,8 +193,17 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
             throws HyracksDataException {
         newComponent.getMetadata().put(LSN_KEY, LongPointable.FACTORY.createPointable(getComponentLSN(oldComponents)));
     }
+    private void putLSNsIntoMetadata(List<ILSMDiskComponent> newComponents, List<? extends ILSMComponent> oldComponents)
+            throws HyracksDataException {
+        long MaxLSN = getComponentLSN(oldComponents);
+        for (ILSMDiskComponent newComponent : newComponents) {
+            newComponent.getMetadata().put(LSN_KEY, LongPointable.FACTORY.createPointable(MaxLSN));
+        }
+    }
     private void putLevelsIntoMetadata(List<ILSMDiskComponent> newComponents)
             throws HyracksDataException {
+        if(newComponents==null)
+            return;
         for (ILSMDiskComponent newComponent : newComponents) {
             newComponent.getMetadata().put(AbstractLSMDiskComponent.LEVEL_KEY, LongPointable.FACTORY.createPointable((long)newComponent.getLevel()));
         }
@@ -219,6 +238,18 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
             LSMComponentIdUtils.persist(componentId, newComponent.getMetadata());
         }
     }
+    private void putComponentIdsIntoMetadata(LSMIOOperationType opType, List<ILSMDiskComponent> newComponents,
+            List<? extends ILSMComponent> oldComponents) throws HyracksDataException {
+
+        // the id of flushed component is set when we copy the metadata of the memory component
+        for (ILSMDiskComponent newComponent : newComponents) {
+            if (opType == LSMIOOperationType.MERGE) {
+                ILSMComponentId componentId = newComponent;
+                LSMComponentIdUtils.persist(componentId, newComponent.getMetadata());
+            }
+        }
+    }
+
 
     public synchronized void updateLastLSN(long lastLSN) {
         if (!flushRequested[writeIndex]) {

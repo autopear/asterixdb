@@ -259,7 +259,7 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         int numberOfNewComponents = mergingComponentsFromNextLevel.size() + mergingComponentsFromprevLevel.size();
         LSMComponentFileReferences[] fileReferences = new LSMComponentFileReferences[numberOfNewComponents];
         for(int i = 0 ;i < numberOfNewComponents; i++) {
-            fileReferences[i] = fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
+            fileReferences[i] = fileManager.getRelLeveledMergeFileReference();
         }
         return fileReferences;
     }
