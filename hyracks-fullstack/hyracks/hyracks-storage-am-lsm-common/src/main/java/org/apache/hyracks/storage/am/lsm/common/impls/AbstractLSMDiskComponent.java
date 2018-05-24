@@ -64,7 +64,10 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         level = l;
     }
     public abstract List<Double> GetMBR () throws Exception;
-
+    public void SetId (ILSMComponentId componentId) throws Exception
+    {
+        this.componentId = componentId;
+    }
     @Override
     public boolean threadEnter(LSMOperationType opType, boolean isMutableComponent) {
         if (state == ComponentState.INACTIVE) {

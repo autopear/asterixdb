@@ -219,8 +219,11 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     public LSMComponentFileReferences getRelLeveledMergeFileReference()
             throws HyracksDataException {
         // Begin timestamp and end timestamp are identical
-        String ts = getCurrentTimestamp();
-        return new LSMComponentFileReferences(baseDir.getChild(ts + DELIMITER + ts), null, null);
+        Long tsL = 0L;
+        String ts = getCurrentTimestamp(tsL);
+        FileReference child = baseDir.getChild(ts + DELIMITER + ts);
+        child.setTimeStamp(tsL);
+        return new LSMComponentFileReferences(child, null, null);
     }
 
 
@@ -415,6 +418,27 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
             try {
                 Thread.sleep(1);
                 date = new Date();
+                ts = formatter.format(date);
+            } catch (InterruptedException e) {
+                //ignore
+            }
+        }
+        prevTimestamp = ts;
+        return ts;
+    }
+
+    protected String getCurrentTimestamp(Long tsL) {
+        Date date = new Date();
+        tsL = date.getTime();
+        String ts = formatter.format(date);
+        /**
+         * prevent a corner case where the same timestamp can be given.
+         */
+        while (prevTimestamp != null && ts.compareTo(prevTimestamp) == 0) {
+            try {
+                Thread.sleep(1);
+                date = new Date();
+                tsL = date.getTime();
                 ts = formatter.format(date);
             } catch (InterruptedException e) {
                 //ignore

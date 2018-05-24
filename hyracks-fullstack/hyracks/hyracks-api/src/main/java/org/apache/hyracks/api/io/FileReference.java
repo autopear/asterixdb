@@ -31,13 +31,24 @@ public final class FileReference implements Serializable {
     private final File file;
     private final IODeviceHandle dev;
     private final String path;
+    private Long timeStamp;
 
     public FileReference(IODeviceHandle dev, String path) {
         file = new File(dev.getMount(), path);
         this.dev = dev;
         this.path = path;
+        timeStamp = 0L;
     }
 
+
+    public Long getTimeStamp()
+    {
+        return timeStamp;
+    }
+    public void setTimeStamp(Long tsL)
+    {
+        this.timeStamp = tsL;
+    }
     public File getFile() {
         return file;
     }

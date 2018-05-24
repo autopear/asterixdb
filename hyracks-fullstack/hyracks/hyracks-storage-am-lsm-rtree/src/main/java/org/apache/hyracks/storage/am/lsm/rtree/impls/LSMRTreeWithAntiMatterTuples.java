@@ -288,6 +288,14 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         for(int j=0; j < numberOfPartitions; j++)
         {
             ILSMDiskComponent component = createDiskComponent(componentFactory, mergeOp.getLeveledMergeTargets().get(j), null, null, true);
+            Long tsL = mergeOp.getLeveledMergeTargets().get(j).getTimeStamp();
+            ILSMComponentId componentId = new LSMComponentId(tsL, tsL);
+
+            try {
+                ((AbstractLSMDiskComponent)component).SetId(componentId);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             component.setLevel(mergeOp.getAccessor().getOpContext().getComponentPickedToBeMergedFromPrevLevel().get(0).getLevel() + 1);
             //ILSMComponentId id  = new LSMComponentId();
             ILSMDiskComponentBulkLoader componentBulkLoader =

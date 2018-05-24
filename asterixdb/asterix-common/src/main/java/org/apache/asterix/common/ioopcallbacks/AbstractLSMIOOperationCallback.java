@@ -125,7 +125,8 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
         if(opCtx.getNewComponent() == null && opCtx.getNewDiskComponentsForNextLevel()!=null)
         {
             putLSNsIntoMetadata(opCtx.getNewDiskComponentsForNextLevel(), opCtx.getComponentsToBeMerged());
-
+            putComponentIdsIntoMetadata(opCtx.getIoOperationType(), opCtx.getNewDiskComponentsForNextLevel(),
+                    opCtx.getComponentsToBeMerged());
         }
         else if(opCtx.getNewComponent() != null && opCtx.getNewDiskComponentsForNextLevel()==null) {
             putLSNIntoMetadata(opCtx.getNewComponent(), opCtx.getComponentsToBeMerged());
@@ -141,9 +142,10 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
         {
             putLevelsIntoMetadata(opCtx.getNewDiskComponentsForNextLevel());
         }
+        if (opCtx.getNewComponent() != null)
+            componentLsnMap.put(opCtx.getNewComponent().getId(), getComponentLSN(opCtx.getComponentsToBeMerged()));
 
-        componentLsnMap.put(opCtx.getNewComponent().getId(), getComponentLSN(opCtx.getComponentsToBeMerged()));
-        if (opCtx.getIoOperationType() == LSMIOOperationType.MERGE) {
+        if (opCtx.getIoOperationType() == LSMIOOperationType.MERGE &&  opCtx.getNewComponent() != null) {
             if (opCtx.getComponentsToBeMerged().isEmpty()) {
                 throw new IllegalStateException("Merge must have old components");
             }
@@ -244,7 +246,7 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
         // the id of flushed component is set when we copy the metadata of the memory component
         for (ILSMDiskComponent newComponent : newComponents) {
             if (opType == LSMIOOperationType.MERGE) {
-                ILSMComponentId componentId = newComponent;
+                ILSMComponentId componentId = newComponent.getId();
                 LSMComponentIdUtils.persist(componentId, newComponent.getMetadata());
             }
         }
