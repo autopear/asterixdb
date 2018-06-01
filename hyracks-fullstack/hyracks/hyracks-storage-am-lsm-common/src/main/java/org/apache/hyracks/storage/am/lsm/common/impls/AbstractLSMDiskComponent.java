@@ -44,6 +44,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     private final DiskComponentMetadata metadata;
     private final ArrayBackedValueStorage buffer = new ArrayBackedValueStorage(Long.BYTES);
     private int level;
+    private Rectangle rangeOrMBR;
     // a variable cache of componentId stored in metadata.
     // since componentId is immutable, we do not want to read from metadata every time the componentId
     // is requested.
@@ -55,6 +56,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         state = ComponentState.READABLE_UNWRITABLE;
         metadata = new DiskComponentMetadata(mdPageManager);
         level = 0;
+        rangeOrMBR = new Rectangle();
     }
     public AbstractLSMDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
             ILSMComponentFilter filter, int l) {
@@ -62,6 +64,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         state = ComponentState.READABLE_UNWRITABLE;
         metadata = new DiskComponentMetadata(mdPageManager);
         level = l;
+        rangeOrMBR = new Rectangle();
     }
     public abstract List<Double> GetMBR () throws Exception;
     public void SetId (ILSMComponentId componentId) throws Exception
@@ -185,6 +188,20 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
             metadataPageManager.get(metadataPageManager.createMetadataFrame(), LEVEL_KEY, pointable);
             int level =  pointable.getLength() == 0 ? 0 : (int)pointable.longValue();
             this.setLevel(level);
+            Rectangle newComponentMBR;
+            try {
+                List<Double> mbrpoints = this.GetMBR();
+                if(mbrpoints!=null)
+                {
+                    newComponentMBR = new Rectangle(mbrpoints);
+                    newComponentMBR.print();
+                    setRangeOrMBR(newComponentMBR);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+
         }
     }
 
@@ -265,4 +282,12 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     public String toString() {
         return "{\"class\":" + getClass().getSimpleName() + "\", \"index\":" + getIndex().toString() + "}";
     }
+
+    public Rectangle getRangeOrMBR() {
+        return rangeOrMBR;
+    }
+    public void setRangeOrMBR(Rectangle r) {
+        rangeOrMBR.set(r);
+    }
+
 }

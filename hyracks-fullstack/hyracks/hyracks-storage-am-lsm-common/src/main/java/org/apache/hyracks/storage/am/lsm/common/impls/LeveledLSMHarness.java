@@ -109,7 +109,8 @@ public class LeveledLSMHarness implements ILSMHarness {
             validateOperationEnterComponentsState(ctx);
             synchronized (opTracker) {
                 while (true) {
-                    lsmIndex.getOperationalComponents(ctx);
+                    //lsmIndex.getOperationalComponents(ctx);
+                    lsmIndex.getOperationalLeveledComponents(ctx);
                     // Before entering the components, prune those corner cases that indeed should not proceed.
                     switch (opType) {
                         case FLUSH:

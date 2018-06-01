@@ -45,12 +45,16 @@ public class ZOrderPolicy implements IComponentOrderPolicy {
         int i =0 ;
         for (ILSMDiskComponent c : immutableDiskComponents) {
 
-            List<Double> mbr = ((AbstractLSMDiskComponent) c).GetMBR();
-            if (mbr == null || mbr.size() != 4)
+//            List<Double> mbr = ((AbstractLSMDiskComponent) c).GetMBR();
+//            if (mbr == null || mbr.size() != 4)
+//                continue;
+//
+//            Rectangle rMbr;
+//            rMbr = new Rectangle(mbr.get(0), mbr.get(1), mbr.get(2), mbr.get(3));
+            Rectangle rMbr = ((AbstractLSMDiskComponent) c).getRangeOrMBR();
+            if (rMbr == null || rMbr.isEmpty())
                 continue;
 
-            Rectangle rMbr;
-            rMbr = new Rectangle(mbr.get(0), mbr.get(1), mbr.get(2), mbr.get(3));
             Point centerPoint = rMbr.getCenterPoint();
             long zValueOfCenterPoint = computeZ(mbrOfThisLevel, centerPoint.x, centerPoint.y);
             if(zValueOfCenterPoint > currentCursorOnZorder && minZvalueGreaterThanCurrentCursor > zValueOfCenterPoint) {

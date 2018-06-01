@@ -72,6 +72,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     //Specialized level based organization of components for LeveledPartitionMergePolicy
     protected final List<List<ILSMDiskComponent>> diskComponentsInLevels;
+    //protected final List<List<Rectangle>> diskComponentsInLevels;
 
     //protected final List<ILSMDiskComponent> inactiveDiskComponents;
 
@@ -433,9 +434,41 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                         }
                     }
                 }
-                //                else if(diskComponentsInLevels!=null) {
-                //
-                //                }
+                else if(diskComponentsInLevels!=null) {
+                    int prune = 0;
+                    for (int i = 0; i < diskComponentsInLevels.size(); i++) {
+                        List<ILSMDiskComponent> listOfComps = diskComponentsInLevels.get(i);
+                        System.out.print("Level "+ i +": \n");
+                        for( int j = 0 ; j< listOfComps.size(); j ++)
+                        {
+                            ILSMDiskComponent c = listOfComps.get(j);
+                            Rectangle mbr = ((AbstractLSMDiskComponent)c).getRangeOrMBR();
+                            if(mbr==null || mbr.isEmpty())
+                                continue;
+
+                            mbr.print();
+                            ITupleReference tuple = ((AbstractSearchPredicate) ctx.getSearchPredicate()).getLowKey();
+                            Rectangle r = this.getPointsFromTuple(tuple);
+//                            if(r!=null)
+//                                r.print();
+//                            else
+//                                System.out.print("NULL\n");
+
+                            if(r!=null && mbr!=null && r.isIntersected(mbr))
+                            {
+                                operationalComponents.add(c);
+                                System.out.print("Intersected!\n");
+                            }
+                            else
+                                prune++;
+
+                        }
+                    }
+
+                    System.out.println("No Of Components: "+ diskComponents.size());
+
+                    System.out.println("Pruned Components: "+ prune);
+                }
                 else {
                     operationalComponents.addAll(diskComponents);
                 }
@@ -999,6 +1032,6 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     protected abstract ILSMDiskComponent doMerge(ILSMIOOperation operation) throws HyracksDataException;
 
     protected abstract List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException;
-
+    protected abstract Rectangle getPointsFromTuple(ITupleReference frameTuple);
     protected abstract void computeRangesOfLevel(int level) throws HyracksDataException;
 }

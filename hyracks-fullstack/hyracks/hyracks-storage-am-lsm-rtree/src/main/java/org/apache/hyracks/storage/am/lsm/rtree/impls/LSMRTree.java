@@ -58,6 +58,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
+import org.apache.hyracks.storage.am.lsm.common.impls.Rectangle;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
 import org.apache.hyracks.storage.am.rtree.impls.RTree.RTreeAccessor;
 import org.apache.hyracks.storage.am.rtree.impls.RTreeSearchCursor;
@@ -312,6 +313,10 @@ public class LSMRTree extends AbstractLSMRTree {
     }
 
     @Override protected List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException {
+        return null;
+    }
+
+    @Override protected Rectangle getPointsFromTuple(ITupleReference frameTuple) {
         return null;
     }
 

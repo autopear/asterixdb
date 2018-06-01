@@ -41,6 +41,10 @@ public class Rectangle {
             this.x2 = x2;
             this.y2 = y2;
         }
+    public void print() {
+        System.out.print("(x1, y1): (" + this.x1 + "," + this.y1 + ")");
+        System.out.print("\t \t(x2, y2): (" + this.x2 + "," + this.y2 + ")\n\n");
+    }
         public boolean equals(Object obj) {
             if (obj == null)
                 return false;
@@ -77,6 +81,10 @@ public class Rectangle {
         public boolean isLine() {
             return (x1 == x2 || y1 == y2);
         }
+
+        public boolean isEmpty() {
+        return (x1 == 0 && y1 == 0 && x2 == 0 && y2 == 0);
+    }
 
         public void adjustMBR(final Rectangle r) {
             if (r.x1 < this.x1)

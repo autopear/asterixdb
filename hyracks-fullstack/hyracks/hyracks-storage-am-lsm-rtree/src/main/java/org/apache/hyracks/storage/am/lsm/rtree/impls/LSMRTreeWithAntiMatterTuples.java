@@ -251,6 +251,16 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         return component;
     }
 
+    @Override protected
+    Rectangle getPointsFromTuple(ITupleReference frameTuple)
+    {
+        RTreeNSMFrame rtreeframe = (RTreeNSMFrame)rtreeLeafFrameFactory.createFrame();
+        List<Double> points  = rtreeframe.getPointsFromTuple(frameTuple);
+        if(points.size() ==4)
+            return new Rectangle(points);
+        else
+            return null;
+    }
     @Override protected List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException {
         MergeOperation mergeOp = (MergeOperation) operation;
         IIndexCursor cursor = mergeOp.getCursor();
@@ -324,6 +334,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             try {
                 Rectangle newComponentMBR = new Rectangle(((AbstractLSMDiskComponent)component).GetMBR());
                 rangesOflevelsAsMBRorLine.get(component.getLevel()).adjustMBR(newComponentMBR);
+                ((AbstractLSMDiskComponent)component).setRangeOrMBR(newComponentMBR);
             } catch (Exception e) {
                 e.printStackTrace();
             }

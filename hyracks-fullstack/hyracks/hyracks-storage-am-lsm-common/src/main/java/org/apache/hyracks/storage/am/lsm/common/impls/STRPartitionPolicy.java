@@ -51,22 +51,29 @@ public class STRPartitionPolicy implements IComponentPartitionPolicy {
         List<Double> mergingComponentMbr;
         List<ILSMDiskComponent> overlappingComponents = new ArrayList<>();
         try {
-            mergingComponentMbr = ((AbstractLSMDiskComponent)mergingComponent).GetMBR();
-            Rectangle mergingComponentMbrRectangle;
+//            mergingComponentMbr = ((AbstractLSMDiskComponent)mergingComponent).GetMBR();
+//            Rectangle mergingComponentMbrRectangle;
+//
+//            if(mergingComponentMbr==null || mergingComponentMbr.size() != 4)
+//                return null;
+//
+//            mergingComponentMbrRectangle = new Rectangle(mergingComponentMbr.get(0),mergingComponentMbr.get(1),mergingComponentMbr.get(2),mergingComponentMbr.get(3));
 
-            if(mergingComponentMbr==null || mergingComponentMbr.size() != 4)
+            Rectangle mergingComponentMbrRectangle = ((AbstractLSMDiskComponent)mergingComponent).getRangeOrMBR();
+            if (mergingComponentMbrRectangle == null || mergingComponentMbrRectangle.isEmpty())
                 return null;
-
-            mergingComponentMbrRectangle = new Rectangle(mergingComponentMbr.get(0),mergingComponentMbr.get(1),mergingComponentMbr.get(2),mergingComponentMbr.get(3));
-
             for (ILSMDiskComponent c : immutableComponents) {
 
-                List<Double> mbr = ((AbstractLSMDiskComponent)c).GetMBR();
-                if(mbr==null || mbr.size() != 4)
-                    continue;
+//                List<Double> mbr = ((AbstractLSMDiskComponent)c).GetMBR();
+//                if(mbr==null || mbr.size() != 4)
+//                    continue;
+//
+//                Rectangle rMbr;
+//                rMbr = new Rectangle(mbr.get(0),mbr.get(1),mbr.get(2),mbr.get(3));
 
-                Rectangle rMbr;
-                rMbr = new Rectangle(mbr.get(0),mbr.get(1),mbr.get(2),mbr.get(3));
+                Rectangle rMbr = ((AbstractLSMDiskComponent) c).getRangeOrMBR();
+                if (rMbr == null || rMbr.isEmpty())
+                    continue;
 
                 if(mergingComponentMbrRectangle.isIntersected(rMbr))
                     overlappingComponents.add(c);
@@ -80,59 +87,61 @@ public class STRPartitionPolicy implements IComponentPartitionPolicy {
 
         return overlappingComponents;
     }
-    @Override
-    public List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
-            List<ILSMDiskComponent> immutableComponents, Rectangle newMBR)
-    {
-        List<Double> mergingComponentMbr;
-        List<ILSMDiskComponent> overlappingComponents = new ArrayList<>();
-        try {
-            mergingComponentMbr = ((AbstractLSMDiskComponent)mergingComponent).GetMBR();
-            Rectangle mergingComponentMbrRectangle;
-
-            if(mergingComponentMbr==null || mergingComponentMbr.size() != 4)
-                return null;
-
-            mergingComponentMbrRectangle = new Rectangle(mergingComponentMbr.get(0),mergingComponentMbr.get(1),mergingComponentMbr.get(2),mergingComponentMbr.get(3));
-            newMBR.adjustMBR(mergingComponentMbrRectangle);
-            for (ILSMDiskComponent c : immutableComponents) {
-
-                List<Double> mbr = ((AbstractLSMDiskComponent)c).GetMBR();
-                if(mbr==null || mbr.size() != 4)
-                    continue;
-
-                Rectangle rMbr;
-                rMbr = new Rectangle(mbr.get(0),mbr.get(1),mbr.get(2),mbr.get(3));
-
-                if(mergingComponentMbrRectangle.isIntersected(rMbr)) {
-                    overlappingComponents.add(c);
-                    newMBR.adjustMBR(rMbr);
-                }
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-
-        return overlappingComponents;
-    }
+//    @Override
+//    public List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
+//            List<ILSMDiskComponent> immutableComponents, Rectangle newMBR)
+//    {
+//        List<Double> mergingComponentMbr;
+//        List<ILSMDiskComponent> overlappingComponents = new ArrayList<>();
+//        try {
+//            mergingComponentMbr = ((AbstractLSMDiskComponent)mergingComponent).GetMBR();
+//            Rectangle mergingComponentMbrRectangle;
+//
+//            if(mergingComponentMbr==null || mergingComponentMbr.size() != 4)
+//                return null;
+//
+//            mergingComponentMbrRectangle = new Rectangle(mergingComponentMbr.get(0),mergingComponentMbr.get(1),mergingComponentMbr.get(2),mergingComponentMbr.get(3));
+//            newMBR.adjustMBR(mergingComponentMbrRectangle);
+//            for (ILSMDiskComponent c : immutableComponents) {
+//
+//                List<Double> mbr = ((AbstractLSMDiskComponent)c).GetMBR();
+//                if(mbr==null || mbr.size() != 4)
+//                    continue;
+//
+//                Rectangle rMbr;
+//                rMbr = new Rectangle(mbr.get(0),mbr.get(1),mbr.get(2),mbr.get(3));
+//
+//                if(mergingComponentMbrRectangle.isIntersected(rMbr)) {
+//                    overlappingComponents.add(c);
+//                    newMBR.adjustMBR(rMbr);
+//                }
+//            }
+//
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//
+//
+//        return overlappingComponents;
+//    }
     @Override public Rectangle computeMBROfALevel(List<ILSMDiskComponent> immutableComponents) {
         Rectangle mbr = new Rectangle();
         for (ILSMDiskComponent c : immutableComponents) {
 
-            List<Double> mbrdoubles = null;
-            try {
-                mbrdoubles = ((AbstractLSMDiskComponent)c).GetMBR();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            if(mbrdoubles==null || mbrdoubles.size() != 4)
+//            List<Double> mbrdoubles = null;
+//            try {
+//                mbrdoubles = ((AbstractLSMDiskComponent)c).GetMBR();
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//            if(mbrdoubles==null || mbrdoubles.size() != 4)
+//                continue;
+//
+//            Rectangle rMbr;
+//            rMbr = new Rectangle(mbrdoubles.get(0),mbrdoubles.get(1),mbrdoubles.get(2),mbrdoubles.get(3));
+            Rectangle rMbr = ((AbstractLSMDiskComponent) c).getRangeOrMBR();
+            if (rMbr == null || rMbr.isEmpty())
                 continue;
-
-            Rectangle rMbr;
-            rMbr = new Rectangle(mbrdoubles.get(0),mbrdoubles.get(1),mbrdoubles.get(2),mbrdoubles.get(3));
-
             mbr.adjustMBR(rMbr);
 
         }
