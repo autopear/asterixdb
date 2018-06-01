@@ -65,8 +65,8 @@ public class GlobalConfig {
     static {
         DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES = new LinkedHashMap<String, String>();
         DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level", "7"); // 7 Level
-        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level0-components-count", "4"); // 4 components
-        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level1-components-count", "10");
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level0-components-count", "2"); // 4 components
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level1-components-count", "4");
         DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-component-size", "134217728");
         DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("components-order-policy", "zorder");
         DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("components-partition-policy", "STR");

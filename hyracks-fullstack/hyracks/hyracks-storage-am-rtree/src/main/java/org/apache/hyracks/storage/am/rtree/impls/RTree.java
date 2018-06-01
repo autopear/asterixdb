@@ -87,13 +87,14 @@ public class RTree extends AbstractTreeIndex {
 
     public List<Double> getRootMBR() throws Exception
     {
+        List<Double> mbr = null;
         ICachedPage node = bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), rootPage), false);
         node.acquireReadLatch();
         try {
             IRTreeInteriorFrame interiorFrame = (IRTreeInteriorFrame) interiorFrameFactory.createFrame();
             IRTreeLeafFrame leafFrame = (IRTreeLeafFrame) leafFrameFactory.createFrame();
-            interiorFrame.setPage(node);
 
+            interiorFrame.setPage(node);
 //            String keyString;
 //            IPrimitiveValueProviderFactory[] keyValueProviderFactories = ((RTreeFrameFactory)interiorFrameFactory).GetkeyValueProviderFactories();
 //            interiorFrame.
@@ -104,11 +105,14 @@ public class RTree extends AbstractTreeIndex {
             if (interiorFrame.isLeaf()) {
                 leafFrame.setPage(node);
                 //keyString = TreeIndexUtils.printFrameTuples(leafFrame, keySerdes);
-                return ((RTreeNSMLeafFrame)leafFrame).getMBRinDoubles();
+                ((RTreeNSMLeafFrame)leafFrame).adjustMBR();
+                mbr = ((RTreeNSMLeafFrame)leafFrame).getMBRinDoubles();
 
             } else {
                 //keyString = TreeIndexUtils.printFrameTuples(interiorFrame, keySerdes);
-               return ((RTreeNSMInteriorFrame)interiorFrame).getMBRinDoubles();
+
+                ((RTreeNSMInteriorFrame)interiorFrame).adjustMBR();
+               mbr = ((RTreeNSMInteriorFrame)interiorFrame).getMBRinDoubles();
             }
 
         }
@@ -117,7 +121,10 @@ public class RTree extends AbstractTreeIndex {
         bufferCache.unpin(node);
         e.printStackTrace();
         }
-        return null;
+
+        node.releaseReadLatch();
+        bufferCache.unpin(node);
+        return mbr;
     }
     @SuppressWarnings("rawtypes")
     public String printTree(IRTreeLeafFrame leafFrame, IRTreeInteriorFrame interiorFrame,

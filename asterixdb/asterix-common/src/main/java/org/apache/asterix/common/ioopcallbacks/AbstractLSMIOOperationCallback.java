@@ -124,7 +124,7 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
         }
         if(opCtx.getNewComponent() == null && opCtx.getNewDiskComponentsForNextLevel()!=null)
         {
-            putLSNsIntoMetadata(opCtx.getNewDiskComponentsForNextLevel(), opCtx.getComponentsToBeMerged());
+            //putLSNsIntoMetadata(opCtx.getNewDiskComponentsForNextLevel(), opCtx.getComponentsToBeMerged());
             putComponentIdsIntoMetadata(opCtx.getIoOperationType(), opCtx.getNewDiskComponentsForNextLevel(),
                     opCtx.getComponentsToBeMerged());
         }
@@ -142,10 +142,10 @@ public abstract class AbstractLSMIOOperationCallback implements ILSMIOOperationC
         {
             putLevelsIntoMetadata(opCtx.getNewDiskComponentsForNextLevel());
         }
-        if (opCtx.getNewComponent() != null)
+        if (opCtx.getNewComponent() != null  && opCtx.getNewDiskComponentsForNextLevel()==null)
             componentLsnMap.put(opCtx.getNewComponent().getId(), getComponentLSN(opCtx.getComponentsToBeMerged()));
 
-        if (opCtx.getIoOperationType() == LSMIOOperationType.MERGE &&  opCtx.getNewComponent() != null) {
+        if (opCtx.getIoOperationType() == LSMIOOperationType.MERGE &&  opCtx.getNewComponent() != null &&  opCtx.getNewDiskComponentsForNextLevel()==null) {
             if (opCtx.getComponentsToBeMerged().isEmpty()) {
                 throw new IllegalStateException("Merge must have old components");
             }

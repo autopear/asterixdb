@@ -38,8 +38,8 @@ public class ZOrderPolicy implements IComponentOrderPolicy {
     }
     @Override
     public int pickComponentToMerge(List<ILSMDiskComponent> immutableDiskComponents, Rectangle mbrOfThisLevel) throws Exception {
-        long minZvalueGreaterThanCurrentCursor= currentCursorOnZorder;
-        long minZValue = 0 ;
+        long minZvalueGreaterThanCurrentCursor= Long.MAX_VALUE;
+        long minZValue = Long.MAX_VALUE ;
         int minZValueIndex = 0 ;
         int pickedComponentIndex = -1;
         int i =0 ;

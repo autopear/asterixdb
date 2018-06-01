@@ -100,8 +100,9 @@ public interface ILSMIndex extends IIndex {
     void subsumeLeveledMergedComponents(List<ILSMDiskComponent> newComponents, List<ILSMComponent> mergedComponents)
             throws HyracksDataException;
 
+    void subsumeLeveledMergedComponentsIfNoOverlapping(List<ILSMDiskComponent> mergedComponents) throws HyracksDataException;
 
-    void changeMutableComponent();
+        void changeMutableComponent();
 
     void changeFlushStatusForCurrentMutableCompoent(boolean needsFlush);
 
@@ -115,6 +116,8 @@ public interface ILSMIndex extends IIndex {
      * @throws HyracksDataException
      */
     void getOperationalComponents(ILSMIndexOperationContext ctx) throws HyracksDataException;
+
+    void getOperationalLeveledComponents(ILSMIndexOperationContext ctx) throws HyracksDataException;
 
     List<ILSMDiskComponent> getInactiveDiskComponents();
 

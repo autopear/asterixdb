@@ -145,7 +145,10 @@ public class LSMTreeIndexAccessor implements ILSMIndexAccessor {
             List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel, IComponentPartitionPolicy partitionPolicy) throws HyracksDataException {
         ctx.setOperation(IndexOperation.MERGE);
         ctx.getComponentsToBeMerged().clear();
-        ctx.getComponentsToBeMerged().addAll(overlappingComponentsFromNextLevel);
+        if(overlappingComponentsFromNextLevel!=null)
+            ctx.getComponentsToBeMerged().addAll(overlappingComponentsFromNextLevel);
+        ctx.getComponentPickedToBeMergedFromPrevLevel().clear();
+
         ctx.getComponentPickedToBeMergedFromPrevLevel().addAll(componentsPickedToMergeFromPrevLevel);
         ctx.setPartitionPolicy(partitionPolicy);
         lsmHarness.scheduleLeveledMerge(ctx, callback);

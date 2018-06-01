@@ -261,12 +261,13 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         //opCtx.getPartitionPolicy();
         search(opCtx, cursor, rtreeSearchPred);
         RTreeNSMFrame rtreeframe = (RTreeNSMFrame)rtreeLeafFrameFactory.createFrame();
+
         try {
             while (cursor.hasNext()) {
                 cursor.next();
                 ITupleReference frameTuple = cursor.getTuple();
                 List<Double> points  = rtreeframe.getPointsFromTuple((ITreeIndexTupleReference) frameTuple);
-                if(points.size() ==2) {
+                if(points.size() >=2) {
                     Point point;
                     point =new Point(points.get(0), points.get(1));
                     mergingTuples.put(point, frameTuple);
@@ -279,12 +280,14 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         int numberOfPartitions = mergeOp.getMergingComponents().size();
         List<List<ITupleReference>> sortedTuples;
         //List<Rectangle> mbrsOfNewComponents = new ArrayList<>();
+        int numberofTuples = mergingTuples.size();
         sortedTuples = mergeOp.getAccessor().getOpContext().getPartitionPolicy().mergeByPartition(mergingTuples, numberOfPartitions);
 
         // Bulk load the tuples from all on-disk RTrees into the new RTree.
         List<ILSMDiskComponent> components = new ArrayList<>();
         int iterator = 0;
         //int numberOfTuplesPerComponent = sortedTuples.size()/numberOfPartitions;
+        int newTuples = 0 ;
         for(int j=0; j < numberOfPartitions; j++)
         {
             ILSMDiskComponent component = createDiskComponent(componentFactory, mergeOp.getLeveledMergeTargets().get(j), null, null, true);
@@ -303,6 +306,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
 
             for(iterator = 0 ; iterator < sortedTuples.get(j).size(); iterator++ )
             {
+                newTuples++;
                 componentBulkLoader.add(sortedTuples.get(j).get(iterator));
             }
             if (component.getLSMComponentFilter() != null) {
@@ -315,6 +319,8 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                         NoOpOperationCallback.INSTANCE);
                 getFilterManager().writeFilter(component.getLSMComponentFilter(), component.getMetadataHolder());
             }
+            componentBulkLoader.end();
+
             try {
                 Rectangle newComponentMBR = new Rectangle(((AbstractLSMDiskComponent)component).GetMBR());
                 rangesOflevelsAsMBRorLine.get(component.getLevel()).adjustMBR(newComponentMBR);
@@ -323,6 +329,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             }
 
             components.add(component);
+
         }
 
         //component.setLevel(0);

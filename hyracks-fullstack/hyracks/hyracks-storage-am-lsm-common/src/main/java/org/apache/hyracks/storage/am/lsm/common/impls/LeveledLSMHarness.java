@@ -139,7 +139,7 @@ public class LeveledLSMHarness implements ILSMHarness {
                             }
                             break;
                         case MERGE:
-                            if (ctx.getComponentHolder().size() < 2
+                            if (ctx.getComponentHolder().size() < 1
                                     && ctx.getOperation() != IndexOperation.DELETE_DISK_COMPONENTS) {
                                 // There is only a single component. There is nothing to merge.
                                 return false;
@@ -755,6 +755,17 @@ public class LeveledLSMHarness implements ILSMHarness {
 
     @Override public void scheduleLeveledMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback)
             throws HyracksDataException {
+
+        //ctx.getComponentsToBeMerged() == null ||
+        if(ctx.getComponentsToBeMerged().size() ==0)
+        {
+            //No Overlapping from next level, no need to schedule a merge.
+            lsmIndex.subsumeLeveledMergedComponentsIfNoOverlapping(ctx.getComponentPickedToBeMergedFromPrevLevel());
+            this.getMergePolicy().diskComponentAdded(lsmIndex, false);
+            ctx.setIoOperationType(LSMIOOperationType.MERGE);
+            callback.afterFinalize(ctx);
+            return;
+        }
         if (!getAndEnterComponents(ctx, LSMOperationType.MERGE, true)) {
             LOGGER.info("Failed to enter components for merge operation. Calling finalize");
             ctx.setIoOperationType(LSMIOOperationType.MERGE);

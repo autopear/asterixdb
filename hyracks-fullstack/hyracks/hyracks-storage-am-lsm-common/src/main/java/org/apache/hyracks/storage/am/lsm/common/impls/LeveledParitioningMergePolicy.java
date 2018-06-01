@@ -59,23 +59,27 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
                 maxComponentCountInALevel = Math.pow(maxLevel1ComponentCount, i);
 
             int componentIndexToMerge = 0;
-            if(immutableComponents.size() >= maxComponentCountInALevel) {
+            if(immutableComponents.size() > maxComponentCountInALevel) {
                 try {
                     if(i>0)
                         componentIndexToMerge = orderPolicy.pickComponentToMerge(immutableComponents, index.getRangesOflevelsAsMBRorLine().get(i));
 
-
                 List<ILSMDiskComponent> immutableComponentsInNextLevel = immutableComponentsInLevels.get(i+1);
                 List<ILSMDiskComponent> overlappingComponentsFromNextLevel  = partitionPolicy.findOverlappingComponents(immutableComponents.get(componentIndexToMerge), immutableComponentsInNextLevel);
-//                if(overlappingComponents.size()==0) {
-//                    immutableComponents.get(componentIndexToMerge).setLevel(i + 1);
+
+                List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel = new ArrayList<>();
+                componentsPickedToMergeFromPrevLevel.add(immutableComponents.get(componentIndexToMerge));
+
+//                if(overlappingComponentsFromNextLevel.size()==0) {
+//
+//                    index.subsumeLeveledMergedComponentsIfNoOverlapping(componentsPickedToMergeFromPrevLevel);
 //
 //                }
 //                else
-                List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel = new ArrayList<>();
-                componentsPickedToMergeFromPrevLevel.add(immutableComponents.get(componentIndexToMerge));
+
                 ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
                 accessor.scheduleLeveledMerge(index.getIOOperationCallback(), overlappingComponentsFromNextLevel, componentsPickedToMergeFromPrevLevel, partitionPolicy);
+                return;
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

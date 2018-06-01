@@ -162,14 +162,14 @@ public class STRPartitionPolicy implements IComponentPartitionPolicy {
 
         List parentBoundables = new ArrayList();
         int index = 0;
-        for (int i = 0; i < verticalSlices.length; i++) {
+        for (int i = 0; i < verticalSlices.length && index< listOfnewTuplesOfPartitions.size(); i++) {
             index = createPartitionsFromAVerticalSlice(verticalSlices[i], nodeCapacity, index, mergingTuples, listOfnewTuplesOfPartitions);
         }
     }
     protected int createPartitionsFromAVerticalSlice(List verticalSilcePoints, int nodeCapacity,
             int index, HashMap<Point, ITupleReference> mergingTuples, List<List<ITupleReference>> listOfnewTuplesOfPartitions) {
         //ArrayList parentBoundables = new ArrayList();
-        List<ITupleReference> partitions = listOfnewTuplesOfPartitions.get(index++);
+        List<ITupleReference> partitions = listOfnewTuplesOfPartitions.get(index);
         //parentBoundables.add(createNode(newLevel));
         ArrayList ySortedPoints = new ArrayList(verticalSilcePoints);
         Collections.sort(ySortedPoints, new Comparator<Point>() {
@@ -182,10 +182,11 @@ public class STRPartitionPolicy implements IComponentPartitionPolicy {
         for (Iterator i = ySortedPoints.iterator(); i.hasNext(); ) {
             Point currentPoint = (Point) i.next();
             ITupleReference tuple = mergingTuples.get(currentPoint);
-            if (listOfnewTuplesOfPartitions.get(index).size() == nodeCapacity) {
+            listOfnewTuplesOfPartitions.get(index).add(tuple);
+
+            if (listOfnewTuplesOfPartitions.get(index).size() >= nodeCapacity && index<listOfnewTuplesOfPartitions.size()-1) {
                 index++;
             }
-            listOfnewTuplesOfPartitions.get(index).add(tuple);
         }
         return index;
     }

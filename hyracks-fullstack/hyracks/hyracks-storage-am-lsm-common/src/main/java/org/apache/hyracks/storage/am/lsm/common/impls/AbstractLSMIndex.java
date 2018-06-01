@@ -242,9 +242,10 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 diskComponentsInLevels.get(level).add(component);
             }
 
-            for(int i=1; i<rangesOflevelsAsMBRorLine.size();i++)
-            {
-                computeRangesOfLevel(i);
+            if(rangesOflevelsAsMBRorLine!=null) {
+                for (int i = 1; i < rangesOflevelsAsMBRorLine.size(); i++) {
+                    computeRangesOfLevel(i);
+                }
             }
         }
     }
@@ -400,6 +401,65 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         }
     }
 
+    @Override public void getOperationalLeveledComponents(ILSMIndexOperationContext ctx) throws HyracksDataException {
+        List<ILSMComponent> operationalComponents = ctx.getComponentHolder();
+        int cmc = currentMutableComponentId.get();
+        ctx.setCurrentMutableComponentId(cmc);
+        operationalComponents.clear();
+        switch (ctx.getOperation()) {
+            case UPDATE:
+            case PHYSICALDELETE:
+            case FLUSH:
+            case DELETE_MEMORY_COMPONENT:
+            case DELETE:
+            case UPSERT:
+                operationalComponents.add(memoryComponents.get(cmc));
+                break;
+            case INSERT:
+                addOperationalMutableComponents(operationalComponents, true);
+                operationalComponents.addAll(diskComponents);
+                break;
+            case SEARCH:
+                if (memoryComponentsAllocated) {
+                    addOperationalMutableComponents(operationalComponents, false);
+                }
+                if (filterManager != null) {
+                    for (int i = 0; i < diskComponents.size(); i++) {
+                        ILSMComponent c = diskComponents.get(i);
+                        if (c.getLSMComponentFilter()
+                                .satisfy(((AbstractSearchPredicate) ctx.getSearchPredicate()).getMinFilterTuple(), ((AbstractSearchPredicate) ctx.getSearchPredicate()).getMaxFilterTuple(),
+                                        ctx.getFilterCmp())) {
+                            operationalComponents.add(c);
+                        }
+                    }
+                }
+                //                else if(diskComponentsInLevels!=null) {
+                //
+                //                }
+                else {
+                    operationalComponents.addAll(diskComponents);
+                }
+
+                break;
+            case MERGE:
+            case DELETE_DISK_COMPONENTS:
+                operationalComponents.addAll(ctx.getComponentsToBeMerged());
+                operationalComponents.addAll(ctx.getComponentPickedToBeMergedFromPrevLevel());
+                break;
+            case FULL_MERGE:
+                operationalComponents.addAll(diskComponents);
+                break;
+            case REPLICATE:
+                operationalComponents.addAll(ctx.getComponentsToBeReplicated());
+                break;
+            case DISK_COMPONENT_SCAN:
+                operationalComponents.addAll(diskComponents);
+                break;
+            default:
+                throw new UnsupportedOperationException("Operation " + ctx.getOperation() + " not supported.");
+        }
+    }
+
     @Override
     public void scanDiskComponents(ILSMIndexOperationContext ctx, IIndexCursor cursor) throws HyracksDataException {
         throw HyracksDataException.create(ErrorCode.DISK_COMPONENT_SCAN_NOT_ALLOWED_FOR_SECONDARY_INDEX);
@@ -419,12 +479,23 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     @Override
     public void scheduleLeveledMerge(ILSMIndexOperationContext ctx, ILSMIOOperationCallback callback)
             throws HyracksDataException {
+
+//        if(ctx.getComponentsToBeMerged() == null || ctx.getComponentsToBeMerged().size() ==0)
+//        {
+//            //No Overlapping from next level, no need to schedule a merge.
+//            subsumeLeveledMergedComponentsIfNoOverlapping(ctx.getComponentPickedToBeMergedFromPrevLevel());
+//            this.lsmHarness.getMergePolicy().diskComponentAdded(this, false);
+//            return;
+//        }
         List<ILSMComponent> allMergingComponents = ctx.getComponentHolder();
         // merge must create a different op ctx
         AbstractLSMIndexOperationContext opCtx = createOpContext(NoOpIndexAccessParameters.INSTANCE);
         opCtx.setOperation(ctx.getOperation());
         opCtx.getComponentHolder().addAll(allMergingComponents);
+        opCtx.setPartitionPolicy(ctx.getPartitionPolicy());
         ctx.getComponentsToBeMerged().stream().map(ILSMDiskComponent.class::cast).forEach(opCtx.getComponentsToBeMerged()::add);
+
+
         ctx.getComponentPickedToBeMergedFromPrevLevel().stream().map(ILSMDiskComponent.class::cast).forEach(opCtx.getComponentPickedToBeMergedFromPrevLevel()::add);
 
         //ILSMDiskComponent firstComponent = (ILSMDiskComponent) allMergingComponents.get(0);
@@ -585,7 +656,22 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         }
         assert checkComponentIds();
     }
+    @Override public void subsumeLeveledMergedComponentsIfNoOverlapping(List<ILSMDiskComponent> mergedComponents) throws HyracksDataException {
 
+        if(diskComponentsInLevels!=null) {
+            for (ILSMDiskComponent c : mergedComponents) {
+                int level = c.getLevel();
+                if (c != EmptyComponent.INSTANCE)
+                {
+                    c.setLevel(level+1);
+                    diskComponentsInLevels.get(level).remove(c);
+                    diskComponentsInLevels.get(level+1).add(c);
+                }
+
+            }
+        }
+
+    }
     /**
      * A helper method to ensure disk components have proper Ids (non-decreasing)
      * We may get rid of this method once component Id is stablized
