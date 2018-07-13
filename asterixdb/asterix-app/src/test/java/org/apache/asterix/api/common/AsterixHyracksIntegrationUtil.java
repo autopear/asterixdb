@@ -78,7 +78,7 @@ public class AsterixHyracksIntegrationUtil {
     }
 
     public ClusterControllerService cc;
-    public NodeControllerService[] ncs = new NodeControllerService[2];
+    public NodeControllerService[] ncs = new NodeControllerService[1];
     public IHyracksClientConnection hcc;
     protected boolean gracefulShutdown = true;
     List<Pair<IOption, Object>> opts = new ArrayList<>();

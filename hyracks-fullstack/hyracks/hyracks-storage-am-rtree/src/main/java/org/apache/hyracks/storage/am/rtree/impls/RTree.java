@@ -117,8 +117,8 @@ public class RTree extends AbstractTreeIndex {
 
         }
         catch (Exception e) {
-        node.releaseReadLatch();
-        bufferCache.unpin(node);
+        //node.releaseReadLatch();
+        //bufferCache.unpin(node);
         e.printStackTrace();
         }
 

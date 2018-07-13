@@ -73,6 +73,7 @@ public class LSMHarness implements ILSMHarness {
     protected List<ILSMDiskComponent> componentsToBeReplicated;
     protected ITracer tracer;
     protected long traceCategory;
+    public ExperimentStats ex_stats;
 
     public LSMHarness(ILSMIndex lsmIndex, ILSMMergePolicy mergePolicy, ILSMOperationTracker opTracker,
             boolean replicationEnabled, ITracer tracer) {
@@ -88,6 +89,8 @@ public class LSMHarness implements ILSMHarness {
             this.componentsToBeReplicated = new ArrayList<>();
         }
         componentReplacementCtx = new ComponentReplacementContext(lsmIndex);
+        ex_stats = new ExperimentStats("Write_StackLSM");
+
     }
 
     protected boolean getAndEnterComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -585,6 +588,8 @@ public class LSMHarness implements ILSMHarness {
                 ctx.setIoOperationType(LSMIOOperationType.FLUSH);
                 operation.getCallback().afterOperation(ctx);
                 newComponent.markAsValid(lsmIndex.isDurable());
+                ex_stats.UpdateFlushStats(newComponent.getComponentSize());
+
             } catch (Throwable e) { // NOSONAR Log and re-throw
                 failedOperation = true;
                 if (LOGGER.isErrorEnabled()) {
@@ -658,11 +663,16 @@ public class LSMHarness implements ILSMHarness {
             ILSMDiskComponent newComponent = null;
             boolean failedOperation = false;
             try {
+                long startTime = System.currentTimeMillis();
                 newComponent = lsmIndex.merge(operation);
                 ctx.setNewComponent(newComponent);
                 ctx.setIoOperationType(LSMIOOperationType.MERGE);
                 operation.getCallback().afterOperation(ctx);
                 newComponent.markAsValid(lsmIndex.isDurable());
+                long estimatedTime = System.currentTimeMillis() - startTime;
+                long bytesWritten = newComponent.getComponentSize();;
+                ex_stats.UpdateMergeStats(bytesWritten, estimatedTime/1000.0);
+
             } catch (Throwable e) { // NOSONAR: Log and re-throw
                 failedOperation = true;
                 if (LOGGER.isErrorEnabled()) {

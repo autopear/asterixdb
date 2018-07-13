@@ -130,16 +130,25 @@ public abstract class RTreeNSMFrame extends TreeIndexNSMFrame implements IRTreeF
             frameTuple.resetByTupleIndex(this, i);
             for (int j = 0; j < maxFieldPos; j++) {
                 int k = maxFieldPos + j;
-                double valA = keyValueProviders[j].getValue(frameTuple.getFieldData(j), frameTuple.getFieldStart(j));
-                double valB = keyValueProviders[j].getValue(tuples[j].getFieldData(j), tuples[j].getFieldStart(j));
-                if (valA < valB) {
-                    tuples[j].resetByTupleIndex(this, i);
-                }
-                valA = keyValueProviders[k].getValue(frameTuple.getFieldData(k), frameTuple.getFieldStart(k));
-                valB = keyValueProviders[k].getValue(tuples[k].getFieldData(k), tuples[k].getFieldStart(k));
-                if (valA > valB) {
-                    tuples[k].resetByTupleIndex(this, i);
-                }
+
+//                try {
+                    double valA = keyValueProviders[j].getValue(frameTuple.getFieldData(j), frameTuple.getFieldStart(j));
+                    double valB = keyValueProviders[j].getValue(tuples[j].getFieldData(j), tuples[j].getFieldStart(j));
+                    if (valA < valB) {
+                        tuples[j].resetByTupleIndex(this, i);
+                    }
+                    valA = keyValueProviders[k].getValue(frameTuple.getFieldData(k), frameTuple.getFieldStart(k));
+                    valB = keyValueProviders[k].getValue(tuples[k].getFieldData(k), tuples[k].getFieldStart(k));
+                    if (valA > valB) {
+                        tuples[k].resetByTupleIndex(this, i);
+                    }
+
+//                }
+//                catch(Exception e)
+//                {
+//                    e.printStackTrace();
+//                    continue;
+//                }
             }
         }
     }

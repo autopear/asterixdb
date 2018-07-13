@@ -159,6 +159,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             } finally {
                 cursor.destroy();
             }
+
             if (component.getLSMComponentFilter() != null) {
                 List<ITupleReference> filterTuples = new ArrayList<>();
                 filterTuples.add(flushingComponent.getLSMComponentFilter().getMinTuple());
@@ -170,6 +171,12 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             flushingComponent.getMetadata().copy(component.getMetadata());
             abort = false;
             componentBulkLoader.end();
+            //Update MBR after the flushes
+            Rectangle newComponentMBR = new Rectangle(((AbstractLSMDiskComponent)component).GetMBR());
+            ((AbstractLSMDiskComponent)component).setRangeOrMBR(newComponentMBR);
+
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
             try {
                 if (rTreeTupleSorter != null) {
@@ -187,6 +194,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                 }
             }
         }
+
         return component;
     }
 

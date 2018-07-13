@@ -25,7 +25,11 @@ public class Rectangle {
         }
 
         public Rectangle(List<Double> points) {
-            this.set(points.get(0), points.get(1), points.get(2), points.get(3));
+            if(points==null || points.size()!=4)
+                this.set(-180, -90, 180, 83);
+            else
+                this.set(points.get(0), points.get(1), points.get(2), points.get(3));
+
         }
 
         public void set(Rectangle mbr) {

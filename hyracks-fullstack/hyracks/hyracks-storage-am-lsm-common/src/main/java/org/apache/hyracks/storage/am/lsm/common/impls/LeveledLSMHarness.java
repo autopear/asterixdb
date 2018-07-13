@@ -77,7 +77,7 @@ public class LeveledLSMHarness implements ILSMHarness {
     protected List<ILSMDiskComponent> componentsToBeReplicated;
     protected ITracer tracer;
     protected long traceCategory;
-
+    public ExperimentStats ex_stats;
     public LeveledLSMHarness(ILSMIndex lsmIndex, ILSMMergePolicy mergePolicy, ILSMOperationTracker opTracker,
             boolean replicationEnabled, ITracer tracer) {
         this.lsmIndex = lsmIndex;
@@ -97,6 +97,7 @@ public class LeveledLSMHarness implements ILSMHarness {
             //            }
         }
         componentReplacementCtx = new ComponentReplacementContext(lsmIndex);
+        ex_stats = new ExperimentStats("Write_SpatialLSM");
     }
 
     protected boolean getAndEnterComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -717,6 +718,7 @@ public class LeveledLSMHarness implements ILSMHarness {
                 ctx.setIoOperationType(LSMIOOperationType.FLUSH);
                 operation.getCallback().afterOperation(ctx);
                 newComponent.markAsValid(lsmIndex.isDurable());
+                ex_stats.UpdateFlushStats(newComponent.getComponentSize());
             } catch (Throwable e) { // NOSONAR Log and re-throw
                 failedOperation = true;
                 if (LOGGER.isErrorEnabled()) {
@@ -801,14 +803,18 @@ public class LeveledLSMHarness implements ILSMHarness {
             List<ILSMDiskComponent> newComponents = null;
             boolean failedOperation = false;
             try {
+                long startTime = System.currentTimeMillis();
                 newComponents = lsmIndex.leveledMerge(operation);
                 ctx.setNewDiskComponentsForNextLevel(newComponents);
                 ctx.setIoOperationType(LSMIOOperationType.MERGE);
                 operation.getCallback().afterOperation(ctx);
+                long estimatedTime = System.currentTimeMillis() - startTime;
+                long bytesWritten = 0;
                 for (ILSMDiskComponent newComponent : newComponents) {
                     newComponent.markAsValid(lsmIndex.isDurable());
+                    bytesWritten +=newComponent.getComponentSize();
                 }
-
+                ex_stats.UpdateMergeStats(bytesWritten, estimatedTime/1000.0);
             } catch (Throwable e) { // NOSONAR: Log and re-throw
                 failedOperation = true;
                 if (LOGGER.isErrorEnabled()) {

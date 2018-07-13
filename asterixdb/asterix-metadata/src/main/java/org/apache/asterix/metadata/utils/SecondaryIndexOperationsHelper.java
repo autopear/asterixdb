@@ -128,7 +128,7 @@ public abstract class SecondaryIndexOperationsHelper {
     protected int[] secondaryBTreeFields;
     protected List<ExternalFile> externalFiles;
     protected int numPrimaryKeys;
-
+    public boolean defaultComp = false;
     // Prevent public construction. Should be created via createIndexCreator().
     protected SecondaryIndexOperationsHelper(Dataset dataset, Index index, PhysicalOptimizationConfig physOptConf,
             MetadataProvider metadataProvider) throws AlgebricksException {
@@ -215,7 +215,7 @@ public abstract class SecondaryIndexOperationsHelper {
         //      DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
         //mergePolicyFactory = compactionInfo.first;
         //mergePolicyProperties = compactionInfo.second;
-        if (index.getIndexType() == DatasetConfig.IndexType.RTREE && dataset.getDatasetType() == DatasetType.INTERNAL) {
+        if (defaultComp == false && index.getIndexType() == DatasetConfig.IndexType.RTREE && dataset.getDatasetType() == DatasetType.INTERNAL) {
             mergePolicyFactory =  new LeveledPartitioningMergePolicyFactory();
             mergePolicyProperties = GlobalConfig.DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES;
             //mergePolicyFactory = new NoMergePolicyFactory();
