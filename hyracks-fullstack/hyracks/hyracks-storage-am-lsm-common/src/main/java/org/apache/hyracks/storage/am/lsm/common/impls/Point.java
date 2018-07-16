@@ -1,8 +1,12 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
+
 /**
  * Created by nakshikatha on 5/7/18.
  */
+
+
 public class Point {
     double x;
     double y;

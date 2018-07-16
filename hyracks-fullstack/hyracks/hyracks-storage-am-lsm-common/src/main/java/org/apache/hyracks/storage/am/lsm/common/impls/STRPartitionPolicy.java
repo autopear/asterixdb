@@ -44,6 +44,20 @@ public class STRPartitionPolicy implements IComponentPartitionPolicy {
         return listOfnewTuplesOfPartitions;
     }
 
+    @Override public List<List<ITupleReference>> mergeByPartition(ArrayList<PointWithTuple> mergingTuples,
+            int numberOfPartitions) {
+        List<List<ITupleReference>> listOfnewTuplesOfPartitions = new ArrayList<>();
+        for(int i =0; i <numberOfPartitions; i++) {
+            List<ITupleReference> tuples = new ArrayList<>();
+            listOfnewTuplesOfPartitions.add(tuples);
+        }
+        createSTRPartitionsFromPoints(mergingTuples, numberOfPartitions, listOfnewTuplesOfPartitions);
+
+        return listOfnewTuplesOfPartitions;
+    }
+
+
+
     @Override
     public List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
             List<ILSMDiskComponent> immutableComponents)
@@ -175,6 +189,27 @@ public class STRPartitionPolicy implements IComponentPartitionPolicy {
             index = createPartitionsFromAVerticalSlice(verticalSlices[i], nodeCapacity, index, mergingTuples, listOfnewTuplesOfPartitions);
         }
     }
+
+    private void createSTRPartitionsFromPoints(ArrayList<PointWithTuple> mergingTuples, int numberOfPartitions,
+            List<List<ITupleReference>> listOfnewTuplesOfPartitions) {
+        ArrayList xSortedPoints = new ArrayList(mergingTuples);
+
+        Collections.sort(xSortedPoints, new Comparator<PointWithTuple>() {
+            @Override
+            public int compare(PointWithTuple a, PointWithTuple b) {
+                return a.point.x < b.point.x? -1 : (a.point.x > b.point.x? 1 : 0);
+            }});
+
+        int nodeCapacity = (int)Math.ceil(mergingTuples.size()/numberOfPartitions);
+
+        List[] verticalSlices = verticalSlices(xSortedPoints,
+                (int) Math.ceil(Math.sqrt(numberOfPartitions)));
+
+        int index = 0;
+        for (int i = 0; i < verticalSlices.length && index< listOfnewTuplesOfPartitions.size(); i++) {
+            index = createPartitionsFromAVerticalSlice(verticalSlices[i], nodeCapacity, index, listOfnewTuplesOfPartitions);
+        }
+    }
     protected int createPartitionsFromAVerticalSlice(List verticalSilcePoints, int nodeCapacity,
             int index, HashMap<Point, ITupleReference> mergingTuples, List<List<ITupleReference>> listOfnewTuplesOfPartitions) {
         //ArrayList parentBoundables = new ArrayList();
@@ -200,6 +235,29 @@ public class STRPartitionPolicy implements IComponentPartitionPolicy {
         return index;
     }
 
+    protected int createPartitionsFromAVerticalSlice(List verticalSilcePoints, int nodeCapacity,
+            int index, List<List<ITupleReference>> listOfnewTuplesOfPartitions) {
+
+        ArrayList ySortedPoints = new ArrayList(verticalSilcePoints);
+        Collections.sort(ySortedPoints, new Comparator<PointWithTuple>() {
+            @Override
+            public int compare(PointWithTuple a, PointWithTuple b) {
+                return a.point.y < b.point.y? -1 : (a.point.y > b.point.y? 1 : 0);
+            }
+        });
+
+        for (Iterator i = ySortedPoints.iterator(); i.hasNext(); ) {
+            PointWithTuple currentPoint = (PointWithTuple) i.next();
+            ITupleReference tuple = currentPoint.tuple;
+            listOfnewTuplesOfPartitions.get(index).add(tuple);
+
+            if (listOfnewTuplesOfPartitions.get(index).size() >= nodeCapacity && index<listOfnewTuplesOfPartitions.size()-1) {
+                index++;
+            }
+        }
+        return index;
+    }
+
     protected List[] verticalSlices(List points, int sliceCount) {
         int sliceCapacity = (int) Math.ceil(points.size() / (double) sliceCount);
         List[] slices = new List[sliceCount];
@@ -208,7 +266,7 @@ public class STRPartitionPolicy implements IComponentPartitionPolicy {
             slices[j] = new ArrayList();
             int pointAddedToSlice = 0;
             while (i.hasNext() && pointAddedToSlice < sliceCapacity) {
-                Point childPoint = (Point) i.next();
+                PointWithTuple childPoint = (PointWithTuple) i.next();
                 slices[j].add(childPoint);
                 pointAddedToSlice++;
             }

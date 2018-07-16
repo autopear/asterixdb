@@ -49,8 +49,8 @@ public class PrimitiveValueProviderFactory implements IPrimitiveValueProviderFac
             @Override
             public double getValue(byte[] bytes, int offset) {
                 ATypeTag tag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes[offset]);
-               // if(tag==null)
-                    //throw new NotImplementedException("Tag is null");
+                if(tag==null)
+                    return doubleProvider.getValue(bytes, offset + 1);
                 switch (tag) {
                     case INTEGER:
                         return intProvider.getValue(bytes, offset + 1);
@@ -58,8 +58,11 @@ public class PrimitiveValueProviderFactory implements IPrimitiveValueProviderFac
                         return floatProvider.getValue(bytes, offset + 1);
                     case DOUBLE:
                         return doubleProvider.getValue(bytes, offset + 1);
+                    //case BIGINT:
                     default:
-                        throw new NotImplementedException("Value provider for type " + tag + " is not implemented");
+                        return doubleProvider.getValue(bytes, offset + 1);
+
+//                                   throw new NotImplementedException("Value provider for type " + tag + " is not implemented");
                 }
             }
         };

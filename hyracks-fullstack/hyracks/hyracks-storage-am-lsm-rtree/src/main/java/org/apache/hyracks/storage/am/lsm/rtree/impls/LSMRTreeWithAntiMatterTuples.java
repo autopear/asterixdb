@@ -145,6 +145,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             }
             LSMRTreeWithAntiMatterTuplesFlushCursor cursor = new LSMRTreeWithAntiMatterTuplesFlushCursor(
                     rTreeTupleSorter, bTreeTupleSorter, comparatorFields, linearizerArray);
+            int flushsize= 0;
             try {
                 cursor.open(null, null);
                 try {
@@ -152,6 +153,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                         cursor.next();
                         ITupleReference frameTuple = cursor.getTuple();
                         componentBulkLoader.add(frameTuple);
+                        flushsize++;
                     }
                 } finally {
                     cursor.close();
@@ -160,6 +162,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                 cursor.destroy();
             }
 
+            System.out.print("Flushsize: "+ flushsize);
             if (component.getLSMComponentFilter() != null) {
                 List<ITupleReference> filterTuples = new ArrayList<>();
                 filterTuples.add(flushingComponent.getLSMComponentFilter().getMinTuple());
@@ -274,13 +277,20 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         IIndexCursor cursor = mergeOp.getCursor();
         ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
         ILSMIndexOperationContext opCtx = ((LSMIndexSearchCursor) cursor).getOpCtx();
+        long expectedsize =0, mergesize = 0;
+//        for (ILSMComponent nextLC : mergeOp.getAccessor().getOpContext().getComponentsToBeMerged()) {
+//            expectedsize+=((ILSMDiskComponent)(nextLC)).getComponentSize();
+//
+//        }
 
-        HashMap<Point, ITupleReference> mergingTuples = new HashMap<>();
+        //HashMap<Point, ITupleReference> mergingTuples = new HashMap<>();
+        ArrayList<PointWithTuple> mergingTuples = new ArrayList<>();
         //opCtx.getPartitionPolicy();
         search(opCtx, cursor, rtreeSearchPred);
         RTreeNSMFrame rtreeframe = (RTreeNSMFrame)rtreeLeafFrameFactory.createFrame();
-
+        int reduce = 0, pointscounted =0, duplicate =0;
         try {
+
             while (cursor.hasNext()) {
                 cursor.next();
                 ITupleReference frameTuple = cursor.getTuple();
@@ -288,13 +298,40 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                 if(points.size() >=2) {
                     Point point;
                     point =new Point(points.get(0), points.get(1));
-                    mergingTuples.put(point, frameTuple);
+//                    if(mergingTuples.containsKey(point)){
+//                        duplicate++;
+//                        System.out.println(points.get(0) + ", " + points.get(1));
+//                    }
+                    if(points.get(1).getClass()!=Double.class)
+                    {
+                        System.out.println(points.get(0) + ", " + points.get(1));
+                    }
+
+                    mergingTuples.add(new PointWithTuple(point, frameTuple));
+                    //pointscounted++;
+
+                }
+                else
+                {
+                    reduce++;
                 }
                     //TupleUtils.deserializeTuple(frameTuple, rtreeframe.getKeyValueProviders());
             }
-        } finally {
+        }
+        catch(Exception e)
+        {
+             e.printStackTrace();
+        }
+        finally {
             cursor.close();
         }
+
+//        if(reduce>0)
+//            System.out.println("Miss: "+ reduce);
+//        System.out.println("Hit: "+ pointscounted);
+//        System.out.println("Size of Array: "+ mergingTuples.size());
+//        if(mergingTuples.size()!=pointscounted)
+//            System.out.println("mismatch");
         int numberOfPartitions = mergeOp.getMergingComponents().size();
         List<List<ITupleReference>> sortedTuples;
         //List<Rectangle> mbrsOfNewComponents = new ArrayList<>();
@@ -321,12 +358,17 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             //ILSMComponentId id  = new LSMComponentId();
             ILSMDiskComponentBulkLoader componentBulkLoader =
                     component.createBulkLoader(LSMIOOperationType.MERGE, 1.0f, false, 0L, false, false, false);
-
+            //newTuples+=sortedTuples.get(j).size();
             for(iterator = 0 ; iterator < sortedTuples.get(j).size(); iterator++ )
             {
                 newTuples++;
                 componentBulkLoader.add(sortedTuples.get(j).get(iterator));
             }
+
+            //System.out.println("Size of new component: "+ newTuples);
+            newTuples=0;
+
+
             if (component.getLSMComponentFilter() != null) {
                 List<ITupleReference> filterTuples = new ArrayList<>();
                 for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
@@ -348,11 +390,14 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             }
 
             components.add(component);
+            mergesize+=component.getComponentSize();
 
         }
-
+//        if(newTuples!=mergingTuples.size())
+//            System.out.println("Size of new components: "+ newTuples);
         //component.setLevel(0);
-
+        //if(mergesize!=expectedsize)
+          //  System.out.println("Expected: "+ expectedsize + "Found: "+ mergesize);
         return components;
     }
 

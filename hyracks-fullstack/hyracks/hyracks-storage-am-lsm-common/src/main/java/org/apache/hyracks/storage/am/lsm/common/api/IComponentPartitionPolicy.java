@@ -20,8 +20,10 @@ package org.apache.hyracks.storage.am.lsm.common.api;
 
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.lsm.common.impls.Point;
+import org.apache.hyracks.storage.am.lsm.common.impls.PointWithTuple;
 import org.apache.hyracks.storage.am.lsm.common.impls.Rectangle;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -30,6 +32,7 @@ import java.util.List;
  */
 public interface IComponentPartitionPolicy {
     List<List<ITupleReference>> mergeByPartition(HashMap<Point, ITupleReference> mergingTuples, int numberOfPartitions);
+    List<List<ITupleReference>> mergeByPartition(ArrayList<PointWithTuple> mergingTuples, int numberOfPartitions);
 
     List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
             List<ILSMDiskComponent> immutableComponents);

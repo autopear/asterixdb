@@ -37,7 +37,7 @@ public class ZOrderPolicy implements IComponentOrderPolicy {
         currentCursorOnZorder = 0;
     }
     @Override
-    public int pickComponentToMerge(List<ILSMDiskComponent> immutableDiskComponents, Rectangle mbrOfThisLevel) throws Exception {
+    public int pickComponentToMerge(List<ILSMDiskComponent> immutableDiskComponents, List<ILSMDiskComponent> immutableDiskComponentsForNextLevel, Rectangle mbrOfThisLevel) throws Exception {
         long minZvalueGreaterThanCurrentCursor= Long.MAX_VALUE;
         long minZValue = Long.MAX_VALUE ;
         int minZValueIndex = 0 ;
@@ -81,6 +81,8 @@ public class ZOrderPolicy implements IComponentOrderPolicy {
             return minZValueIndex;
         }
     }
+
+
 
     public static long computeZ(Rectangle mbr, double x, double y) {
         int ix = (int) ((x - mbr.x1) * Resolution / mbr.getWidth());

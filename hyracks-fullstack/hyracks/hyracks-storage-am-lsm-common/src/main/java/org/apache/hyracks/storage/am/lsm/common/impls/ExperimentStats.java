@@ -13,8 +13,8 @@ public class ExperimentStats {
 
     public static int LOG_POINT = 10;
     // "/home/mohiuddin/asterix-hyracks/Results/stats_";
-    public String LOG_NAME = "/data/SpatialLSM/Results/stats_";
-    public String MERGELATENCY_LOG = "/data/SpatialLSM/Results/stats_latency_";
+    public String LOG_NAME = "/home/mohiuddin/asterix-hyracks/Results/stats_";
+    public String MERGELATENCY_LOG = "/home/mohiuddin/asterix-hyracks/stats_latency_";
     long numberofMerges;
     long numberofFlushes;
     double flushSizeInBytes;

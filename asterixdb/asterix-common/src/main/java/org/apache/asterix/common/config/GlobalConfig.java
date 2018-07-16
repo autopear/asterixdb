@@ -68,7 +68,7 @@ public class GlobalConfig {
         DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level0-components-count", "2"); // 4 components
         DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-level1-components-count", "4");
         DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("max-component-size", "134217728");
-        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("components-order-policy", "zorder");
+        DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("components-order-policy", "pickbest");
         DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES.put("components-partition-policy", "STR");
 
     }
