@@ -19,11 +19,12 @@
 
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
+import java.util.concurrent.Semaphore;
+
+import javafx.util.Pair;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -75,6 +76,9 @@ public class LSMHarness implements ILSMHarness {
     protected ITracer tracer;
     protected long traceCategory;
 
+    public List<Pair<Long, List<Long>>> mergeHist;
+    public Semaphore mergeSem;
+
     public LSMHarness(ILSMIndex lsmIndex, ILSMIOOperationScheduler ioScheduler, ILSMMergePolicy mergePolicy,
             ILSMOperationTracker opTracker, boolean replicationEnabled, ITracer tracer) {
         this.lsmIndex = lsmIndex;
@@ -90,6 +94,9 @@ public class LSMHarness implements ILSMHarness {
             this.componentsToBeReplicated = new ArrayList<>();
         }
         componentReplacementCtx = new ComponentReplacementContext(lsmIndex);
+
+        this.mergeHist = new ArrayList<>();
+        this.mergeSem = new Semaphore(1);
     }
 
     protected boolean getAndEnterComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -568,6 +575,14 @@ public class LSMHarness implements ILSMHarness {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Started a merge operation for index: {}", lsmIndex);
         }
+
+        List<Long> componentsToMerge = new ArrayList<>();
+        for (ILSMDiskComponent c : operation.getAccessor().getOpContext().getComponentsToBeMerged()) {
+            componentsToMerge.add(new Long(c.getComponentSize()));
+        }
+
+        long mergeStart = System.nanoTime();
+
         synchronized (opTracker) {
             enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE);
         }
@@ -580,6 +595,23 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
+
+        long duration = System.nanoTime() - mergeStart;
+
+        try {
+            mergeSem.acquire();
+            try {
+                if (mergeHist.size() == 10) {
+                    mergeHist.remove(0);
+                }
+                mergeHist.add(new Pair<>(duration, componentsToMerge));
+            } finally {
+                mergeSem.release();
+            }
+        } catch (InterruptedException ie) {
+            // ...
+        }
+
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }
