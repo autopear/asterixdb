@@ -138,9 +138,8 @@ rm /tmp/$$_pids
   echo "--------------------------"
   date
   echo "--------------------------"
-) | tee -a "$LOGSDIR/blue-service.log" | tee -a "$LOGSDIR/red-service.log" >> "$LOGSDIR/cc.log"
+) | tee -a "$LOGSDIR/red-service.log" >> "$LOGSDIR/cc.log"
 echo "INFO: Starting sample cluster..."
-"$INSTALLDIR/bin/${NC_SERVICE_COMMAND}" -logdir - -config-file "$CLUSTERDIR/conf/blue.conf" >> "$LOGSDIR/blue-service.log" 2>&1 &
 "$INSTALLDIR/bin/${NC_SERVICE_COMMAND}" -logdir - >> "$LOGSDIR/red-service.log" 2>&1 &
 "$INSTALLDIR/bin/${CC_COMMAND}" -config-file "$CLUSTERDIR/conf/cc.conf" >> "$LOGSDIR/cc.log" 2>&1 &
 "$INSTALLDIR/bin/${HELPER_COMMAND}" wait_for_cluster -timeout 30
