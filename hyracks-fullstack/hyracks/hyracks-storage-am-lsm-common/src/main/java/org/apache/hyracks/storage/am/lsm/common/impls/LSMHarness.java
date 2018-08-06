@@ -81,9 +81,11 @@ public class LSMHarness implements ILSMHarness {
     public Semaphore flushSem;
 
     public List<Pair<Long, List<Long>>> mergeHist;
+    public long mergeThreads;
     public Semaphore mergeSem;
 
-    public List<Pair<Long, List<Long>>> searchHist;
+    public List<Pair<List<Long>, List<Long>>> searchNormalHist;
+    public List<Pair<List<Long>, List<Long>>> searchMergeHist;
     public List<Long> searchRate;
     public Semaphore searchSem;
 
@@ -108,9 +110,11 @@ public class LSMHarness implements ILSMHarness {
         this.flushSem = new Semaphore(1);
 
         this.mergeHist = new ArrayList<>();
+        this.mergeThreads = 0;
         this.mergeSem = new Semaphore(1);
 
-        this.searchHist = new ArrayList<>();
+        this.searchNormalHist = new ArrayList<>();
+        this.searchMergeHist = new ArrayList<>();
         this.searchRate = new ArrayList<>();
         this.searchSem = new Semaphore(1);
     }
@@ -450,17 +454,89 @@ public class LSMHarness implements ILSMHarness {
     }
 
     @Override
-    public void recordPointSearch(long duration, List<Long> diskComponents, Boolean inMemory) {
+    public Boolean isMerging() {
+        return mergeThreads > 0;
+    }
+
+    @Override
+    public void recordPointSearch(long duration, List<Long> diskComponents, Boolean duringMerge, Boolean inMemory) {
         long searchEnd = System.nanoTime();
 
         try {
             searchSem.acquire();
             try {
                 if (!inMemory) {
-                    if (searchHist.size() == 100) {
-                        searchHist.remove(0);
+                    if (duringMerge) {
+                        if (searchMergeHist.isEmpty()) {
+                            List<Long> durations = new ArrayList<>();
+                            durations.add(new Long(duration));
+                            searchMergeHist.add(new Pair<>(diskComponents, durations));
+                        } else {
+                            int idx = -1;
+                            for (int i = 0; i < searchMergeHist.size(); i++) {
+                                if (searchMergeHist.get(i).getKey().equals(diskComponents)) {
+                                    idx = i;
+                                    break;
+                                }
+                            }
+                            if (idx == searchMergeHist.size() - 1) {
+                                ArrayList<Long> durations = (ArrayList<Long>) (searchMergeHist.get(idx).getValue());
+                                durations.add(new Long(duration));
+                                if (durations.size() == 101) {
+                                    durations.remove(0);
+                                }
+                                searchMergeHist.remove(idx);
+                                searchMergeHist.add(new Pair<>(diskComponents, durations));
+                            } else if (idx > -1) {
+                                searchMergeHist.remove(idx);
+                                List<Long> durations = new ArrayList<>();
+                                durations.add(new Long(duration));
+                                searchMergeHist.add(new Pair<>(diskComponents, durations));
+                            } else {
+                                if (searchMergeHist.size() == 100) {
+                                    searchMergeHist.remove(0);
+                                }
+                                List<Long> durations = new ArrayList<>();
+                                durations.add(new Long(duration));
+                                searchMergeHist.add(new Pair<>(diskComponents, durations));
+                            }
+                        }
+                    } else {
+                        if (searchNormalHist.isEmpty()) {
+                            List<Long> durations = new ArrayList<>();
+                            durations.add(new Long(duration));
+                            searchNormalHist.add(new Pair<>(diskComponents, durations));
+                        } else {
+                            int idx = -1;
+                            for (int i = 0; i < searchNormalHist.size(); i++) {
+                                if (searchNormalHist.get(i).getKey().equals(diskComponents)) {
+                                    idx = i;
+                                    break;
+                                }
+                            }
+                            if (idx == searchNormalHist.size() - 1) {
+                                ArrayList<Long> durations = (ArrayList<Long>) (searchNormalHist.get(idx).getValue());
+                                durations.add(new Long(duration));
+                                if (durations.size() == 101) {
+                                    durations.remove(0);
+                                }
+                                searchNormalHist.remove(idx);
+                                searchNormalHist.add(new Pair<>(diskComponents, durations));
+                            } else if (idx > -1) {
+                                searchNormalHist.remove(idx);
+                                List<Long> durations = new ArrayList<>();
+                                durations.add(new Long(duration));
+                                searchNormalHist.add(new Pair<>(diskComponents, durations));
+                            } else {
+                                if (searchNormalHist.size() == 100) {
+                                    searchNormalHist.remove(0);
+                                }
+                                List<Long> durations = new ArrayList<>();
+                                durations.add(new Long(duration));
+                                searchNormalHist.add(new Pair<>(diskComponents, durations));
+                            }
+                        }
                     }
-                    searchHist.add(new Pair<>(new Long(duration), diskComponents));
                 }
 
                 while (!searchRate.isEmpty() && searchEnd - searchRate.get(0).longValue() > 10000000000L) {
@@ -597,6 +673,14 @@ public class LSMHarness implements ILSMHarness {
             // ...
         }
 
+        /*if (lsmIndex.getIndexIdentifier().contains("usertable")) {
+            LOGGER.info("FlushRate:{}", flushHist);
+            LOGGER.info("SearchRate:{}", searchRate);
+            LOGGER.info("MergeHist:{}", mergeHist);
+            LOGGER.info("SearchNormal:{}", searchNormalHist);
+            LOGGER.info("SearchMerge:{}", searchMergeHist);
+        }*/
+
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Finished the flush operation for index: {}. Result: ", lsmIndex, operation.getStatus());
         }
@@ -647,6 +731,17 @@ public class LSMHarness implements ILSMHarness {
             componentsToMerge.add(new Long(c.getComponentSize()));
         }
 
+        try {
+            mergeSem.acquire();
+            try {
+                mergeThreads++;
+            } finally {
+                mergeSem.release();
+            }
+        } catch (InterruptedException ie) {
+            // ...
+        }
+
         long mergeStart = System.nanoTime();
 
         synchronized (opTracker) {
@@ -671,6 +766,7 @@ public class LSMHarness implements ILSMHarness {
                     mergeHist.remove(0);
                 }
                 mergeHist.add(new Pair<>(duration, componentsToMerge));
+                mergeThreads--;
             } finally {
                 mergeSem.release();
             }

@@ -61,6 +61,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     private int foundIn = -1;
     private Boolean memoryOnly;
     private long searchStart;
+    private Boolean wasMerging;
     private List<Long> diskComponents;
     private ITupleReference frameTuple;
     private List<ILSMComponent> operationalComponents;
@@ -159,7 +160,13 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         } finally {
             if (lsmHarness != null) {
                 lsmHarness.endSearch(opCtx);
-                lsmHarness.recordPointSearch(System.nanoTime() - searchStart, diskComponents, memoryOnly);
+                Boolean isMerging = lsmHarness.isMerging();
+                if (wasMerging && isMerging) {
+                    lsmHarness.recordPointSearch(System.nanoTime() - searchStart, diskComponents, true, memoryOnly);
+                } else if (!wasMerging && !isMerging) {
+                    lsmHarness.recordPointSearch(System.nanoTime() - searchStart, diskComponents, false, memoryOnly);
+                } else {
+                }
             }
         }
     }
@@ -171,6 +178,9 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
 
         operationalComponents = lsmInitialState.getOperationalComponents();
         lsmHarness = lsmInitialState.getLSMHarness();
+        if (lsmHarness != null)
+            wasMerging = lsmHarness.isMerging();
+
         searchCallback = lsmInitialState.getSearchOperationCallback();
         predicate = (RangePredicate) lsmInitialState.getSearchPredicate();
         numBTrees = operationalComponents.size();
