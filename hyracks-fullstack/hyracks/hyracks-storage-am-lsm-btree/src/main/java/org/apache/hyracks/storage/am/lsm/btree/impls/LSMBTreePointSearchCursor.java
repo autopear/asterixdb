@@ -19,6 +19,7 @@
 
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -35,6 +36,7 @@ import org.apache.hyracks.storage.am.common.impls.NoOpOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.LSMComponentType;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMHarness;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMTreeTupleReference;
@@ -57,6 +59,9 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     private boolean nextHasBeenCalled;
     private boolean foundTuple;
     private int foundIn = -1;
+    private Boolean memoryOnly;
+    private long searchStart;
+    private List<Long> diskComponents;
     private ITupleReference frameTuple;
     private List<ILSMComponent> operationalComponents;
     private boolean resultOfSearchCallbackProceed = false;
@@ -65,6 +70,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
 
     public LSMBTreePointSearchCursor(ILSMIndexOperationContext opCtx) {
         this.opCtx = opCtx;
+        diskComponents = new ArrayList<>();
     }
 
     @Override
@@ -115,12 +121,14 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                         if (((ILSMTreeTupleReference) btreeCursors[i].getTuple()).isAntimatter()) {
                             searchCallback.cancel(predicate.getLowKey());
                             btreeCursors[i].close();
+                            memoryOnly = true;
                             return false;
                         } else {
                             frameTuple = btreeCursors[i].getTuple();
                             foundTuple = true;
                             searchCallback.complete(predicate.getLowKey());
                             foundIn = i;
+                            memoryOnly = true;
                             return true;
                         }
                     } else {
@@ -151,6 +159,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         } finally {
             if (lsmHarness != null) {
                 lsmHarness.endSearch(opCtx);
+                lsmHarness.recordPointSearch(System.nanoTime() - searchStart, diskComponents, memoryOnly);
             }
         }
     }
@@ -158,6 +167,8 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     @Override
     public void doOpen(ICursorInitialState initialState, ISearchPredicate searchPred) throws HyracksDataException {
         LSMBTreeCursorInitialState lsmInitialState = (LSMBTreeCursorInitialState) initialState;
+        searchStart = System.nanoTime();
+
         operationalComponents = lsmInitialState.getOperationalComponents();
         lsmHarness = lsmInitialState.getLSMHarness();
         searchCallback = lsmInitialState.getSearchOperationCallback();
@@ -189,6 +200,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                     destroyAndNullifyCursorAtIndex(i);
                 }
             } else {
+                diskComponents.add(new Long(((ILSMDiskComponent) component).getComponentSize()));
                 if (bloomFilters[i] == null) {
                     destroyAndNullifyCursorAtIndex(i);
                 }
@@ -206,6 +218,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         }
         nextHasBeenCalled = false;
         foundTuple = false;
+        memoryOnly = false;
     }
 
     private void destroyAndNullifyCursorAtIndex(int i) throws HyracksDataException {

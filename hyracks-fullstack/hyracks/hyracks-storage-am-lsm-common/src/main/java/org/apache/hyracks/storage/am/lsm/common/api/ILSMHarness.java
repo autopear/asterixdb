@@ -262,4 +262,6 @@ public interface ILSMHarness {
      */
     void replaceMemoryComponentsWithDiskComponents(ILSMIndexOperationContext ctx, int startIndex)
             throws HyracksDataException;
+
+    void recordPointSearch(long duration, List<Long> diskComponents, Boolean inMemory);
 }

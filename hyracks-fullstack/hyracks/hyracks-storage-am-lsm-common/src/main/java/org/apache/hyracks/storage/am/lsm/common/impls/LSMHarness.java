@@ -76,8 +76,16 @@ public class LSMHarness implements ILSMHarness {
     protected ITracer tracer;
     protected long traceCategory;
 
+    public List<Long> flushHist;
+    public long lastFlush;
+    public Semaphore flushSem;
+
     public List<Pair<Long, List<Long>>> mergeHist;
     public Semaphore mergeSem;
+
+    public List<Pair<Long, List<Long>>> searchHist;
+    public List<Long> searchRate;
+    public Semaphore searchSem;
 
     public LSMHarness(ILSMIndex lsmIndex, ILSMIOOperationScheduler ioScheduler, ILSMMergePolicy mergePolicy,
             ILSMOperationTracker opTracker, boolean replicationEnabled, ITracer tracer) {
@@ -95,8 +103,16 @@ public class LSMHarness implements ILSMHarness {
         }
         componentReplacementCtx = new ComponentReplacementContext(lsmIndex);
 
+        this.flushHist = new ArrayList<>();
+        this.lastFlush = 0;
+        this.flushSem = new Semaphore(1);
+
         this.mergeHist = new ArrayList<>();
         this.mergeSem = new Semaphore(1);
+
+        this.searchHist = new ArrayList<>();
+        this.searchRate = new ArrayList<>();
+        this.searchSem = new Semaphore(1);
     }
 
     protected boolean getAndEnterComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -434,6 +450,32 @@ public class LSMHarness implements ILSMHarness {
     }
 
     @Override
+    public void recordPointSearch(long duration, List<Long> diskComponents, Boolean inMemory) {
+        long searchEnd = System.nanoTime();
+
+        try {
+            searchSem.acquire();
+            try {
+                if (!inMemory) {
+                    if (searchHist.size() == 100) {
+                        searchHist.remove(0);
+                    }
+                    searchHist.add(new Pair<>(new Long(duration), diskComponents));
+                }
+
+                while (!searchRate.isEmpty() && searchEnd - searchRate.get(0).longValue() > 10000000000L) {
+                    searchRate.remove(0);
+                }
+                searchRate.add(new Long(searchEnd));
+            } finally {
+                searchSem.release();
+            }
+        } catch (InterruptedException ie) {
+            // ...
+        }
+    }
+
+    @Override
     public void search(ILSMIndexOperationContext ctx, IIndexCursor cursor, ISearchPredicate pred)
             throws HyracksDataException {
         LSMOperationType opType = LSMOperationType.SEARCH;
@@ -512,6 +554,7 @@ public class LSMHarness implements ILSMHarness {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Started a flush operation for index: {}", lsmIndex);
         }
+
         synchronized (opTracker) {
             while (!enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.FLUSH)) {
                 try {
@@ -531,6 +574,29 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
+
+        long flushEnd = System.nanoTime();
+
+        try {
+            flushSem.acquire();
+            try {
+                if (lastFlush == 0) {
+                    lastFlush = flushEnd;
+                } else if (flushEnd > lastFlush) {
+                    if (flushHist.size() == 10) {
+                        flushHist.remove(0);
+                    }
+                    flushHist.add(new Long(flushEnd - lastFlush));
+                    lastFlush = flushEnd;
+                } else {
+                }
+            } finally {
+                flushSem.release();
+            }
+        } catch (InterruptedException ie) {
+            // ...
+        }
+
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Finished the flush operation for index: {}. Result: ", lsmIndex, operation.getStatus());
         }
