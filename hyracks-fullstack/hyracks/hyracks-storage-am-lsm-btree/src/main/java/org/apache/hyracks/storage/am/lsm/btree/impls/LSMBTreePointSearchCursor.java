@@ -33,13 +33,8 @@ import org.apache.hyracks.storage.am.common.api.ILSMIndexCursor;
 import org.apache.hyracks.storage.am.common.api.ITreeIndexCursor;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.common.impls.NoOpOperationCallback;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.LSMComponentType;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMHarness;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMTreeTupleReference;
 import org.apache.hyracks.storage.common.EnforcedIndexCursor;
 import org.apache.hyracks.storage.common.ICursorInitialState;
 import org.apache.hyracks.storage.common.ISearchOperationCallback;
@@ -62,7 +57,8 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     private Boolean memoryOnly;
     private long searchStart;
     private Boolean wasMerging;
-    private List<Long> diskComponents;
+    private int numComponents;
+    private long totalSize;
     private ITupleReference frameTuple;
     private List<ILSMComponent> operationalComponents;
     private boolean resultOfSearchCallbackProceed = false;
@@ -71,7 +67,6 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
 
     public LSMBTreePointSearchCursor(ILSMIndexOperationContext opCtx) {
         this.opCtx = opCtx;
-        diskComponents = new ArrayList<>();
     }
 
     @Override
@@ -160,11 +155,13 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         } finally {
             if (lsmHarness != null) {
                 lsmHarness.endSearch(opCtx);
-                Boolean isMerging = lsmHarness.isMerging();
+                ILSMOperationHistory history = lsmHarness.getOperationHistory();
+                long duration = System.nanoTime() - searchStart;
+                Boolean isMerging = history.isMerging();
                 if (wasMerging && isMerging) {
-                    lsmHarness.recordPointSearch(System.nanoTime() - searchStart, diskComponents, true, memoryOnly);
+                    history.recordPointSearch(numComponents, totalSize, duration, true, memoryOnly);
                 } else if (!wasMerging && !isMerging) {
-                    lsmHarness.recordPointSearch(System.nanoTime() - searchStart, diskComponents, false, memoryOnly);
+                    history.recordPointSearch(numComponents, totalSize, duration, false, memoryOnly);
                 } else {
                 }
             }
@@ -175,11 +172,13 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     public void doOpen(ICursorInitialState initialState, ISearchPredicate searchPred) throws HyracksDataException {
         LSMBTreeCursorInitialState lsmInitialState = (LSMBTreeCursorInitialState) initialState;
         searchStart = System.nanoTime();
+        numComponents = 0;
+        totalSize = 0;
 
         operationalComponents = lsmInitialState.getOperationalComponents();
         lsmHarness = lsmInitialState.getLSMHarness();
         if (lsmHarness != null)
-            wasMerging = lsmHarness.isMerging();
+            wasMerging = lsmHarness.getOperationHistory().isMerging();
 
         searchCallback = lsmInitialState.getSearchOperationCallback();
         predicate = (RangePredicate) lsmInitialState.getSearchPredicate();
@@ -210,7 +209,9 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                     destroyAndNullifyCursorAtIndex(i);
                 }
             } else {
-                diskComponents.add(new Long(((ILSMDiskComponent) component).getComponentSize()));
+                numComponents++;
+                totalSize +=
+                        (long) Math.ceil((double) (((ILSMDiskComponent) component).getComponentSize()) / 1048576.0);
                 if (bloomFilters[i] == null) {
                     destroyAndNullifyCursorAtIndex(i);
                 }

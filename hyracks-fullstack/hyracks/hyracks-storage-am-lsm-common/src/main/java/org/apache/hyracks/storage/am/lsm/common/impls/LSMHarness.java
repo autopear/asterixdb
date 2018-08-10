@@ -22,9 +22,6 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
-import java.util.concurrent.Semaphore;
-
-import javafx.util.Pair;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -53,6 +50,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMMemoryComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.LSMOperationType;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationHistory;
 import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.util.annotations.CriticalPath;
@@ -76,18 +74,7 @@ public class LSMHarness implements ILSMHarness {
     protected ITracer tracer;
     protected long traceCategory;
 
-    public List<Long> flushHist;
-    public long lastFlush;
-    public Semaphore flushSem;
-
-    public List<Pair<Long, List<Long>>> mergeHist;
-    public long mergeThreads;
-    public Semaphore mergeSem;
-
-    public List<Pair<List<Long>, List<Long>>> searchNormalHist;
-    public List<Pair<List<Long>, List<Long>>> searchMergeHist;
-    public List<Long> searchRate;
-    public Semaphore searchSem;
+    protected ILSMOperationHistory history;
 
     public LSMHarness(ILSMIndex lsmIndex, ILSMIOOperationScheduler ioScheduler, ILSMMergePolicy mergePolicy,
             ILSMOperationTracker opTracker, boolean replicationEnabled, ITracer tracer) {
@@ -105,18 +92,7 @@ public class LSMHarness implements ILSMHarness {
         }
         componentReplacementCtx = new ComponentReplacementContext(lsmIndex);
 
-        this.flushHist = new ArrayList<>();
-        this.lastFlush = 0;
-        this.flushSem = new Semaphore(1);
-
-        this.mergeHist = new ArrayList<>();
-        this.mergeThreads = 0;
-        this.mergeSem = new Semaphore(1);
-
-        this.searchNormalHist = new ArrayList<>();
-        this.searchMergeHist = new ArrayList<>();
-        this.searchRate = new ArrayList<>();
-        this.searchSem = new Semaphore(1);
+        history = new ILSMOperationHistory();
     }
 
     protected boolean getAndEnterComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -378,6 +354,11 @@ public class LSMHarness implements ILSMHarness {
     }
 
     @Override
+    public ILSMOperationHistory getOperationHistory() {
+        return history;
+    }
+
+    @Override
     public void forceModify(ILSMIndexOperationContext ctx, ITupleReference tuple) throws HyracksDataException {
         LSMOperationType opType = LSMOperationType.FORCE_MODIFICATION;
         modify(ctx, false, tuple, opType);
@@ -451,104 +432,6 @@ public class LSMHarness implements ILSMHarness {
             exitComponents(ctx, opType, null, failedOperation);
         }
         return true;
-    }
-
-    @Override
-    public Boolean isMerging() {
-        return mergeThreads > 0;
-    }
-
-    @Override
-    public void recordPointSearch(long duration, List<Long> diskComponents, Boolean duringMerge, Boolean inMemory) {
-        long searchEnd = System.nanoTime();
-
-        try {
-            searchSem.acquire();
-            try {
-                if (!inMemory) {
-                    if (duringMerge) {
-                        if (searchMergeHist.isEmpty()) {
-                            List<Long> durations = new ArrayList<>();
-                            durations.add(new Long(duration));
-                            searchMergeHist.add(new Pair<>(diskComponents, durations));
-                        } else {
-                            int idx = -1;
-                            for (int i = 0; i < searchMergeHist.size(); i++) {
-                                if (searchMergeHist.get(i).getKey().equals(diskComponents)) {
-                                    idx = i;
-                                    break;
-                                }
-                            }
-                            if (idx == searchMergeHist.size() - 1) {
-                                ArrayList<Long> durations = (ArrayList<Long>) (searchMergeHist.get(idx).getValue());
-                                durations.add(new Long(duration));
-                                if (durations.size() == 101) {
-                                    durations.remove(0);
-                                }
-                                searchMergeHist.remove(idx);
-                                searchMergeHist.add(new Pair<>(diskComponents, durations));
-                            } else if (idx > -1) {
-                                searchMergeHist.remove(idx);
-                                List<Long> durations = new ArrayList<>();
-                                durations.add(new Long(duration));
-                                searchMergeHist.add(new Pair<>(diskComponents, durations));
-                            } else {
-                                if (searchMergeHist.size() == 100) {
-                                    searchMergeHist.remove(0);
-                                }
-                                List<Long> durations = new ArrayList<>();
-                                durations.add(new Long(duration));
-                                searchMergeHist.add(new Pair<>(diskComponents, durations));
-                            }
-                        }
-                    } else {
-                        if (searchNormalHist.isEmpty()) {
-                            List<Long> durations = new ArrayList<>();
-                            durations.add(new Long(duration));
-                            searchNormalHist.add(new Pair<>(diskComponents, durations));
-                        } else {
-                            int idx = -1;
-                            for (int i = 0; i < searchNormalHist.size(); i++) {
-                                if (searchNormalHist.get(i).getKey().equals(diskComponents)) {
-                                    idx = i;
-                                    break;
-                                }
-                            }
-                            if (idx == searchNormalHist.size() - 1) {
-                                ArrayList<Long> durations = (ArrayList<Long>) (searchNormalHist.get(idx).getValue());
-                                durations.add(new Long(duration));
-                                if (durations.size() == 101) {
-                                    durations.remove(0);
-                                }
-                                searchNormalHist.remove(idx);
-                                searchNormalHist.add(new Pair<>(diskComponents, durations));
-                            } else if (idx > -1) {
-                                searchNormalHist.remove(idx);
-                                List<Long> durations = new ArrayList<>();
-                                durations.add(new Long(duration));
-                                searchNormalHist.add(new Pair<>(diskComponents, durations));
-                            } else {
-                                if (searchNormalHist.size() == 100) {
-                                    searchNormalHist.remove(0);
-                                }
-                                List<Long> durations = new ArrayList<>();
-                                durations.add(new Long(duration));
-                                searchNormalHist.add(new Pair<>(diskComponents, durations));
-                            }
-                        }
-                    }
-                }
-
-                while (!searchRate.isEmpty() && searchEnd - searchRate.get(0).longValue() > 10000000000L) {
-                    searchRate.remove(0);
-                }
-                searchRate.add(new Long(searchEnd));
-            } finally {
-                searchSem.release();
-            }
-        } catch (InterruptedException ie) {
-            // ...
-        }
     }
 
     @Override
@@ -653,33 +536,26 @@ public class LSMHarness implements ILSMHarness {
 
         long flushEnd = System.nanoTime();
 
-        try {
-            flushSem.acquire();
-            try {
-                if (lastFlush == 0) {
-                    lastFlush = flushEnd;
-                } else if (flushEnd > lastFlush) {
-                    if (flushHist.size() == 10) {
-                        flushHist.remove(0);
-                    }
-                    flushHist.add(new Long(flushEnd - lastFlush));
-                    lastFlush = flushEnd;
-                } else {
-                }
-            } finally {
-                flushSem.release();
-            }
-        } catch (InterruptedException ie) {
-            // ...
-        }
+        history.recordFlush(flushEnd);
 
-        /*if (lsmIndex.getIndexIdentifier().contains("usertable")) {
-            LOGGER.info("FlushRate:{}", flushHist);
-            LOGGER.info("SearchRate:{}", searchRate);
-            LOGGER.info("MergeHist:{}", mergeHist);
-            LOGGER.info("SearchNormal:{}", searchNormalHist);
-            LOGGER.info("SearchMerge:{}", searchMergeHist);
-        }*/
+        if (lsmIndex.getIndexIdentifier().contains("usertable")) {
+            LOGGER.info("[SEARCHRATE]\t" + history.getSearchRate());
+
+            double[] normalSlopes = history.getNormalSearchSlopes();
+            if (Double.isNaN(normalSlopes[0])) {
+                LOGGER.info("[NORMALSEARCH]\t" + history.normalSearchHistoryToString() + "\tNaN\tNaN");
+            } else {
+                LOGGER.info("[NORMALSEARCH]\t" + history.normalSearchHistoryToString() + "\t" + normalSlopes[0] + "\t"
+                        + normalSlopes[1]);
+            }
+            double[] mergeSlopes = history.getMergeSearchSlopes();
+            if (Double.isNaN(normalSlopes[0])) {
+                LOGGER.info("[MERGESEARCH]\t" + history.mergeSearchHistoryToString() + "\tNaN\tNaN");
+            } else {
+                LOGGER.info("[MERGESEARCH]\t" + history.mergeSearchHistoryToString() + "\t" + mergeSlopes[0] + "\t"
+                        + mergeSlopes[1]);
+            }
+        }
 
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Finished the flush operation for index: {}. Result: ", lsmIndex, operation.getStatus());
@@ -726,21 +602,14 @@ public class LSMHarness implements ILSMHarness {
             LOGGER.info("Started a merge operation for index: {}", lsmIndex);
         }
 
-        List<Long> componentsToMerge = new ArrayList<>();
+        int k = 0;
+        long mergedSize = 0;
         for (ILSMDiskComponent c : operation.getAccessor().getOpContext().getComponentsToBeMerged()) {
-            componentsToMerge.add(new Long(c.getComponentSize()));
+            k++;
+            mergedSize += (long) Math.ceil((double) c.getComponentSize() / 1048576.0);
         }
 
-        try {
-            mergeSem.acquire();
-            try {
-                mergeThreads++;
-            } finally {
-                mergeSem.release();
-            }
-        } catch (InterruptedException ie) {
-            // ...
-        }
+        history.startMerge();
 
         long mergeStart = System.nanoTime();
 
@@ -759,19 +628,15 @@ public class LSMHarness implements ILSMHarness {
 
         long duration = System.nanoTime() - mergeStart;
 
-        try {
-            mergeSem.acquire();
-            try {
-                if (mergeHist.size() == 10) {
-                    mergeHist.remove(0);
-                }
-                mergeHist.add(new Pair<>(duration, componentsToMerge));
-                mergeThreads--;
-            } finally {
-                mergeSem.release();
+        history.finishMerge(k, mergedSize, duration);
+
+        if (lsmIndex.getIndexIdentifier().contains("usertable")) {
+            double slope = history.getMergeSlope();
+            if (Double.isNaN(slope)) {
+                LOGGER.info("[MERGE]\t" + history.mergeHistoryToString() + "\tNaN");
+            } else {
+                LOGGER.info("[MERGE]\t" + history.mergeHistoryToString() + "\t" + slope);
             }
-        } catch (InterruptedException ie) {
-            // ...
         }
 
         if (LOGGER.isInfoEnabled()) {

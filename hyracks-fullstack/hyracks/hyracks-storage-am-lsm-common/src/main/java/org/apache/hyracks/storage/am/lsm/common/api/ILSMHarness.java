@@ -263,7 +263,5 @@ public interface ILSMHarness {
     void replaceMemoryComponentsWithDiskComponents(ILSMIndexOperationContext ctx, int startIndex)
             throws HyracksDataException;
 
-    Boolean isMerging();
-
-    void recordPointSearch(long duration, List<Long> diskComponents, Boolean duringMerge, Boolean inMemory);
+    ILSMOperationHistory getOperationHistory();
 }
