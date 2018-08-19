@@ -21,6 +21,7 @@ package org.apache.hyracks.storage.am.lsm.btree.impls;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.Math;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.util.CleanupUtils;
@@ -58,7 +59,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     private long searchStart;
     private Boolean wasMerging;
     private int numComponents;
-    private long totalSize;
+    private double totalSize;
     private ITupleReference frameTuple;
     private List<ILSMComponent> operationalComponents;
     private boolean resultOfSearchCallbackProceed = false;
@@ -210,8 +211,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 }
             } else {
                 numComponents++;
-                totalSize +=
-                        (long) Math.ceil((double) (((ILSMDiskComponent) component).getComponentSize()) / 1048576.0);
+                totalSize += Math.log((double) (((ILSMDiskComponent) component).getComponentSize()) / 1048576.0);
                 if (bloomFilters[i] == null) {
                     destroyAndNullifyCursorAtIndex(i);
                 }
@@ -227,6 +227,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 btreeCursors[i].close();
             }
         }
+        totalSize = Math.round(totalSize * 100.0) / 100.0;
         nextHasBeenCalled = false;
         foundTuple = false;
         memoryOnly = false;
