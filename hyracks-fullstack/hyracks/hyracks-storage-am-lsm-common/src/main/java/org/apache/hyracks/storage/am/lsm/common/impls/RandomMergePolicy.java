@@ -34,6 +34,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
 public class RandomMergePolicy implements ILSMMergePolicy {
+    private float mergeProbability;
     private int minComponents;
     private int maxComponents;
 
@@ -44,6 +45,12 @@ public class RandomMergePolicy implements ILSMMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
+        mergeProbability = Float.parseFloat(properties.get(RandomMergePolicyFactory.MERGE_PROBABILITY));
+        mergeProbability = Math.round(mergeProbability * 1000.0f) / 1000.0f;
+        if (mergeProbability <= 0.0f)
+            mergeProbability = 0.0f;
+        if (mergeProbability >= 1.0f)
+            mergeProbability = 1.0f;
         minComponents = Integer.parseInt(properties.get(RandomMergePolicyFactory.MIN_COMPONENTS));
         maxComponents = Integer.parseInt(properties.get(RandomMergePolicyFactory.MAX_COMPONENTS));
     }
@@ -100,9 +107,20 @@ public class RandomMergePolicy implements ILSMMergePolicy {
         return false;
     }
 
+    protected Boolean shouldMerge() {
+        if (mergeProbability >= 1.0f)
+            return true;
+        if (mergeProbability <= 0.0f)
+            return false;
+        int intProb = (int) (mergeProbability * 1000);
+        int r = new Random(System.nanoTime()).nextInt(1000) + 1;
+        return r <= intProb;
+    }
+
     protected List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> immutableComponents) {
         // No merge
-        if ((maxComponents > 1 && minComponents > maxComponents) || (minComponents == 0 && maxComponents == 0))
+        if (!shouldMerge() || (maxComponents > 1 && minComponents > maxComponents)
+                || (minComponents == 0 && maxComponents == 0))
             return null;
 
         // Full merge
@@ -115,7 +133,7 @@ public class RandomMergePolicy implements ILSMMergePolicy {
         if (s < 2 || minComponents > s)
             return null;
 
-        int min = minComponents > 0 ? minComponents : 1;
+        int min = minComponents > 1 ? minComponents : 2;
         int max = (maxComponents < 2 || maxComponents >= s) ? s : maxComponents;
 
         // No merge
@@ -123,11 +141,7 @@ public class RandomMergePolicy implements ILSMMergePolicy {
             return null;
 
         int r = (min == max) ? min : new Random(System.nanoTime()).nextInt(max - min + 1) + min;
-
-        // No merge
-        if (r < 2)
-            return null;
-
+        
         int start = (s == r) ? 0 : new Random(System.nanoTime()).nextInt(s - r + 1);
 
         List<ILSMDiskComponent> mergableComponents = new ArrayList<>();

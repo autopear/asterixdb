@@ -35,9 +35,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class RandomMergePolicyFactory implements ILSMMergePolicyFactory {
 
     private static final long serialVersionUID = 1L;
+    public static final String MERGE_PROBABILITY = "merge-probability";
     public static final String MIN_COMPONENTS = "min-components";
     public static final String MAX_COMPONENTS = "max-components";
-    private static final Set<String> PROPERTIES_NAMES = new HashSet<>(Arrays.asList(MIN_COMPONENTS, MAX_COMPONENTS));
+    private static final Set<String> PROPERTIES_NAMES =
+            new HashSet<>(Arrays.asList(MERGE_PROBABILITY, MIN_COMPONENTS, MAX_COMPONENTS));
 
     @Override
     public String getName() {
