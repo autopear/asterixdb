@@ -70,9 +70,9 @@ import org.apache.asterix.lang.sqlpp.util.FunctionMapUtil;
 import org.apache.asterix.lang.sqlpp.visitor.base.ISqlppVisitor;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 
-class SqlppQueryRewriter implements IQueryRewriter {
-    private static final String INLINE_WITH = "inline_with";
-    private static final String NOT_INLINE_WITH = "false";
+public class SqlppQueryRewriter implements IQueryRewriter {
+    public static final String INLINE_WITH_OPTION = "inline_with";
+    private static final boolean INLINE_WITH_OPTION_DEFAULT = true;
     private final FunctionParser functionRepository = new FunctionParser(new SqlppParserFactory());
     private IReturningStatement topExpr;
     private List<FunctionDecl> declaredFunctions;
@@ -100,9 +100,6 @@ class SqlppQueryRewriter implements IQueryRewriter {
         // Sets up parameters.
         setup(declaredFunctions, topStatement, metadataProvider, context, externalVars);
 
-        // Inlines column aliases.
-        inlineColumnAlias();
-
         // Generates column names.
         generateColumnNames();
 
@@ -114,6 +111,9 @@ class SqlppQueryRewriter implements IQueryRewriter {
 
         // Rewrites set operations.
         rewriteSetOperations();
+
+        // Inlines column aliases.
+        inlineColumnAlias();
 
         // Generate ids for variables (considering scopes) and replace global variable access with the dataset function.
         variableCheckAndRewrite();
@@ -168,8 +168,7 @@ class SqlppQueryRewriter implements IQueryRewriter {
     }
 
     protected void inlineWithExpressions() throws CompilationException {
-        String inlineWith = (String) metadataProvider.getConfig().get(INLINE_WITH);
-        if (inlineWith != null && inlineWith.equalsIgnoreCase(NOT_INLINE_WITH)) {
+        if (!metadataProvider.getBooleanProperty(INLINE_WITH_OPTION, INLINE_WITH_OPTION_DEFAULT)) {
             return;
         }
         // Inlines with expressions.

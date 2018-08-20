@@ -28,7 +28,6 @@ create  dataverse test;
 
 use test;
 
-
 create type test.DBLPType as
 {
   id : bigint,
@@ -38,5 +37,11 @@ create type test.DBLPType as
   misc : string
 };
 
-create  dataset DBLP1(DBLPType) primary key id;
+create type test.TweetMessageType as
+{
+  tweetid : string
+};
 
+create dataset DBLP1(DBLPType) primary key id;
+
+create  dataset TweetMessages(TweetMessageType) primary key tweetid;

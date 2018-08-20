@@ -151,12 +151,14 @@ public class NonDeterministicChannelReader implements IInputChannelMonitor, IPar
     public synchronized void notifyFailure(IInputChannel channel, int errorCode) {
         PartitionId pid = (PartitionId) channel.getAttachment();
         int senderIndex = pid.getSenderIndex();
-        LOGGER.warn("Failure: " + pid.getConnectorDescriptorId() + " sender: " + senderIndex + " receiver: "
-                + pid.getReceiverIndex());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Failure: " + pid.getConnectorDescriptorId() + " sender: " + senderIndex + " receiver: "
+                    + pid.getReceiverIndex());
+        }
         // Note: if a remote failure overwrites the value of localFailure, then we rely on
         // the fact that the remote task will notify the cc of the failure.
         // Otherwise, the local task must fail
-        localFailure = errorCode == AbstractChannelWriteInterface.LOCAL_ERROR_CODE;
+        localFailure = errorCode == AbstractChannelWriteInterface.CONNECTION_LOST_ERROR_CODE;
         failSenders.set(senderIndex);
         eosSenders.set(senderIndex);
         notifyAll();
@@ -166,8 +168,8 @@ public class NonDeterministicChannelReader implements IInputChannelMonitor, IPar
     public synchronized void notifyDataAvailability(IInputChannel channel, int nFrames) {
         PartitionId pid = (PartitionId) channel.getAttachment();
         int senderIndex = pid.getSenderIndex();
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Data available: " + pid.getConnectorDescriptorId() + " sender: " + senderIndex + " receiver: "
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Data available: " + pid.getConnectorDescriptorId() + " sender: " + senderIndex + " receiver: "
                     + pid.getReceiverIndex());
         }
         availableFrameCounts[senderIndex] += nFrames;
@@ -179,8 +181,8 @@ public class NonDeterministicChannelReader implements IInputChannelMonitor, IPar
     public synchronized void notifyEndOfStream(IInputChannel channel) {
         PartitionId pid = (PartitionId) channel.getAttachment();
         int senderIndex = pid.getSenderIndex();
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("EOS: " + pid);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("EOS: " + pid);
         }
         eosSenders.set(senderIndex);
         notifyAll();

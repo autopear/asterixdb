@@ -33,6 +33,7 @@ import org.apache.hyracks.api.result.IResultPartitionManager;
 import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.comm.channels.IChannelConnectionFactory;
 import org.apache.hyracks.comm.channels.NetworkOutputChannel;
+import org.apache.hyracks.net.protocols.muxdemux.AbstractChannelWriteInterface;
 import org.apache.hyracks.net.protocols.muxdemux.ChannelControlBlock;
 import org.apache.hyracks.net.protocols.muxdemux.IChannelOpenListener;
 import org.apache.hyracks.net.protocols.muxdemux.MultiplexedConnection;
@@ -137,8 +138,8 @@ public class ResultNetworkManager implements IChannelConnectionFactory {
             JobId jobId = new JobId(buffer.getLong());
             ResultSetId rsId = new ResultSetId(buffer.getLong());
             int partition = buffer.getInt();
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Received initial result partition read request for JobId: " + jobId + " partition: "
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Received initial result partition read request for JobId: " + jobId + " partition: "
                         + partition + " on channel: " + ccb);
             }
             noc = new NetworkOutputChannel(ccb, nBuffers);
@@ -146,7 +147,7 @@ public class ResultNetworkManager implements IChannelConnectionFactory {
                 partitionManager.initializeResultPartitionReader(jobId, rsId, partition, noc);
             } catch (HyracksException e) {
                 LOGGER.warn("Failed to initialize result partition reader", e);
-                noc.abort();
+                noc.abort(AbstractChannelWriteInterface.REMOTE_ERROR_CODE);
             }
         }
 
@@ -158,7 +159,7 @@ public class ResultNetworkManager implements IChannelConnectionFactory {
         @Override
         public void error(int ecode) {
             if (noc != null) {
-                noc.abort();
+                noc.abort(ecode);
             }
         }
     }

@@ -19,6 +19,7 @@
 package org.apache.asterix.api.http.server;
 
 import static org.apache.asterix.common.exceptions.ErrorCode.ASTERIX;
+import static org.apache.asterix.common.exceptions.ErrorCode.NO_STATEMENT_PROVIDED;
 import static org.apache.asterix.common.exceptions.ErrorCode.REJECT_BAD_CLUSTER_STATE;
 import static org.apache.asterix.common.exceptions.ErrorCode.REJECT_NODE_UNREGISTERED;
 import static org.apache.asterix.common.exceptions.ErrorCode.REQUEST_TIMEOUT;
@@ -43,7 +44,8 @@ import org.apache.asterix.common.api.IClusterManagementWork;
 import org.apache.asterix.common.config.GlobalConfig;
 import org.apache.asterix.common.context.IStorageComponentProvider;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
-import org.apache.asterix.common.exceptions.AsterixException;
+import org.apache.asterix.common.exceptions.ErrorCode;
+import org.apache.asterix.common.exceptions.RuntimeDataException;
 import org.apache.asterix.compiler.provider.ILangCompilationProvider;
 import org.apache.asterix.lang.aql.parser.TokenMgrError;
 import org.apache.asterix.lang.common.base.IParser;
@@ -130,8 +132,9 @@ public class QueryServiceServlet extends AbstractQueryApiServlet {
 
     @Override
     protected void options(IServletRequest request, IServletResponse response) throws Exception {
-        response.setHeader("Access-Control-Allow-Origin",
-                "http://" + hostName + ":" + appCtx.getExternalProperties().getQueryWebInterfacePort());
+        if (request.getHeader("Origin") != null) {
+            response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
+        }
         response.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
         response.setStatus(HttpResponseStatus.OK);
     }
@@ -416,7 +419,10 @@ public class QueryServiceServlet extends AbstractQueryApiServlet {
         if (HttpUtil.ContentType.APPLICATION_JSON.equals(contentType)) {
             try {
                 JsonNode jsonRequest = OBJECT_MAPPER.readTree(HttpUtil.getRequestBody(request));
-                param.setStatement(jsonRequest.get(Parameter.STATEMENT.str()).asText());
+                final String statementParam = Parameter.STATEMENT.str();
+                if (jsonRequest.has(statementParam)) {
+                    param.setStatement(jsonRequest.get(statementParam).asText());
+                }
                 param.setFormat(toLower(getOptText(jsonRequest, Parameter.FORMAT.str())));
                 param.setPretty(getOptBoolean(jsonRequest, Parameter.PRETTY.str(), false));
                 param.setMode(toLower(getOptText(jsonRequest, Parameter.MODE.str())));
@@ -532,7 +538,7 @@ public class QueryServiceServlet extends AbstractQueryApiServlet {
         List<ExecutionWarning> warnings = Collections.emptyList(); // we don't have any warnings yet
         try {
             if (param.getStatement() == null || param.getStatement().isEmpty()) {
-                throw new AsterixException("Empty request, no statement provided");
+                throw new RuntimeDataException(ErrorCode.NO_STATEMENT_PROVIDED);
             }
             String statementsText = param.getStatement() + ";";
             Map<String, String> optionalParams = null;
@@ -542,8 +548,9 @@ public class QueryServiceServlet extends AbstractQueryApiServlet {
             Map<String, byte[]> statementParams = org.apache.asterix.app.translator.RequestParameters
                     .serializeParameterValues(param.getStatementParams());
             // CORS
-            response.setHeader("Access-Control-Allow-Origin",
-                    "http://" + hostName + ":" + appCtx.getExternalProperties().getQueryWebInterfacePort());
+            if (request.getHeader("Origin") != null) {
+                response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
+            }
             response.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
             response.setStatus(execution.getHttpStatus());
             executeStatement(statementsText, sessionOutput, resultProperties, stats, param, execution, optionalParams,
@@ -621,6 +628,9 @@ public class QueryServiceServlet extends AbstractQueryApiServlet {
                 case ASTERIX + REJECT_NODE_UNREGISTERED:
                     LOGGER.warn("handleException: {}: {}", he.getMessage(), param);
                     state.setStatus(ResultStatus.FATAL, HttpResponseStatus.SERVICE_UNAVAILABLE);
+                    break;
+                case ASTERIX + NO_STATEMENT_PROVIDED:
+                    state.setStatus(ResultStatus.FATAL, HttpResponseStatus.BAD_REQUEST);
                     break;
                 default:
                     LOGGER.warn("handleException: unexpected exception {}: {}", he.getMessage(), param, he);

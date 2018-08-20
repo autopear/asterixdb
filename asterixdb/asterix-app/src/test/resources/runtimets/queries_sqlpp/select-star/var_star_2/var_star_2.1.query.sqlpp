@@ -19,8 +19,9 @@
 
 /*
  * Description  : Invalid data type in select var.*
- * Expected Res : Failure
+ * Expected Res : Success
  */
 
  SELECT t, t.*
  FROM [1, 2, 3] t
+ ORDER BY t

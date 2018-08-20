@@ -145,9 +145,7 @@ public class LSMHarness implements ILSMHarness {
             }
             entranceSuccessful = numEntered == components.size();
         } catch (Throwable e) { // NOSONAR: Log and re-throw
-            if (LOGGER.isErrorEnabled()) {
-                LOGGER.log(Level.ERROR, opType.name() + " failed to enter components on " + lsmIndex, e);
-            }
+            LOGGER.warn("{} failed to enter components on {}", opType.name(), lsmIndex, e);
             throw e;
         } finally {
             if (!entranceSuccessful) {
@@ -204,9 +202,7 @@ public class LSMHarness implements ILSMHarness {
                     ctx.setAccessingComponents(false);
                     exitOperation(ctx, opType, newComponent, failedOperation);
                 } catch (Throwable e) { // NOSONAR: Log and re-throw
-                    if (LOGGER.isErrorEnabled()) {
-                        LOGGER.log(Level.ERROR, e.getMessage(), e);
-                    }
+                    LOGGER.warn("Failure exiting components", e);
                     throw e;
                 } finally {
                     if (failedOperation && (opType == LSMOperationType.MODIFICATION
@@ -490,7 +486,7 @@ public class LSMHarness implements ILSMHarness {
     @Override
     public ILSMIOOperation scheduleFlush(ILSMIndexOperationContext ctx) throws HyracksDataException {
         ILSMIOOperation flush;
-        LOGGER.info("Flush is being scheduled on {}", lsmIndex);
+        LOGGER.debug("Flush is being scheduled on {}", lsmIndex);
         if (!lsmIndex.isMemoryComponentsAllocated()) {
             lsmIndex.allocateMemoryComponents();
         }
@@ -510,8 +506,8 @@ public class LSMHarness implements ILSMHarness {
     @SuppressWarnings("squid:S2142")
     @Override
     public void flush(ILSMIOOperation operation) throws HyracksDataException {
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Started a flush operation for index: {}", lsmIndex);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Started a flush operation for index: {}", lsmIndex);
         }
 
         synchronized (opTracker) {
@@ -557,8 +553,8 @@ public class LSMHarness implements ILSMHarness {
             }
         }
 
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Finished the flush operation for index: {}. Result: ", lsmIndex, operation.getStatus());
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Finished the flush operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }
     }
 
@@ -598,8 +594,8 @@ public class LSMHarness implements ILSMHarness {
 
     @Override
     public void merge(ILSMIOOperation operation) throws HyracksDataException {
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Started a merge operation for index: {}", lsmIndex);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Started a merge operation for index: {}", lsmIndex);
         }
 
         int k = 0;
@@ -639,8 +635,8 @@ public class LSMHarness implements ILSMHarness {
             }
         }
 
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }
     }
 
@@ -769,9 +765,7 @@ public class LSMHarness implements ILSMHarness {
                 processor.finish();
             }
         } catch (HyracksDataException e) {
-            if (LOGGER.isErrorEnabled()) {
-                LOGGER.log(Level.ERROR, "Failed to process frame", e);
-            }
+            LOGGER.warn("Failed to process frame", e);
             throw e;
         } finally {
             exit(ctx);

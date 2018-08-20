@@ -18,6 +18,9 @@
  */
 package org.apache.hyracks.util;
 
+import java.lang.reflect.Field;
+import java.util.IdentityHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.mutable.MutableLong;
@@ -45,6 +48,8 @@ public class ExitUtil {
     public static final int EC_TXN_LOG_FLUSHER_FAILURE = 14;
     public static final int EC_NODE_REGISTRATION_FAILURE = 15;
     public static final int EC_NETWORK_FAILURE = 16;
+    public static final int EC_ACTIVE_SUSPEND_FAILURE = 17;
+    public static final int EC_ACTIVE_RESUME_FAILURE = 18;
     public static final int EC_FAILED_TO_CANCEL_ACTIVE_START_STOP = 22;
     public static final int EC_IMMEDIATE_HALT = 33;
     public static final int EC_HALT_ABNORMAL_RESERVED_44 = 44;
@@ -58,7 +63,7 @@ public class ExitUtil {
     private static final MutableLong shutdownHaltDelay = new MutableLong(10 * 60 * 1000L); // 10 minutes default
 
     static {
-        Runtime.getRuntime().addShutdownHook(new Thread(watchdogThread::start));
+        watchdogThread.start();
     }
 
     private ExitUtil() {
@@ -94,6 +99,8 @@ public class ExitUtil {
 
     private static class ShutdownWatchdog extends Thread {
 
+        private final Semaphore startSemaphore = new Semaphore(0);
+
         private ShutdownWatchdog() {
             super("ShutdownWatchdog");
             setDaemon(true);
@@ -101,11 +108,14 @@ public class ExitUtil {
 
         @Override
         public void run() {
+            startSemaphore.acquireUninterruptibly();
+            LOGGER.info("starting shutdown watchdog- system will halt if shutdown is not completed within {} seconds",
+                    TimeUnit.MILLISECONDS.toSeconds(shutdownHaltDelay.getValue()));
             try {
-                exitThread.join(shutdownHaltDelay.getValue()); // 10 min
+                exitThread.join(shutdownHaltDelay.getValue());
                 if (exitThread.isAlive()) {
                     try {
-                        LOGGER.warn("Watchdog is angry. Killing shutdown hook");
+                        LOGGER.fatal("shutdown did not complete within configured delay; halting");
                     } finally {
                         ExitUtil.halt(EC_HALT_SHUTDOWN_TIMED_OUT);
                     }
@@ -113,6 +123,10 @@ public class ExitUtil {
             } catch (Throwable th) { // NOSONAR must catch them all
                 ExitUtil.halt(EC_HALT_WATCHDOG_FAILED);
             }
+        }
+
+        public void beginWatch() {
+            startSemaphore.release();
         }
     }
 
@@ -127,8 +141,10 @@ public class ExitUtil {
 
         @Override
         public void run() {
+            watchdogThread.beginWatch();
             try {
                 LOGGER.warn("JVM exiting with status " + status + "; bye!", callstack);
+                logShutdownHooks();
             } finally {
                 Runtime.getRuntime().exit(status);
             }
@@ -137,6 +153,18 @@ public class ExitUtil {
         public void setStatus(int status, Throwable callstack) {
             this.status = status;
             this.callstack = callstack;
+        }
+
+        private static void logShutdownHooks() {
+            try {
+                Class clazz = Class.forName("java.lang.ApplicationShutdownHooks");
+                Field hooksField = clazz.getDeclaredField("hooks");
+                hooksField.setAccessible(true);
+                IdentityHashMap hooks = (IdentityHashMap) hooksField.get(null);
+                LOGGER.info("the following ({}) shutdown hooks have been registered: {}", hooks::size, hooks::toString);
+            } catch (Exception e) {
+                LOGGER.warn("ignoring exception trying to determine number of shutdown hooks", e);
+            }
         }
     }
 }

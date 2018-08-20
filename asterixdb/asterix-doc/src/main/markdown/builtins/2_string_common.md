@@ -341,6 +341,7 @@
     * `string_flag` : (Optional) a `string` with flags to be used during replace.
         * The following modes are enabled with these flags: dotall (s), multiline (m), case_insensitive (i), and comments and whitespace (x).
     * `replacement_limit`: (Optional) an `integer` specifying the maximum number of replacements to make
+         (if negative then all occurrences will be replaced)
  * Return Value:
     * Returns a `string` that is obtained after the replacements,
     * `missing` if any argument is a `missing` value,
@@ -395,7 +396,7 @@
     * `search_string` : a `string`  substring to be searched for,
     * `replacement_string` : a `string` to be used as the replacement,
     * `limit` : (Optional) an `integer` - maximum number of occurrences to be replaced.
-                If not specified then all occurrences will be replaced
+                If not specified or negative then all occurrences will be replaced
  * Return Value:
     * Returns a `string` that is obtained after the replacements,
     * `missing` if any argument is a `missing` value,
@@ -535,7 +536,8 @@
  * Return Value:
     * a `string` that represents the substring,
     * `missing` if any argument is a `missing` value,
-    * `null` if any argument is a `null` value but no argument is a `missing` value,
+    * `null` if any argument is a `null` value but no argument is a `missing` value, or if the substring could not
+             be obtained because the starting offset is not within string bounds or `length` is negative.
     * a type error will be raised if:
         * the first argument is any other non-string value,
         * or, the second argument is not a `tinyint`, `smallint`, `integer`, or `bigint`,

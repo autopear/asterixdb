@@ -82,8 +82,8 @@ public class ChannelSet {
             ChannelControlBlock ccb = ccbArray[i];
             if (ccb != null) {
                 if (ccb.completelyClosed()) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("Cleaning free channel: " + ccb);
+                    if (LOGGER.isTraceEnabled()) {
+                        LOGGER.trace("Cleaning free channel: " + ccb);
                     }
                     freeChannel(ccb);
                 }
@@ -200,7 +200,7 @@ public class ChannelSet {
             for (int i = 0; i < ccbArray.length; ++i) {
                 ChannelControlBlock ccb = ccbArray[i];
                 if (ccb != null) {
-                    ccb.reportRemoteError(AbstractChannelWriteInterface.LOCAL_ERROR_CODE);
+                    ccb.reportRemoteError(AbstractChannelWriteInterface.CONNECTION_LOST_ERROR_CODE);
                     markEOSAck(i);
                     unmarkPendingCredits(i);
                 }
@@ -218,8 +218,8 @@ public class ChannelSet {
         if (ccbArray[idx] != null) {
             assert ccbArray[idx].completelyClosed() : ccbArray[idx].toString();
             if (ccbArray[idx].completelyClosed()) {
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("Cleaning free channel: " + ccbArray[idx]);
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("Cleaning free channel: " + ccbArray[idx]);
                 }
                 freeChannel(ccbArray[idx]);
             }

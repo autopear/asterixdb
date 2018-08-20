@@ -69,15 +69,12 @@ import org.apache.logging.log4j.Logger;
 public abstract class ActiveEntityEventsListener implements IActiveEntityController {
 
     private static final Logger LOGGER = LogManager.getLogger();
-    private static final Level level = Level.INFO;
+    private static final Level level = Level.DEBUG;
     private static final ActiveEvent STATE_CHANGED = new ActiveEvent(null, Kind.STATE_CHANGED, null, null);
     private static final EnumSet<ActivityState> TRANSITION_STATES = EnumSet.of(ActivityState.RESUMING,
             ActivityState.STARTING, ActivityState.STOPPING, ActivityState.RECOVERING, ActivityState.CANCELLING);
     private static final String DEFAULT_ACTIVE_STATS = "{\"Stats\":\"N/A\"}";
-    // TODO: Make configurable https://issues.apache.org/jira/browse/ASTERIXDB-2065
-    protected static final long STOP_MESSAGE_TIMEOUT = 5L;
-    protected static final long SUSPEND_MESSAGE_TIMEOUT = 10L;
-    protected static final TimeUnit TIMEOUT_UNIT = TimeUnit.MINUTES;
+    protected static final TimeUnit TIMEOUT_UNIT = TimeUnit.SECONDS;
     protected final IClusterStateManager clusterStateManager;
     protected final ActiveNotificationHandler handler;
     protected final List<IActiveEntityEventSubscriber> subscribers = new ArrayList<>();
@@ -136,7 +133,9 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
     }
 
     protected synchronized void setState(ActivityState newState) {
-        LOGGER.log(level, "State of " + getEntityId() + "is being set to " + newState + " from " + state);
+        if (LOGGER.isEnabled(level)) {
+            LOGGER.log(level, "State of " + getEntityId() + "is being set to " + newState + " from " + state);
+        }
         this.prevState = state;
         this.state = newState;
         if (newState == ActivityState.STARTING || newState == ActivityState.RECOVERING
@@ -151,7 +150,9 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
     @Override
     public synchronized void notify(ActiveEvent event) {
         try {
-            LOGGER.log(level, "EventListener is notified.");
+            if (LOGGER.isEnabled(level)) {
+                LOGGER.log(level, "EventListener is notified.");
+            }
             ActiveEvent.Kind eventKind = event.getEventKind();
             switch (eventKind) {
                 case JOB_CREATED:
@@ -190,7 +191,9 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
 
     @SuppressWarnings("unchecked")
     protected void finish(ActiveEvent event) throws HyracksDataException {
-        LOGGER.log(level, "the job " + jobId + " finished");
+        if (LOGGER.isEnabled(level)) {
+            LOGGER.log(level, "the job " + jobId + " finished");
+        }
         JobId lastJobId = jobId;
         if (numRegistered != numDeRegistered) {
             LOGGER.log(Level.WARN,
@@ -201,7 +204,9 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
         Pair<JobStatus, List<Exception>> status = (Pair<JobStatus, List<Exception>>) event.getEventObject();
         JobStatus jobStatus = status.getLeft();
         List<Exception> exceptions = status.getRight();
-        LOGGER.log(level, "The job finished with status: " + jobStatus);
+        if (LOGGER.isEnabled(level)) {
+            LOGGER.log(level, "The job finished with status: " + jobStatus);
+        }
         if (!jobSuccessfullyTerminated(jobStatus)) {
             jobFailure = exceptions.isEmpty() ? new RuntimeDataException(ErrorCode.UNREPORTED_TASK_FAILURE_EXCEPTION)
                     : exceptions.get(0);
@@ -351,7 +356,9 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
 
     @Override
     public synchronized void recover() {
-        LOGGER.log(level, "Recover is called on " + entityId);
+        if (LOGGER.isEnabled(level)) {
+            LOGGER.log(level, "Recover is called on " + entityId);
+        }
         if (retryPolicyFactory == NoRetryPolicyFactory.INSTANCE) {
             LOGGER.log(level, "But it has no recovery policy, so it is set to permanent failure");
             setState(ActivityState.STOPPED);
@@ -450,16 +457,24 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
         }
         WaitForStateSubscriber subscriber = new WaitForStateSubscriber(this, waitFor);
         // Note: once we start sending stop messages, we can't go back until the entity is stopped
+        final String nameBefore = Thread.currentThread().getName();
         try {
+            Thread.currentThread().setName(nameBefore + " : WaitForCompletionForJobId: " + jobId);
             sendStopMessages(metadataProvider, timeout, unit);
-            LOGGER.log(Level.DEBUG, "Waiting for its state to become " + waitFor);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Waiting for its state to become " + waitFor);
+            }
             subscriber.sync();
-            LOGGER.log(Level.DEBUG, "Disconnect has been completed " + waitFor);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Disconnect has been completed " + waitFor);
+            }
         } catch (InterruptedException ie) {
             forceStop(subscriber, ie);
             Thread.currentThread().interrupt();
         } catch (Throwable e) {
             forceStop(subscriber, e);
+        } finally {
+            Thread.currentThread().setName(nameBefore);
         }
     }
 
@@ -477,9 +492,13 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
         ICCMessageBroker messageBroker = (ICCMessageBroker) applicationCtx.getServiceContext().getMessageBroker();
         AlgebricksAbsolutePartitionConstraint runtimeLocations = getLocations();
         int partition = 0;
-        LOGGER.log(Level.INFO, "Sending stop messages to " + runtimeLocations);
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.log(Level.INFO, "Sending stop messages to " + runtimeLocations);
+        }
         for (String location : runtimeLocations.getLocations()) {
-            LOGGER.log(Level.INFO, "Sending to " + location);
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.log(Level.INFO, "Sending to " + location);
+            }
             ActiveRuntimeId runtimeId = getActiveRuntimeId(partition++);
             messageBroker.sendApplicationMessageToNC(new ActiveManagerMessage(ActiveManagerMessage.Kind.STOP_ACTIVITY,
                     new StopRuntimeParameters(runtimeId, timeout, unit)), location);
@@ -517,7 +536,7 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
         } else if (state == ActivityState.RUNNING) {
             setState(ActivityState.STOPPING);
             try {
-                doStop(metadataProvider, STOP_MESSAGE_TIMEOUT, TIMEOUT_UNIT);
+                doStop(metadataProvider, appCtx.getActiveProperties().getActiveStopTimeout(), TIMEOUT_UNIT);
             } catch (Exception e) {
                 setState(ActivityState.STOPPED);
                 LOGGER.log(Level.ERROR, "Failed to stop the entity " + entityId, e);
@@ -541,10 +560,14 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
         WaitForStateSubscriber subscriber;
         Future<Void> suspendTask;
         synchronized (this) {
-            LOGGER.log(level, "suspending entity " + entityId);
-            LOGGER.log(level, "Waiting for ongoing activities");
+            if (LOGGER.isEnabled(level)) {
+                LOGGER.log(level, "suspending entity " + entityId);
+                LOGGER.log(level, "Waiting for ongoing activities");
+            }
             waitForNonTransitionState();
-            LOGGER.log(level, "Proceeding with suspension. Current state is " + state);
+            if (LOGGER.isEnabled(level)) {
+                LOGGER.log(level, "Proceeding with suspension. Current state is " + state);
+            }
             if (state == ActivityState.STOPPED) {
                 suspended = true;
                 return;
@@ -574,7 +597,9 @@ public abstract class ActiveEntityEventsListener implements IActiveEntityControl
             subscriber.sync();
         } catch (Exception e) {
             synchronized (this) {
-                LOGGER.log(Level.ERROR, "Failure while waiting for " + entityId + " to become suspended", e);
+                if (LOGGER.isErrorEnabled()) {
+                    LOGGER.log(Level.ERROR, "Failure while waiting for " + entityId + " to become suspended", e);
+                }
                 // failed to suspend
                 if (state == ActivityState.SUSPENDING) {
                     if (jobId != null) {

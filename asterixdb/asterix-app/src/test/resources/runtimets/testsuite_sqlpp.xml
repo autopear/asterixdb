@@ -60,6 +60,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="flwor">
+      <compilation-unit name="order-by-13">
+        <output-dir compare="Text">order-by-13</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="flwor">
       <compilation-unit name="query-issue550">
         <output-dir compare="Text">query-issue550</output-dir>
       </compilation-unit>
@@ -5943,8 +5948,7 @@
     </test-case>
     <test-case FilePath="select-star">
       <compilation-unit name="var_star_2">
-        <output-dir compare="Text">var_star</output-dir>
-        <expected-error>ASX0002: Type mismatch</expected-error>
+        <output-dir compare="Text">var_star_2</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -6216,6 +6220,11 @@
     <test-case FilePath="spatial">
       <compilation-unit name="spatial-area">
         <output-dir compare="Text">spatial-area</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="spatial">
+      <compilation-unit name="spatial-large-data">
+        <output-dir compare="Text">spatial-large-data</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -6821,6 +6830,11 @@
     <test-case FilePath="subquery">
       <compilation-unit name="in">
         <output-dir compare="Text">in</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="subquery">
+      <compilation-unit name="in_as_or">
+        <output-dir compare="Text">in_as_or</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="subquery">

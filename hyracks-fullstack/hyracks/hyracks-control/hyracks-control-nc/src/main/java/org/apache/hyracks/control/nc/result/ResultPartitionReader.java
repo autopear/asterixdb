@@ -25,6 +25,7 @@ import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.partitions.ResultSetPartitionId;
 import org.apache.hyracks.comm.channels.NetworkOutputChannel;
+import org.apache.hyracks.net.protocols.muxdemux.AbstractChannelWriteInterface;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -77,12 +78,12 @@ public class ResultPartitionReader {
                     buffer.flip();
                     channel.nextFrame(buffer);
                 }
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("result reading successful(" + resultState.getResultSetPartitionId() + ")");
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("result reading successful(" + resultState.getResultSetPartitionId() + ")");
                 }
             } catch (Exception e) {
                 LOGGER.error(() -> "failed to send result partition " + resultState.getResultSetPartitionId(), e);
-                channel.abort();
+                channel.abort(AbstractChannelWriteInterface.REMOTE_ERROR_CODE);
             } finally {
                 close();
             }

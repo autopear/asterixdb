@@ -94,7 +94,7 @@ public class ExceptionUtils {
      * @return the root exception, or null if both parameters are null
      */
     public static Throwable suppress(Throwable first, Throwable second) {
-        if (second != null && second instanceof InterruptedException) {
+        if (second instanceof InterruptedException) {
             Thread.currentThread().interrupt();
         }
         if (first == null) {
@@ -130,4 +130,7 @@ public class ExceptionUtils {
         return current;
     }
 
+    public static boolean causedByInterrupt(Throwable th) {
+        return getRootCause(th) instanceof InterruptedException;
+    }
 }

@@ -161,7 +161,6 @@ public class ClusterControllerService implements IControllerService {
             throw new IllegalArgumentException("ICCApplication cannot be null");
         }
         this.application = application;
-        configManager.processConfig();
         File jobLogFolder = new File(ccConfig.getRootDir(), "logs/jobs");
         jobLog = new LogFile(jobLogFolder);
 
@@ -179,7 +178,7 @@ public class ClusterControllerService implements IControllerService {
         threadDumpRunMap = Collections.synchronizedMap(new HashMap<>());
 
         // Node manager is in charge of cluster membership management.
-        nodeManager = new NodeManager(this, ccConfig, resourceManager);
+        nodeManager = new NodeManager(this, ccConfig, resourceManager, application.getGatekeeper());
 
         ccId = ccConfig.getCcId();
         jobIdFactory = new JobIdFactory(ccId);
