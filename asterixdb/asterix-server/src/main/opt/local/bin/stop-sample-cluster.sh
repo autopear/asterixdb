@@ -117,9 +117,9 @@ if [ $? -ne 1 ]; then
   "$INSTALLDIR/bin/${HELPER_COMMAND}" shutdown_cluster_all
   first=1
   tries=0
-  echo -n "INFO: Waiting up to 60s for cluster to shutdown"
+  echo -n "INFO: Waiting up to 120s for cluster to shutdown"
   while [ -n "$(ps -ef | grep 'java.*org\.apache\.hyracks\.control\.[cn]c\.\([CN]CDriver\|service\.NCService\)')" ]; do
-    if [ $tries -ge 60 ]; then
+    if [ $tries -ge 120 ]; then
       echo "...timed out!"
       break
     fi

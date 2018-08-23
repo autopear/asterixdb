@@ -534,24 +534,24 @@ public class LSMHarness implements ILSMHarness {
 
         history.recordFlush(flushEnd);
 
-        if (lsmIndex.getIndexIdentifier().contains("usertable")) {
-            LOGGER.info("[SEARCHRATE]\t" + history.getSearchRate());
-
-            double[] normalSlopes = history.getNormalSearchSlopes();
-            if (Double.isNaN(normalSlopes[0])) {
-                LOGGER.info("[NORMALSEARCH]\t" + history.normalSearchHistoryToString() + "\tNaN\tNaN");
-            } else {
-                LOGGER.info("[NORMALSEARCH]\t" + history.normalSearchHistoryToString() + "\t" + normalSlopes[0] + "\t"
-                        + normalSlopes[1]);
-            }
-            double[] mergeSlopes = history.getMergeSearchSlopes();
-            if (Double.isNaN(normalSlopes[0])) {
-                LOGGER.info("[MERGESEARCH]\t" + history.mergeSearchHistoryToString() + "\tNaN\tNaN");
-            } else {
-                LOGGER.info("[MERGESEARCH]\t" + history.mergeSearchHistoryToString() + "\t" + mergeSlopes[0] + "\t"
-                        + mergeSlopes[1]);
-            }
-        }
+//        if (lsmIndex.getIndexIdentifier().contains("usertable")) {
+//            LOGGER.info("[SEARCHRATE]\t" + history.getSearchRate());
+//
+//            double[] normalSlopes = history.getNormalSearchSlopes();
+//            if (Double.isNaN(normalSlopes[0])) {
+//                LOGGER.info("[NORMALSEARCH]\t" + history.normalSearchHistoryToString() + "\tNaN\tNaN");
+//            } else {
+//                LOGGER.info("[NORMALSEARCH]\t" + history.normalSearchHistoryToString() + "\t" + normalSlopes[0] + "\t"
+//                        + normalSlopes[1]);
+//            }
+//            double[] mergeSlopes = history.getMergeSearchSlopes();
+//            if (Double.isNaN(normalSlopes[0])) {
+//                LOGGER.info("[MERGESEARCH]\t" + history.mergeSearchHistoryToString() + "\tNaN\tNaN");
+//            } else {
+//                LOGGER.info("[MERGESEARCH]\t" + history.mergeSearchHistoryToString() + "\t" + mergeSlopes[0] + "\t"
+//                        + mergeSlopes[1]);
+//            }
+//        }
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the flush operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
@@ -600,9 +600,14 @@ public class LSMHarness implements ILSMHarness {
 
         int k = 0;
         long mergedSize = 0;
+        String components = "";
         for (ILSMDiskComponent c : operation.getAccessor().getOpContext().getComponentsToBeMerged()) {
             k++;
             mergedSize += (long) Math.ceil((double) c.getComponentSize() / 1048576.0);
+            if (components.isEmpty())
+                components = Long.toString(c.getComponentSize());
+            else
+                components += "," + Long.toString(c.getComponentSize());
         }
 
         history.startMerge();
@@ -626,14 +631,17 @@ public class LSMHarness implements ILSMHarness {
 
         history.finishMerge(k, mergedSize, duration);
 
-        if (lsmIndex.getIndexIdentifier().contains("usertable")) {
-            double slope = history.getMergeSlope();
-            if (Double.isNaN(slope)) {
-                LOGGER.info("[MERGE]\t" + history.mergeHistoryToString() + "\tNaN");
-            } else {
-                LOGGER.info("[MERGE]\t" + history.mergeHistoryToString() + "\t" + slope);
-            }
-        }
+//        if (lsmIndex.getIndexIdentifier().contains("usertable")) {
+//            double slope = history.getMergeSlope();
+//            if (Double.isNaN(slope)) {
+//                LOGGER.info("[MERGE]\t" + history.mergeHistoryToString() + "\tNaN");
+//            } else {
+//                LOGGER.info("[MERGE]\t" + history.mergeHistoryToString() + "\t" + slope);
+//            }
+//        }
+
+        if (!components.isEmpty() && lsmIndex.getIndexIdentifier().contains("usertable"))
+            LOGGER.info("[MERGE]\t[" + components + "]\t" + duration);
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());

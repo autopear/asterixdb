@@ -19,7 +19,6 @@
 
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.lang.Math;
 
@@ -40,8 +39,12 @@ import org.apache.hyracks.storage.common.EnforcedIndexCursor;
 import org.apache.hyracks.storage.common.ICursorInitialState;
 import org.apache.hyracks.storage.common.ISearchOperationCallback;
 import org.apache.hyracks.storage.common.ISearchPredicate;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements ILSMIndexCursor {
+    private static final Logger LOGGER = LogManager.getLogger();
 
     private ITreeIndexCursor[] btreeCursors;
     private final ILSMIndexOperationContext opCtx;
@@ -60,6 +63,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     private Boolean wasMerging;
     private int numComponents;
     private double totalSize;
+    private String diskComponents;
     private ITupleReference frameTuple;
     private List<ILSMComponent> operationalComponents;
     private boolean resultOfSearchCallbackProceed = false;
@@ -165,6 +169,9 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                     history.recordPointSearch(numComponents, totalSize, duration, false, memoryOnly);
                 } else {
                 }
+                if (!diskComponents.isEmpty() && !memoryOnly
+                        && opCtx.getIndex().getIndexIdentifier().contains("usertable"))
+                    LOGGER.info("[POINT]\t[" + diskComponents + "]\t" + duration);
             }
         }
     }
@@ -175,6 +182,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         searchStart = System.nanoTime();
         numComponents = 0;
         totalSize = 0;
+        diskComponents = "";
 
         operationalComponents = lsmInitialState.getOperationalComponents();
         lsmHarness = lsmInitialState.getLSMHarness();
@@ -211,7 +219,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 }
             } else {
                 numComponents++;
-                totalSize += Math.log((double) (((ILSMDiskComponent) component).getComponentSize()) / 1048576.0);
+                long size = ((ILSMDiskComponent) component).getComponentSize();
+                if (diskComponents.isEmpty())
+                    diskComponents = Long.toString(size);
+                else
+                    diskComponents += (";" + Long.toString(size));
+                totalSize += Math.log((double) size / 1048576.0);
                 if (bloomFilters[i] == null) {
                     destroyAndNullifyCursorAtIndex(i);
                 }
