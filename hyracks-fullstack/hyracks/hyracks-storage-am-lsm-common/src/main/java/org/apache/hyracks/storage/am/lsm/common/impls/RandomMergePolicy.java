@@ -32,11 +32,22 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
+import org.apache.commons.math3.distribution.BinomialDistribution;
+import org.apache.commons.math3.distribution.UniformIntegerDistribution;
+import org.apache.commons.math3.distribution.ZipfDistribution;
 
 public class RandomMergePolicy implements ILSMMergePolicy {
+    public enum Distribution {
+        Binomial,
+        Latest,
+        Uniform,
+        Zipf
+    }
+
     private float mergeProbability;
     private int minComponents;
     private int maxComponents;
+    private Distribution dist;
 
     @Override
     public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
@@ -53,6 +64,15 @@ public class RandomMergePolicy implements ILSMMergePolicy {
             mergeProbability = 1.0f;
         minComponents = Integer.parseInt(properties.get(RandomMergePolicyFactory.MIN_COMPONENTS));
         maxComponents = Integer.parseInt(properties.get(RandomMergePolicyFactory.MAX_COMPONENTS));
+        String distStr = properties.get(RandomMergePolicyFactory.DISTRIBUTION).toLowerCase();
+        if (distStr.compareTo("binomial") == 0)
+            dist = Distribution.Binomial;
+        else if (distStr.compareTo("zipf") == 0)
+            dist = Distribution.Zipf;
+        else if (distStr.compareTo("latest") == 0)
+            dist = Distribution.Latest;
+        else
+            dist = Distribution.Uniform;
     }
 
     @Override
@@ -117,6 +137,21 @@ public class RandomMergePolicy implements ILSMMergePolicy {
         return r <= intProb;
     }
 
+    private int generateRandomStart(int bound) {
+        switch (dist) {
+            case Zipf:
+                return bound - new ZipfDistribution(bound + 1, 0.99).sample() + 1;
+            case Latest:
+                return new ZipfDistribution(bound + 1, 0.99).sample() - 1;
+            case Binomial:
+                return new BinomialDistribution(bound, 0.5).sample();
+            case Uniform:
+            default: {
+                return new UniformIntegerDistribution(0, bound).sample();
+            }
+        }
+    }
+
     protected List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> immutableComponents) {
         // No merge
         if (!shouldMerge() || (maxComponents > 1 && minComponents > maxComponents)
@@ -140,9 +175,9 @@ public class RandomMergePolicy implements ILSMMergePolicy {
         if (min > max)
             return null;
 
-        int r = (min == max) ? min : new Random(System.nanoTime()).nextInt(max - min + 1) + min;
-        
-        int start = (s == r) ? 0 : new Random(System.nanoTime()).nextInt(s - r + 1);
+        int r = (min == max) ? min : (new UniformIntegerDistribution(min, max).sample());
+
+        int start = (s == r) ? 0 : generateRandomStart(s - r);
 
         List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
         for (int i = 0; i < r; i++) {

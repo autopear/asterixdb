@@ -38,8 +38,9 @@ public class RandomMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String MERGE_PROBABILITY = "merge-probability";
     public static final String MIN_COMPONENTS = "min-components";
     public static final String MAX_COMPONENTS = "max-components";
+    public static final String DISTRIBUTION = "distribution";
     private static final Set<String> PROPERTIES_NAMES =
-            new HashSet<>(Arrays.asList(MERGE_PROBABILITY, MIN_COMPONENTS, MAX_COMPONENTS));
+            new HashSet<>(Arrays.asList(MERGE_PROBABILITY, MIN_COMPONENTS, MAX_COMPONENTS, DISTRIBUTION));
 
     @Override
     public String getName() {
