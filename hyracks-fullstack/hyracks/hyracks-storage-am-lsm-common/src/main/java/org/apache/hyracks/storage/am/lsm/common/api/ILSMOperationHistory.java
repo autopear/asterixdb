@@ -344,12 +344,62 @@ public class ILSMOperationHistory {
                     mergeSlope = slope;
                     mergeAccessCounter = mergeUpdateCounter;
                 } else {
-                    if (mergeHist.size() >= 5) {
+                    if (mergeHist.size() >= 2) {
                         slope = mergeSlope;
                     }
                 }
             } finally {
                 mergeSem.release();
+            }
+        } catch (InterruptedException ie) {
+            // ...
+        }
+
+        return slope;
+    }
+
+    public double getNormalSearchSlope() {
+        double slope = Double.NaN;
+        try {
+            searchSem.acquire();
+            try {
+                if (normalSearchAccessCounter != normalSearchUpdateCounter || Double.isNaN(normalSearchSlopeN)) {
+                    int n = normalSearchHist.size();
+                    if (n >= 2) {
+                        double[] xs = new double[n];
+                        double[] ys = new double[n];
+                        double sumx = 0.0, sumy = 0.0;
+                        for (int i = 0; i < n; i++) {
+                            Pair<Pair<Integer, Double>, Double> p = normalSearchHist.get(i);
+                            int x = p.getKey().getKey().intValue();
+                            double y = p.getValue().doubleValue();
+                            xs[i] = x;
+                            ys[i] = y;
+                            sumx += x;
+                            sumy += y;
+                        }
+
+                        double xbar = sumx / n;
+                        double ybar = sumy / n;
+
+                        double xxbar = 0.0, xybar = 0.0;
+                        for (int i = 0; i < n; i++) {
+                            double x = xs[i];
+                            double y = ys[i];
+                            xxbar += ((x - xbar) * (x - xbar));
+                            xybar += ((x - xbar) * (y - ybar));
+                        }
+                        slope = xybar / xxbar;
+                    }
+                    normalSearchSlopeN = slope;
+                    normalSearchAccessCounter = normalSearchUpdateCounter;
+                } else {
+                    if (normalSearchHist.size() >= 2) {
+                        slope = normalSearchSlopeN;
+                    }
+                }
+            } finally {
+                searchSem.release();
             }
         } catch (InterruptedException ie) {
             // ...
@@ -415,6 +465,56 @@ public class ILSMOperationHistory {
         return ret;
     }
 
+    public double getMergeSearchSlope() {
+        double slope = Double.NaN;
+        try {
+            searchSem.acquire();
+            try {
+                if (mergeSearchAccessCounter != mergeSearchUpdateCounter || Double.isNaN(mergeSearchSlopeN)) {
+                    int n = mergeSearchHist.size();
+                    if (n >= 2) {
+                        double[] xs = new double[n];
+                        double[] ys = new double[n];
+                        double sumx = 0.0, sumy = 0.0;
+                        for (int i = 0; i < n; i++) {
+                            Pair<Pair<Integer, Double>, Double> p = mergeSearchHist.get(i);
+                            int x = p.getKey().getKey().intValue();
+                            double y = p.getValue().doubleValue();
+                            xs[i] = x;
+                            ys[i] = y;
+                            sumx += x;
+                            sumy += y;
+                        }
+
+                        double xbar = sumx / n;
+                        double ybar = sumy / n;
+
+                        double xxbar = 0.0, xybar = 0.0;
+                        for (int i = 0; i < n; i++) {
+                            double x = xs[i];
+                            double y = ys[i];
+                            xxbar += ((x - xbar) * (x - xbar));
+                            xybar += ((x - xbar) * (y - ybar));
+                        }
+                        slope = xybar / xxbar;
+                    }
+                    mergeSearchSlopeN = slope;
+                    mergeSearchAccessCounter = mergeSearchUpdateCounter;
+                } else {
+                    if (mergeSearchHist.size() >= 2) {
+                        slope = mergeSearchSlopeN;
+                    }
+                }
+            } finally {
+                searchSem.release();
+            }
+        } catch (InterruptedException ie) {
+            // ...
+        }
+
+        return slope;
+    }
+
     public double[] getMergeSearchSlopes() {
         double slopeN = Double.NaN;
         double slopeS = Double.NaN;
@@ -475,18 +575,6 @@ public class ILSMOperationHistory {
     public double getSearchRate() {
         return (double) numSearches * 1000000.0 / (System.nanoTime() - startTime);
     }
-
-    //    private static String longListToString(List<Long> ls) {
-    //        String ret = "";
-    //        for (int i = 0; i < ls.size(); i++) {
-    //            if (i == 0) {
-    //                ret = ls.get(i).toString();
-    //            } else {
-    //                ret += ("," + ls.get(i).toString());
-    //            }
-    //        }
-    //        return "(" + ret + ")";
-    //    }
 
     public String mergeHistoryToString() {
         String ret = "";
