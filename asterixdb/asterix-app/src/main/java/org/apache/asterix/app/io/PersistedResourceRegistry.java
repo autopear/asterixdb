@@ -88,6 +88,7 @@ import org.apache.hyracks.storage.am.lsm.btree.dataflow.ExternalBTreeLocalResour
 import org.apache.hyracks.storage.am.lsm.btree.dataflow.ExternalBTreeWithBuddyLocalResource;
 import org.apache.hyracks.storage.am.lsm.btree.dataflow.LSMBTreeLocalResource;
 import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.FixedMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoOpIOOperationCallbackFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
@@ -145,6 +146,7 @@ public class PersistedResourceRegistry implements IPersistedResourceRegistry {
         // ILSMMergePolicyFactory
         REGISTERED_CLASSES.put("NoMergePolicyFactory", NoMergePolicyFactory.class);
         REGISTERED_CLASSES.put("PrefixMergePolicyFactory", PrefixMergePolicyFactory.class);
+        REGISTERED_CLASSES.put("FixedMergePolicyFactory", FixedMergePolicyFactory.class);
         REGISTERED_CLASSES.put("RandomMergePolicyFactory", RandomMergePolicyFactory.class);
         REGISTERED_CLASSES.put("RewardMergePolicyFactory", RewardMergePolicyFactory.class);
         REGISTERED_CLASSES.put("ConstantMergePolicyFactory", ConstantMergePolicyFactory.class);
