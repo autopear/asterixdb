@@ -169,9 +169,6 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                     history.recordPointSearch(numComponents, totalSize, duration, false, memoryOnly);
                 } else {
                 }
-                if (!diskComponents.isEmpty() && !memoryOnly
-                        && opCtx.getIndex().getIndexIdentifier().contains("usertable"))
-                    LOGGER.info("[POINT]\t[" + diskComponents + "]\t" + duration);
             }
         }
     }

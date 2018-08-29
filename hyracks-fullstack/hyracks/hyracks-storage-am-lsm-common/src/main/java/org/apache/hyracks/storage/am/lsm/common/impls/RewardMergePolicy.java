@@ -22,32 +22,16 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.ComponentState;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
-import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.apache.commons.math3.distribution.UniformIntegerDistribution;
-import org.apache.commons.math3.distribution.ZipfDistribution;
 
-public class RandomMergePolicy implements ILSMMergePolicy {
-    public enum Distribution {
-        Binomial,
-        Latest,
-        Uniform,
-        Zipf
-    }
+public class RewardMergePolicy implements ILSMMergePolicy {
 
-    private float mergeProbability;
-    private int minComponents;
-    private int maxComponents;
-    private Distribution dist;
+    double discount;
 
     @Override
     public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
@@ -56,29 +40,17 @@ public class RandomMergePolicy implements ILSMMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
-        mergeProbability = Float.parseFloat(properties.get(RandomMergePolicyFactory.MERGE_PROBABILITY));
-        mergeProbability = Math.round(mergeProbability * 1000.0f) / 1000.0f;
-        if (mergeProbability <= 0.0f)
-            mergeProbability = 0.0f;
-        if (mergeProbability >= 1.0f)
-            mergeProbability = 1.0f;
-        minComponents = Integer.parseInt(properties.get(RandomMergePolicyFactory.MIN_COMPONENTS));
-        maxComponents = Integer.parseInt(properties.get(RandomMergePolicyFactory.MAX_COMPONENTS));
-        String distStr = properties.get(RandomMergePolicyFactory.DISTRIBUTION).toLowerCase();
-        if (distStr.compareTo("binomial") == 0)
-            dist = Distribution.Binomial;
-        else if (distStr.compareTo("zipf") == 0)
-            dist = Distribution.Zipf;
-        else if (distStr.compareTo("latest") == 0)
-            dist = Distribution.Latest;
-        else
-            dist = Distribution.Uniform;
+        discount = Double.parseDouble(properties.get(RewardMergePolicyFactory.DISCOUNT));
+        if (discount > 1.0)
+            discount = 1.0;
+        if (discount < 0.0)
+            discount = 0.001;
     }
 
     @Override
     public boolean isMergeLagging(ILSMIndex index) throws HyracksDataException {
         List<ILSMDiskComponent> immutableComponents = index.getDiskComponents();
-        List<ILSMDiskComponent> mergableComponents = getMergableComponents(immutableComponents);
+        List<ILSMDiskComponent> mergableComponents = getMergableComponents(index);
 
         if (mergableComponents == null || mergableComponents.size() < 2)
             return false;
@@ -127,62 +99,82 @@ public class RandomMergePolicy implements ILSMMergePolicy {
         return false;
     }
 
-    protected Boolean shouldMerge() {
-        if (mergeProbability >= 1.0f)
-            return true;
-        if (mergeProbability <= 0.0f)
-            return false;
-        int intProb = (int) (mergeProbability * 1000);
-        int r = new Random(System.nanoTime()).nextInt(1000) + 1;
-        return r <= intProb;
-    }
-
-    private int generateRandomStart(int bound) {
-        switch (dist) {
-            case Zipf:
-                return bound - new ZipfDistribution(bound + 1, 0.99).sample() + 1;
-            case Latest:
-                return new ZipfDistribution(bound + 1, 0.99).sample() - 1;
-            case Binomial:
-                return new BinomialDistribution(bound, 0.5).sample();
-            case Uniform:
-            default: {
-                return new UniformIntegerDistribution(0, bound).sample();
-            }
-        }
-    }
-
-    private List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> immutableComponents) {
-        // No merge
-        if (!shouldMerge() || (maxComponents > 1 && minComponents > maxComponents)
-                || (minComponents == 0 && maxComponents == 0))
+    private List<ILSMDiskComponent> randomMerge(List<ILSMDiskComponent> immutableComponents) {
+        if (new UniformIntegerDistribution(1, 1000).sample() > 333)
             return null;
-
-        // Full merge
-        if (minComponents == 1 && maxComponents == 1)
-            return immutableComponents;
 
         int s = immutableComponents.size();
 
         // No merge
-        if (s < 2 || minComponents > s)
+        if (s < 2)
             return null;
 
-        int min = minComponents > 1 ? minComponents : 2;
-        int max = (maxComponents < 2 || maxComponents >= s) ? s : maxComponents;
+        int max = s > 10 ? 10 : s;
 
-        // No merge
-        if (min > max)
-            return null;
+        int r = (max == 2) ? 2 : (new UniformIntegerDistribution(2, max).sample());
 
-        int r = (min == max) ? min : (new UniformIntegerDistribution(min, max).sample());
-
-        int start = (s == r) ? 0 : generateRandomStart(s - r);
+        int start = (s == r) ? 0 : new UniformIntegerDistribution(0, s - r).sample();
 
         List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
         for (int i = 0; i < r; i++) {
             mergableComponents.add(immutableComponents.get(start + i));
         }
         return mergableComponents;
+    }
+
+    private List<ILSMDiskComponent> getMergableComponents(ILSMIndex index) {
+        if (index.getHarness() == null)
+            return null;
+        ILSMOperationHistory history = index.getHarness().getOperationHistory();
+        if (history == null)
+            return null;
+        List<ILSMDiskComponent> diskComponents = index.getDiskComponents();
+
+        double mergeSlope = history.getMergeSlope();
+        if (Double.isNaN(mergeSlope))
+            return randomMerge(diskComponents);
+
+        double normalSearchSlope = history.getNormalSearchSlope();
+        if (Double.isNaN(normalSearchSlope))
+            return randomMerge(diskComponents);
+        double mergeSearchSlope = history.getMergeSearchSlope();
+        if (Double.isNaN(mergeSearchSlope))
+            return randomMerge(diskComponents);
+
+        int start = 0;
+        int end = 0;
+        double bestReward = 0.0;
+
+        int total = diskComponents.size();
+        for (int i = 0; i < total - 1; i++) {
+            // i: first component
+            for (int j = i + 1; j < total; j++) {
+                // j: last component
+                long mergeSize = 0;
+                for (int k = i; k <= j; k++)
+                    mergeSize += (long) Math.ceil((double) diskComponents.get(k).getComponentSize() / 1048576.0);
+                double mergeTime = Math.ceil(mergeSlope * mergeSize);
+
+                double reward =
+                        Math.pow(discount, mergeTime) * (normalSearchSlope * (j - i)
+                                + discount * (mergeSearchSlope - normalSearchSlope) * total)
+                        - (mergeSearchSlope - normalSearchSlope) * total;
+
+                if (reward > bestReward) {
+                    start = i;
+                    end = j;
+                    bestReward = reward;
+                }
+            }
+        }
+
+        if (bestReward > 0.0) {
+            List<ILSMDiskComponent> components = new ArrayList<>();
+            for (int i = start; i <= end; i++)
+                components.add(diskComponents.get(i));
+            return components;
+        }
+
+        return null;
     }
 }
