@@ -612,6 +612,10 @@ public class LSMHarness implements ILSMHarness {
 
         history.finishMerge(k, mergedSize, duration);
 
+        if (lsmIndex.getIndexIdentifier().contains("usertable")) {
+            LOGGER.info("[MERGE]\t" + components + "\t" + duration);
+        }
+
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }

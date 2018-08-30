@@ -39,7 +39,6 @@ import org.apache.hyracks.storage.common.EnforcedIndexCursor;
 import org.apache.hyracks.storage.common.ICursorInitialState;
 import org.apache.hyracks.storage.common.ISearchOperationCallback;
 import org.apache.hyracks.storage.common.ISearchPredicate;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -165,9 +164,18 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 Boolean isMerging = history.isMerging();
                 if (wasMerging && isMerging) {
                     history.recordPointSearch(numComponents, totalSize, duration, true, memoryOnly);
+                    if (!diskComponents.isEmpty() && opCtx.getIndex().getIndexIdentifier().contains("usertable"))
+                        LOGGER.info(
+                                "[POINT]\t1\t" + (memoryOnly ? "1" : "0") + "[" + diskComponents + "]\t" + duration);
                 } else if (!wasMerging && !isMerging) {
                     history.recordPointSearch(numComponents, totalSize, duration, false, memoryOnly);
+                    if (!diskComponents.isEmpty() && opCtx.getIndex().getIndexIdentifier().contains("usertable"))
+                        LOGGER.info(
+                                "[POINT]\t0\t" + (memoryOnly ? "1" : "0") + "[" + diskComponents + "]\t" + duration);
                 } else {
+                    if (!diskComponents.isEmpty() && opCtx.getIndex().getIndexIdentifier().contains("usertable"))
+                        LOGGER.info(
+                                "[POINT]\t2\t" + (memoryOnly ? "1" : "0") + "[" + diskComponents + "]\t" + duration);
                 }
             }
         }
