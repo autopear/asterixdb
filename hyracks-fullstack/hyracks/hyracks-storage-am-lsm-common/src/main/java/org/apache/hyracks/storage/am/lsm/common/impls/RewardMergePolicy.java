@@ -156,9 +156,10 @@ public class RewardMergePolicy implements ILSMMergePolicy {
                 double mergeTime = Math.ceil(mergeSlope * mergeSize);
 
                 double reward =
-                        Math.pow(discount, mergeTime) * (normalSearchSlope * (j - i)
-                                + discount * (mergeSearchSlope - normalSearchSlope) * total)
-                        - (mergeSearchSlope - normalSearchSlope) * total;
+                        Math.pow(discount, mergeTime)
+                                * (normalSearchSlope * (j - i)
+                                        + discount * (mergeSearchSlope - normalSearchSlope) * total)
+                                - (mergeSearchSlope - normalSearchSlope) * total;
 
                 if (reward > bestReward) {
                     start = i;

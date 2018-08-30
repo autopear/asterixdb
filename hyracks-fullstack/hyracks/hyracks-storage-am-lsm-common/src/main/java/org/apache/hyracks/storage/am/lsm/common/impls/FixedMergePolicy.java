@@ -46,17 +46,10 @@ public class FixedMergePolicy implements ILSMMergePolicy {
             return;
         }
 
-        if (fullMergeIsRequested) {
-            IIndexAccessParameters iap =
-                    new IndexAccessParameters(NoOpOperationCallback.INSTANCE, NoOpOperationCallback.INSTANCE);
-            ILSMIndexAccessor accessor = index.createAccessor(iap);
-            accessor.scheduleFullMerge();
-        } else {
-            List<ILSMDiskComponent> components = getMergableComponents(immutableComponents);
-            if (components != null) {
-                ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-                accessor.scheduleMerge(immutableComponents);
-            }
+        List<ILSMDiskComponent> components = getMergableComponents(immutableComponents);
+        if (components != null) {
+            ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+            accessor.scheduleMerge(immutableComponents);
         }
     }
 
@@ -70,7 +63,7 @@ public class FixedMergePolicy implements ILSMMergePolicy {
         List<ILSMDiskComponent> immutableComponents = index.getDiskComponents();
         int totalImmutableComponentCount = immutableComponents.size();
 
-        if (totalImmutableComponentCount < numComponents) {
+        if (totalImmutableComponentCount < 2 || totalImmutableComponentCount <= numComponents) {
             return false;
         }
 
@@ -132,13 +125,13 @@ public class FixedMergePolicy implements ILSMMergePolicy {
         long total = 0;
         int start = 0;
 
-        for (int i=0; i<numToMerge; i++)
+        for (int i = 0; i < numToMerge; i++)
             total += immutableComponents.get(i).getComponentSize();
 
-        for (int i=1; i<l-numToMerge; i++) {
+        for (int i = 1; i < l - numToMerge; i++) {
             long sum = 0;
-            for (int j=0; j<numToMerge; j++)
-                sum += immutableComponents.get(i+j).getComponentSize();
+            for (int j = 0; j < numToMerge; j++)
+                sum += immutableComponents.get(i + j).getComponentSize();
             if (sum < total) {
                 total = sum;
                 start = i;
@@ -146,8 +139,8 @@ public class FixedMergePolicy implements ILSMMergePolicy {
         }
 
         List<ILSMDiskComponent> components = new ArrayList<>();
-        for (int i=0; i<numToMerge; i++)
-            total += immutableComponents.get(start+i).getComponentSize();
+        for (int i = 0; i < numToMerge; i++)
+            total += immutableComponents.get(start + i).getComponentSize();
         return components;
     }
 }

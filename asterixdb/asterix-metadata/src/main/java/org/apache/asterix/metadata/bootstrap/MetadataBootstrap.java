@@ -265,11 +265,10 @@ public class MetadataBootstrap {
 
     private static void insertInitialCompactionPolicies(MetadataTransactionContext mdTxnCtx)
             throws AlgebricksException {
-        String[] builtInCompactionPolicyClassNames =
-                new String[] { ConstantMergePolicyFactory.class.getName(), PrefixMergePolicyFactory.class.getName(),
-                        NoMergePolicyFactory.class.getName(), CorrelatedPrefixMergePolicyFactory.class.getName(),
-                        RandomMergePolicyFactory.class.getName(), RewardMergePolicyFactory.class.getName(),
-                        FixedMergePolicyFactory.class.getName() };
+        String[] builtInCompactionPolicyClassNames = new String[] { ConstantMergePolicyFactory.class.getName(),
+                PrefixMergePolicyFactory.class.getName(), NoMergePolicyFactory.class.getName(),
+                CorrelatedPrefixMergePolicyFactory.class.getName(), RandomMergePolicyFactory.class.getName(),
+                RewardMergePolicyFactory.class.getName(), FixedMergePolicyFactory.class.getName() };
         for (String policyClassName : builtInCompactionPolicyClassNames) {
             CompactionPolicy compactionPolicy = getCompactionPolicyEntity(policyClassName);
             MetadataManager.INSTANCE.addCompactionPolicy(mdTxnCtx, compactionPolicy);

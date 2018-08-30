@@ -36,8 +36,7 @@ public class FixedMergePolicyFactory implements ILSMMergePolicyFactory {
 
     private static final long serialVersionUID = 1L;
     public static final String NUM_COMPONENTS = "num-components";
-    private static final Set<String> PROPERTIES_NAMES =
-            new HashSet<>(Arrays.asList(NUM_COMPONENTS));
+    private static final Set<String> PROPERTIES_NAMES = new HashSet<>(Arrays.asList(NUM_COMPONENTS));
 
     @Override
     public String getName() {
