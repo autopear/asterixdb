@@ -166,16 +166,16 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                     history.recordPointSearch(numComponents, totalSize, duration, true, memoryOnly);
                     if (!diskComponents.isEmpty() && opCtx.getIndex().getIndexIdentifier().contains("usertable"))
                         LOGGER.info(
-                                "[POINT]\t1\t" + (memoryOnly ? "1" : "0") + "[" + diskComponents + "]\t" + duration);
+                                "[POINT]\t1\t" + (memoryOnly ? "1" : "0") + "\t[" + diskComponents + "]\t" + duration);
                 } else if (!wasMerging && !isMerging) {
                     history.recordPointSearch(numComponents, totalSize, duration, false, memoryOnly);
                     if (!diskComponents.isEmpty() && opCtx.getIndex().getIndexIdentifier().contains("usertable"))
                         LOGGER.info(
-                                "[POINT]\t0\t" + (memoryOnly ? "1" : "0") + "[" + diskComponents + "]\t" + duration);
+                                "[POINT]\t0\t" + (memoryOnly ? "1" : "0") + "\t[" + diskComponents + "]\t" + duration);
                 } else {
                     if (!diskComponents.isEmpty() && opCtx.getIndex().getIndexIdentifier().contains("usertable"))
                         LOGGER.info(
-                                "[POINT]\t2\t" + (memoryOnly ? "1" : "0") + "[" + diskComponents + "]\t" + duration);
+                                "[POINT]\t2\t" + (memoryOnly ? "1" : "0") + "\t[" + diskComponents + "]\t" + duration);
                 }
             }
         }
