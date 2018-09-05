@@ -43,10 +43,10 @@ public class FixedMergePolicy implements ILSMMergePolicy {
             return;
         }
 
-        List<ILSMDiskComponent> components = getMergableComponents(immutableComponents);
-        if (components != null) {
+        List<ILSMDiskComponent> componentsToBeMerged = getMergableComponents(immutableComponents);
+        if (componentsToBeMerged != null) {
             ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-            accessor.scheduleMerge(immutableComponents);
+            accessor.scheduleMerge(componentsToBeMerged);
         }
     }
 
@@ -72,10 +72,10 @@ public class FixedMergePolicy implements ILSMMergePolicy {
             if (!areComponentsMergable(immutableComponents)) {
                 throw new IllegalStateException();
             }
-            List<ILSMDiskComponent> components = getMergableComponents(immutableComponents);
-            if (components != null) {
+            List<ILSMDiskComponent> componentsToBeMerged = getMergableComponents(immutableComponents);
+            if (componentsToBeMerged != null) {
                 ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-                accessor.scheduleMerge(immutableComponents);
+                accessor.scheduleMerge(componentsToBeMerged);
             }
             return true;
         }
@@ -135,9 +135,9 @@ public class FixedMergePolicy implements ILSMMergePolicy {
             }
         }
 
-        List<ILSMDiskComponent> components = new ArrayList<>();
+        List<ILSMDiskComponent> componentsToBeMerged = new ArrayList<>();
         for (int i = 0; i < numToMerge; i++)
-            total += immutableComponents.get(start + i).getComponentSize();
-        return components;
+            componentsToBeMerged.add(immutableComponents.get(start + i));
+        return componentsToBeMerged;
     }
 }
