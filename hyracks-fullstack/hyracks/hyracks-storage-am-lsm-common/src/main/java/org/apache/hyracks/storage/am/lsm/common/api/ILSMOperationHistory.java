@@ -19,11 +19,11 @@
 
 package org.apache.hyracks.storage.am.lsm.common.api;
 
-import javafx.util.Pair;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 public class ILSMOperationHistory {
     public List<Long> flushHist;
@@ -153,7 +153,7 @@ public class ILSMOperationHistory {
                 if (mergeHist.size() == 100) {
                     mergeHist.remove(0);
                 }
-                mergeHist.add(new Pair<>(new Pair<>(new Integer(k), new Long(mergedSize)), new Double(d)));
+                mergeHist.add(Pair.of(Pair.of(new Integer(k), new Long(mergedSize)), new Double(d)));
                 if (mergeUpdateCounter == Long.MAX_VALUE)
                     mergeUpdateCounter = 0;
                 else
@@ -183,16 +183,16 @@ public class ILSMOperationHistory {
     private void updateMergeSearchHistory() {
         if (mergeSearchHist.isEmpty()) {
             mergeSearchHist
-                    .add(new Pair<>(new Pair<>(new Integer(mergeSearchCurrentN), new Double(mergeSearchCurrentSize)),
+                    .add(Pair.of(Pair.of(new Integer(mergeSearchCurrentN), new Double(mergeSearchCurrentSize)),
                             computeAverageLatency(mergeSearchCount, mergeSearchTotal)));
             return;
         }
 
         int idx = -1;
         for (int i = 0; i < mergeSearchHist.size(); i++) {
-            Pair<Integer, Double> components = mergeSearchHist.get(i).getKey();
-            if (components.getKey().intValue() == mergeSearchCurrentN
-                    && components.getValue().doubleValue() == mergeSearchCurrentSize) {
+            Pair<Integer, Double> components = mergeSearchHist.get(i).getLeft();
+            if (components.getLeft().intValue() == mergeSearchCurrentN
+                    && components.getRight().doubleValue() == mergeSearchCurrentSize) {
                 idx = i;
                 break;
             }
@@ -202,7 +202,7 @@ public class ILSMOperationHistory {
             mergeSearchHist.remove(idx);
         }
 
-        mergeSearchHist.add(new Pair<>(new Pair<>(new Integer(mergeSearchCurrentN), new Double(mergeSearchCurrentSize)),
+        mergeSearchHist.add(Pair.of(Pair.of(new Integer(mergeSearchCurrentN), new Double(mergeSearchCurrentSize)),
                 computeAverageLatency(mergeSearchCount, mergeSearchTotal)));
 
         if (mergeSearchHist.size() == 101) {
@@ -213,16 +213,16 @@ public class ILSMOperationHistory {
     private void updateNormalSearchHistory() {
         if (normalSearchHist.isEmpty()) {
             normalSearchHist
-                    .add(new Pair<>(new Pair<>(new Integer(normalSearchCurrentN), new Double(normalSearchCurrentSize)),
+                    .add(Pair.of(Pair.of(new Integer(normalSearchCurrentN), new Double(normalSearchCurrentSize)),
                             computeAverageLatency(normalSearchCount, normalSearchTotal)));
             return;
         }
 
         int idx = -1;
         for (int i = 0; i < normalSearchHist.size(); i++) {
-            Pair<Integer, Double> components = normalSearchHist.get(i).getKey();
-            if (components.getKey().intValue() == normalSearchCurrentN
-                    && components.getValue().doubleValue() == normalSearchCurrentSize) {
+            Pair<Integer, Double> components = normalSearchHist.get(i).getLeft();
+            if (components.getLeft().intValue() == normalSearchCurrentN
+                    && components.getRight().doubleValue() == normalSearchCurrentSize) {
                 idx = i;
                 break;
             }
@@ -233,7 +233,7 @@ public class ILSMOperationHistory {
         }
 
         normalSearchHist
-                .add(new Pair<>(new Pair<>(new Integer(normalSearchCurrentN), new Double(normalSearchCurrentSize)),
+                .add(Pair.of(Pair.of(new Integer(normalSearchCurrentN), new Double(normalSearchCurrentSize)),
                         computeAverageLatency(normalSearchCount, normalSearchTotal)));
 
         if (normalSearchHist.size() == 101) {
@@ -321,8 +321,8 @@ public class ILSMOperationHistory {
                         double sumx = 0.0, sumy = 0.0;
                         for (int i = 0; i < n; i++) {
                             Pair<Pair<Integer, Long>, Double> p = mergeHist.get(i);
-                            long mergedSize = p.getKey().getValue().longValue();
-                            double duration = p.getValue().doubleValue();
+                            long mergedSize = p.getLeft().getRight().longValue();
+                            double duration = p.getRight().doubleValue();
                             xs[i] = mergedSize;
                             ys[i] = duration;
                             sumx += mergedSize;
@@ -371,8 +371,8 @@ public class ILSMOperationHistory {
                         double sumx = 0.0, sumy = 0.0;
                         for (int i = 0; i < n; i++) {
                             Pair<Pair<Integer, Double>, Double> p = normalSearchHist.get(i);
-                            int x = p.getKey().getKey().intValue();
-                            double y = p.getValue().doubleValue();
+                            int x = p.getLeft().getLeft().intValue();
+                            double y = p.getRight().doubleValue();
                             xs[i] = x;
                             ys[i] = y;
                             sumx += x;
@@ -420,10 +420,10 @@ public class ILSMOperationHistory {
                         double sumx12 = 0.0, sumx22 = 0.0, sumx1y = 0.0, sumx2y = 0.0, sumx1x2 = 0.0;
                         for (int i = 0; i < n; i++) {
                             Pair<Pair<Integer, Double>, Double> p = normalSearchHist.get(i);
-                            Pair<Integer, Double> components = p.getKey();
-                            int x1 = components.getKey().intValue();
-                            double x2 = components.getValue().doubleValue();
-                            double y = p.getValue().doubleValue();
+                            Pair<Integer, Double> components = p.getLeft();
+                            int x1 = components.getLeft().intValue();
+                            double x2 = components.getRight().doubleValue();
+                            double y = p.getRight().doubleValue();
 
                             sumx12 += (x1 * x1);
                             sumx22 += (x2 * x2);
@@ -478,8 +478,8 @@ public class ILSMOperationHistory {
                         double sumx = 0.0, sumy = 0.0;
                         for (int i = 0; i < n; i++) {
                             Pair<Pair<Integer, Double>, Double> p = mergeSearchHist.get(i);
-                            int x = p.getKey().getKey().intValue();
-                            double y = p.getValue().doubleValue();
+                            int x = p.getLeft().getLeft().intValue();
+                            double y = p.getRight().doubleValue();
                             xs[i] = x;
                             ys[i] = y;
                             sumx += x;
@@ -527,10 +527,10 @@ public class ILSMOperationHistory {
                         double sumx12 = 0.0, sumx22 = 0.0, sumx1y = 0.0, sumx2y = 0.0, sumx1x2 = 0.0;
                         for (int i = 0; i < n; i++) {
                             Pair<Pair<Integer, Double>, Double> p = mergeSearchHist.get(i);
-                            Pair<Integer, Double> components = p.getKey();
-                            int x1 = components.getKey().intValue();
-                            double x2 = components.getValue().doubleValue();
-                            double y = p.getValue().doubleValue();
+                            Pair<Integer, Double> components = p.getLeft();
+                            int x1 = components.getLeft().intValue();
+                            double x2 = components.getRight().doubleValue();
+                            double y = p.getRight().doubleValue();
 
                             sumx12 += (x1 * x1);
                             sumx22 += (x2 * x2);
@@ -580,11 +580,11 @@ public class ILSMOperationHistory {
         String ret = "";
         for (int i = 0; i < mergeHist.size(); i++) {
             Pair<Pair<Integer, Long>, Double> p = mergeHist.get(i);
-            Pair<Integer, Long> components = p.getKey();
+            Pair<Integer, Long> components = p.getLeft();
             if (i == 0) {
-                ret = "(" + components.getKey() + "," + components.getValue() + ")=" + p.getValue();
+                ret = "(" + components.getLeft() + "," + components.getRight() + ")=" + p.getRight();
             } else {
-                ret += (";(" + components.getKey() + "," + components.getValue() + ")=" + p.getValue());
+                ret += (";(" + components.getLeft() + "," + components.getRight() + ")=" + p.getRight());
             }
         }
         return "[" + ret + "]";
@@ -595,11 +595,11 @@ public class ILSMOperationHistory {
         String ret = "";
         for (int i = 0; i < hist.size(); i++) {
             Pair<Pair<Integer, Double>, Double> p = hist.get(i);
-            Pair<Integer, Double> components = p.getKey();
+            Pair<Integer, Double> components = p.getLeft();
             if (i == 0) {
-                ret = "(" + components.getKey() + "," + components.getValue() + ")=" + p.getValue();
+                ret = "(" + components.getLeft() + "," + components.getRight() + ")=" + p.getRight();
             } else {
-                ret += (";(" + components.getKey() + "," + components.getValue() + ")=" + p.getValue());
+                ret += (";(" + components.getLeft() + "," + components.getRight() + ")=" + p.getRight());
             }
         }
 
