@@ -125,7 +125,7 @@ public class FixedMergePolicy implements ILSMMergePolicy {
         for (int i = 0; i < numToMerge; i++)
             total += immutableComponents.get(i).getComponentSize();
 
-        for (int i = 1; i < l - numToMerge; i++) {
+        for (int i = 1; i <= l - numToMerge; i++) {
             long sum = 0;
             for (int j = 0; j < numToMerge; j++)
                 sum += immutableComponents.get(i + j).getComponentSize();
