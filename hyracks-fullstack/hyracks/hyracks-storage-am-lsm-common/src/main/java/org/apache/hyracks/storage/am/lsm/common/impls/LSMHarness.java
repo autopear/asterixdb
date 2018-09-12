@@ -527,19 +527,21 @@ public class LSMHarness implements ILSMHarness {
 
         long duration = System.nanoTime() - startTime;
 
-        if (operation.getStatus() == LSMIOOperationStatus.SUCCESS && LOGGER.isInfoEnabled()
-                && lsmIndex.getIndexIdentifier().contains("usertable")) {
-            String newComponents = "";
-            for (ILSMDiskComponent c : lsmIndex.getDiskComponents()) {
-                if (newComponents.isEmpty())
-                    newComponents = Long.toString(c.getComponentSize());
-                else
-                    newComponents += "," + Long.toString(c.getComponentSize());
-            }
+        if (operation.getStatus() == LSMIOOperationStatus.SUCCESS) {
+            numFlushes++;
+            if (LOGGER.isInfoEnabled() && lsmIndex.getIndexIdentifier().contains("usertable")) {
+                String newComponents = "";
+                for (ILSMDiskComponent c : lsmIndex.getDiskComponents()) {
+                    if (newComponents.isEmpty())
+                        newComponents = Long.toString(c.getComponentSize());
+                    else
+                        newComponents += "," + Long.toString(c.getComponentSize());
+                }
 
-            String msg = "[FLUSH]\t" + Long.toString(duration) + "\t" + newComponents + Long.toString(numMerges) + "\t"
-                    + Long.toString(numFlushes);
-            LOGGER.info(msg);
+                String msg = "[FLUSH]\t" + Long.toString(duration) + "\t" + newComponents + Long.toString(numMerges) + "\t"
+                        + Long.toString(numFlushes);
+                LOGGER.info(msg);
+            }
         }
 
         if (LOGGER.isDebugEnabled()) {
