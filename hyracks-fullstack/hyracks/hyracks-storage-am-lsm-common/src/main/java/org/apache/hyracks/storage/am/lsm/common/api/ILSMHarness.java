@@ -262,4 +262,8 @@ public interface ILSMHarness {
      */
     void replaceMemoryComponentsWithDiskComponents(ILSMIndexOperationContext ctx, int startIndex)
             throws HyracksDataException;
+
+    long getNumberOfFlushes();
+
+    long getNumberOfMerges();
 }

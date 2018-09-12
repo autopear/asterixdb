@@ -91,6 +91,12 @@ import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicyFactory
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoOpIOOperationCallbackFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.BinomialMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.GoogleDefaultMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.ExploringMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.FixedMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.MinLatencyMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.RandomMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.invertedindex.dataflow.LSMInvertedIndexLocalResource;
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.DelimitedUTF8StringBinaryTokenizerFactory;
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.HashedUTF8NGramTokenFactory;
@@ -145,6 +151,12 @@ public class PersistedResourceRegistry implements IPersistedResourceRegistry {
         REGISTERED_CLASSES.put("PrefixMergePolicyFactory", PrefixMergePolicyFactory.class);
         REGISTERED_CLASSES.put("ConstantMergePolicyFactory", ConstantMergePolicyFactory.class);
         REGISTERED_CLASSES.put("CorrelatedPrefixMergePolicyFactory", CorrelatedPrefixMergePolicyFactory.class);
+        REGISTERED_CLASSES.put("BinomialMergePolicyFactory", BinomialMergePolicyFactory.class);
+        REGISTERED_CLASSES.put("GoogleDefaultMergePolicyFactory", GoogleDefaultMergePolicyFactory.class);
+        REGISTERED_CLASSES.put("ExploringMergePolicyFactory", ExploringMergePolicyFactory.class);
+        REGISTERED_CLASSES.put("FixedMergePolicyFactory", FixedMergePolicyFactory.class);
+        REGISTERED_CLASSES.put("MinLatencyMergePolicyFactory", MinLatencyMergePolicyFactory.class);
+        REGISTERED_CLASSES.put("RandomMergePolicyFactory", RandomMergePolicyFactory.class);
 
         // ILSMIOOperationSchedulerProvider
         REGISTERED_CLASSES.put("RuntimeComponentsProvider", RuntimeComponentsProvider.class);
