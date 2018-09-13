@@ -540,11 +540,11 @@ public class LSMHarness implements ILSMHarness {
                     if (newComponents.isEmpty())
                         newComponents = Long.toString(c.getComponentSize());
                     else
-                        newComponents += "," + Long.toString(c.getComponentSize());
+                        newComponents += ";" + Long.toString(c.getComponentSize());
                 }
 
-                String msg = "[FLUSH]\t" + Long.toString(duration) + "\t" + newComponents + "\t" +
-                        Long.toString(numMerges.get()) + "\t" + Long.toString(numFlushes.get());
+                String msg = "[FLUSH]\t" + Long.toString(duration) + "," + newComponents + ","
+                        + Long.toString(numMerges.get()) + "," + Long.toString(numFlushes.get());
                 LOGGER.info(msg);
             }
         } else
@@ -600,14 +600,14 @@ public class LSMHarness implements ILSMHarness {
             if (componentsToMerge.isEmpty())
                 componentsToMerge = Long.toString(c.getComponentSize());
             else
-                componentsToMerge += "," + Long.toString(c.getComponentSize());
+                componentsToMerge += ";" + Long.toString(c.getComponentSize());
         }
         String oldComponents = "";
         for (ILSMDiskComponent c : lsmIndex.getDiskComponents()) {
             if (oldComponents.isEmpty())
                 oldComponents = Long.toString(c.getComponentSize());
             else
-                oldComponents += "," + Long.toString(c.getComponentSize());
+                oldComponents += ";" + Long.toString(c.getComponentSize());
         }
 
         numMerges.incrementAndGet();
@@ -636,13 +636,13 @@ public class LSMHarness implements ILSMHarness {
                     if (newComponents.isEmpty())
                         newComponents = Long.toString(c.getComponentSize());
                     else
-                        newComponents += "," + Long.toString(c.getComponentSize());
+                        newComponents += ";" + Long.toString(c.getComponentSize());
                 }
 
-                String msg = "[MERGE]\t" + Long.toString(duration) + "\t" + componentsToMerge + "\t"
-                        + Long.toString(operation.getNewComponent().getComponentSize()) + "\t" +
-                        oldComponents + "\t" + newComponents + "\t" +
-                        Long.toString(numMerges.get()) + "\t" + Long.toString(numFlushes.get());
+                String msg = "[MERGE]\t" + Long.toString(duration) + "," + componentsToMerge + ","
+                        + Long.toString(operation.getNewComponent().getComponentSize()) + "," + oldComponents + ","
+                        + newComponents + "," + Long.toString(numMerges.get()) + ","
+                        + Long.toString(numFlushes.get());
                 LOGGER.info(msg);
             }
         } else
