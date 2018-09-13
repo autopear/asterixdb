@@ -42,7 +42,6 @@ import org.apache.hyracks.storage.common.EnforcedIndexCursor;
 import org.apache.hyracks.storage.common.ICursorInitialState;
 import org.apache.hyracks.storage.common.ISearchOperationCallback;
 import org.apache.hyracks.storage.common.ISearchPredicate;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -151,7 +150,6 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
 
     @Override
     public void doClose() throws HyracksDataException {
-        boolean found = foundTuple;
         try {
             closeCursors();
             nextHasBeenCalled = false;
@@ -161,9 +159,10 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 lsmHarness.endSearch(opCtx);
 
                 long duration = System.nanoTime() - startTime;
-                if (found && LOGGER.isInfoEnabled() && !diskComponents.isEmpty()
+                if (foundIn > -1 && LOGGER.isInfoEnabled() && !diskComponents.isEmpty()
                         && opCtx.getIndex().getIndexIdentifier().contains("usertable")) {
-                    String msg = "[SEARCH]\t" + Long.toString(duration) + "," + diskComponents;
+                    String msg = "[SEARCH]\t" + Integer.toString(foundIn) + "," + Long.toString(duration) + ","
+                            + diskComponents;
                     LOGGER.info(msg);
                 }
             }
@@ -216,7 +215,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 if (diskComponents.isEmpty())
                     diskComponents = Long.toString(c.getComponentSize());
                 else
-                    diskComponents += ":" + Long.toString(c.getComponentSize());
+                    diskComponents += ";" + Long.toString(c.getComponentSize());
             }
 
             if (btreeAccessors[i] == null) {

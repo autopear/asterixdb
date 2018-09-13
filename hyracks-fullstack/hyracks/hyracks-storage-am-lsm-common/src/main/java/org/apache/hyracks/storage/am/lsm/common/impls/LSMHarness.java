@@ -641,8 +641,7 @@ public class LSMHarness implements ILSMHarness {
 
                 String msg = "[MERGE]\t" + Long.toString(duration) + "," + componentsToMerge + ","
                         + Long.toString(operation.getNewComponent().getComponentSize()) + "," + oldComponents + ","
-                        + newComponents + "," + Long.toString(numMerges.get()) + ","
-                        + Long.toString(numFlushes.get());
+                        + newComponents + "," + Long.toString(numMerges.get()) + "," + Long.toString(numFlushes.get());
                 LOGGER.info(msg);
             }
         } else
