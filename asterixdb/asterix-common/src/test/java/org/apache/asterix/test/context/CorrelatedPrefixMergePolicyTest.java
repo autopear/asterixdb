@@ -73,11 +73,11 @@ public class CorrelatedPrefixMergePolicyTest extends TestCase {
             IndexInfo secondary = mockIndex(false, componentIDs, resultSecondaryIDs, 0);
 
             ILSMMergePolicy policy = mockMergePolicy(primary, secondary);
-            policy.diskComponentAdded(secondary.getIndex(), false);
+            policy.diskComponentAdded(secondary.getIndex(), false, false);
             Assert.assertTrue(resultPrimaryIDs.isEmpty());
             Assert.assertTrue(resultSecondaryIDs.isEmpty());
 
-            policy.diskComponentAdded(primary.getIndex(), false);
+            policy.diskComponentAdded(primary.getIndex(), false, false);
 
             Assert.assertEquals(Arrays.asList(new LSMComponentId(4, 4), new LSMComponentId(3, 3),
                     new LSMComponentId(2, 2), new LSMComponentId(1, 1)), resultPrimaryIDs);
@@ -103,11 +103,11 @@ public class CorrelatedPrefixMergePolicyTest extends TestCase {
             IndexInfo secondary = mockIndex(false, componentIDs, resultSecondaryIDs, 0);
 
             ILSMMergePolicy policy = mockMergePolicy(primary, secondary);
-            policy.diskComponentAdded(secondary.getIndex(), false);
+            policy.diskComponentAdded(secondary.getIndex(), false, false);
             Assert.assertTrue(resultPrimaryIDs.isEmpty());
             Assert.assertTrue(resultSecondaryIDs.isEmpty());
 
-            policy.diskComponentAdded(primary.getIndex(), false);
+            policy.diskComponentAdded(primary.getIndex(), false, false);
 
             Assert.assertEquals(Arrays.asList(new LSMComponentId(30, 35), new LSMComponentId(25, 29),
                     new LSMComponentId(20, 24), new LSMComponentId(10, 19)), resultPrimaryIDs);
@@ -135,11 +135,11 @@ public class CorrelatedPrefixMergePolicyTest extends TestCase {
 
             ILSMMergePolicy policy = mockMergePolicy(primary, secondary);
 
-            policy.diskComponentAdded(secondary.getIndex(), false);
+            policy.diskComponentAdded(secondary.getIndex(), false, false);
             Assert.assertTrue(resultPrimaryIDs.isEmpty());
             Assert.assertTrue(resultSecondaryIDs.isEmpty());
 
-            policy.diskComponentAdded(primary.getIndex(), false);
+            policy.diskComponentAdded(primary.getIndex(), false, false);
             Assert.assertEquals(Arrays.asList(new LSMComponentId(30, 35), new LSMComponentId(25, 29),
                     new LSMComponentId(20, 24), new LSMComponentId(10, 19)), resultPrimaryIDs);
             Assert.assertEquals(
@@ -167,11 +167,11 @@ public class CorrelatedPrefixMergePolicyTest extends TestCase {
             IndexInfo secondary1 = mockIndex(false, componentIDs, resultSecondaryIDs, 1);
 
             ILSMMergePolicy policy = mockMergePolicy(primary, secondary, secondary1);
-            policy.diskComponentAdded(secondary.getIndex(), false);
+            policy.diskComponentAdded(secondary.getIndex(), false, false);
             Assert.assertTrue(resultPrimaryIDs.isEmpty());
             Assert.assertTrue(resultSecondaryIDs.isEmpty());
 
-            policy.diskComponentAdded(primary.getIndex(), false);
+            policy.diskComponentAdded(primary.getIndex(), false, false);
 
             Assert.assertEquals(Arrays.asList(new LSMComponentId(30, 35), new LSMComponentId(25, 29),
                     new LSMComponentId(20, 24), new LSMComponentId(10, 19)), resultPrimaryIDs);

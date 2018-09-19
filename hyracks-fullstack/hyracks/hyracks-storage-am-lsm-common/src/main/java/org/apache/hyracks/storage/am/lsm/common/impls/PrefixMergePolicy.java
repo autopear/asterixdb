@@ -49,8 +49,8 @@ public class PrefixMergePolicy implements ILSMMergePolicy {
     private final static double MAX_MERGABLE_COMPONENT_SIZE_RATIO = 1.2;
 
     @Override
-    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
-
+    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested, boolean isMergeOperation)
+            throws HyracksDataException {
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
 
         if (!areComponentsReadableWritableState(immutableComponents)) {

@@ -281,7 +281,7 @@ public class LSMHarness implements ILSMHarness {
                         componentsToBeReplicated.add(newComponent);
                         triggerReplication(componentsToBeReplicated, opType);
                     }
-                    mergePolicy.diskComponentAdded(lsmIndex, false);
+                    mergePolicy.diskComponentAdded(lsmIndex, false, false);
                 }
                 break;
             case MERGE:
@@ -293,7 +293,7 @@ public class LSMHarness implements ILSMHarness {
                         componentsToBeReplicated.add(newComponent);
                         triggerReplication(componentsToBeReplicated, opType);
                     }
-                    mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get());
+                    mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get(), true);
                 }
                 break;
             default:
@@ -699,7 +699,7 @@ public class LSMHarness implements ILSMHarness {
                 componentsToBeReplicated.add(c);
                 triggerReplication(componentsToBeReplicated, LSMOperationType.LOAD);
             }
-            mergePolicy.diskComponentAdded(lsmIndex, false);
+            mergePolicy.diskComponentAdded(lsmIndex, false, false);
         }
     }
 

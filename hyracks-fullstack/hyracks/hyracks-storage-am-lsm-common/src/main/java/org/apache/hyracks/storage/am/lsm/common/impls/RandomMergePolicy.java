@@ -53,7 +53,10 @@ public class RandomMergePolicy implements ILSMMergePolicy {
     private Distribution dist;
 
     @Override
-    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
+    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested, boolean isMergeOperation)
+            throws HyracksDataException {
+        if (isMergeOperation)
+            return;
         List<ILSMDiskComponent> immutableComponents = index.getDiskComponents();
 
         if (!areComponentsMergable(immutableComponents)) {

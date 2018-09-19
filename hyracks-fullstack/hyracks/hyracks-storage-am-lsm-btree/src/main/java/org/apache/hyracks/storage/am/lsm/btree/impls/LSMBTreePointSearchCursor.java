@@ -67,6 +67,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
 
     private long startTime;
     private String diskComponents;
+    private String accessTrace;
     private static final Logger LOGGER = LogManager.getLogger();
 
     public LSMBTreePointSearchCursor(ILSMIndexOperationContext opCtx) {
@@ -82,7 +83,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         }
         boolean reconciled = false;
         for (int i = 0; i < numBTrees; ++i) {
+            long startTime = System.nanoTime();
             if (bloomFilters[i] != null && !bloomFilters[i].contains(predicate.getLowKey(), hashes)) {
+                if (accessTrace.isEmpty())
+                    accessTrace = Integer.toString(i) + ":" + Long.toString(System.nanoTime() - startTime);
+                else
+                    accessTrace += (";" + Integer.toString(i) + ":" + Long.toString(System.nanoTime() - startTime));
                 continue;
             }
             btreeAccessors[i].search(btreeCursors[i], predicate);
@@ -105,6 +111,11 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                         frameTuple = btreeCursors[i].getTuple();
                         foundTuple = true;
                         foundIn = i;
+                        if (accessTrace.isEmpty())
+                            accessTrace = Integer.toString(i) + ":" + Long.toString(System.nanoTime() - startTime);
+                        else
+                            accessTrace +=
+                                    (";" + Integer.toString(i) + ":" + Long.toString(System.nanoTime() - startTime));
                         return true;
                     }
                 }
@@ -127,6 +138,11 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                             foundTuple = true;
                             searchCallback.complete(predicate.getLowKey());
                             foundIn = i;
+                            if (accessTrace.isEmpty())
+                                accessTrace = Integer.toString(i) + ":" + Long.toString(System.nanoTime() - startTime);
+                            else
+                                accessTrace += (";" + Integer.toString(i) + ":"
+                                        + Long.toString(System.nanoTime() - startTime));
                             return true;
                         }
                     } else {
@@ -139,10 +155,18 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                     searchCallback.complete(frameTuple);
                     foundTuple = true;
                     foundIn = i;
+                    if (accessTrace.isEmpty())
+                        accessTrace = Integer.toString(i) + ":" + Long.toString(System.nanoTime() - startTime);
+                    else
+                        accessTrace += (";" + Integer.toString(i) + ":" + Long.toString(System.nanoTime() - startTime));
                     return true;
                 }
             } else {
                 btreeCursors[i].close();
+                if (accessTrace.isEmpty())
+                    accessTrace = Integer.toString(i) + ":" + Long.toString(System.nanoTime() - startTime);
+                else
+                    accessTrace += (";" + Integer.toString(i) + ":" + Long.toString(System.nanoTime() - startTime));
             }
         }
         return false;
@@ -162,7 +186,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 if (foundIn > -1 && LOGGER.isInfoEnabled() && !diskComponents.isEmpty()
                         && opCtx.getIndex().getIndexIdentifier().contains("usertable")) {
                     String msg = "[SEARCH]\t" + Integer.toString(foundIn) + "," + Long.toString(duration) + ","
-                            + diskComponents;
+                            + diskComponents + "," + accessTrace;
                     LOGGER.info(msg);
                 }
             }
@@ -172,6 +196,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     @Override
     public void doOpen(ICursorInitialState initialState, ISearchPredicate searchPred) throws HyracksDataException {
         diskComponents = "";
+        accessTrace = "";
         startTime = System.nanoTime();
 
         LSMBTreeCursorInitialState lsmInitialState = (LSMBTreeCursorInitialState) initialState;

@@ -39,7 +39,8 @@ public class GoogleDefaultMergePolicy implements ILSMMergePolicy {
     private int numComponents;
 
     @Override
-    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
+    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested, boolean isMergeOperation)
+            throws HyracksDataException {
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
         if (!areComponentsReadableWritableState(immutableComponents)) {
             return;
