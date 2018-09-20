@@ -20,6 +20,7 @@
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
 import java.util.List;
+import java.nio.file.Paths;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.util.CleanupUtils;
@@ -65,6 +66,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
 
     private final long[] hashes = BloomFilter.createHashArray();
 
+    private boolean bloomFilterDisabled = false;
     private long startTime;
     private String diskComponents;
     private String accessTrace;
@@ -81,10 +83,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         } else if (foundTuple) {
             return true;
         }
+
         boolean reconciled = false;
         for (int i = 0; i < numBTrees; ++i) {
             long startTime = System.nanoTime();
-            if (bloomFilters[i] != null && !bloomFilters[i].contains(predicate.getLowKey(), hashes)) {
+            if (!bloomFilterDisabled && bloomFilters[i] != null
+                    && !bloomFilters[i].contains(predicate.getLowKey(), hashes)) {
                 if (accessTrace.isEmpty())
                     accessTrace = Integer.toString(i) + ":*:" + Long.toString(System.nanoTime() - startTime);
                 else
@@ -197,7 +201,8 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
 
                 long duration = System.nanoTime() - startTime;
                 if (foundIn > -1 && LOGGER.isInfoEnabled() && !diskComponents.isEmpty()
-                        && opCtx.getIndex().getIndexIdentifier().contains("usertable")) {
+                        && Paths.get(opCtx.getIndex().getIndexIdentifier()).getFileName().toString()
+                                .compareTo("usertable") == 0) {
                     String msg = "[SEARCH]\t" + Integer.toString(foundIn) + "," + Long.toString(duration) + ","
                             + diskComponents + "," + accessTrace;
                     LOGGER.info(msg);
@@ -211,6 +216,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         diskComponents = "";
         accessTrace = "";
         startTime = System.nanoTime();
+        boolean bfDisabled = false;
 
         LSMBTreeCursorInitialState lsmInitialState = (LSMBTreeCursorInitialState) initialState;
         operationalComponents = lsmInitialState.getOperationalComponents();
@@ -249,6 +255,8 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 }
 
                 LSMBTreeWithBloomFilterDiskComponent c = (LSMBTreeWithBloomFilterDiskComponent) component;
+                if (Double.compare(c.getLsmIndex().bloomFilterFalsePositiveRate(), 1.0) >= 0)
+                    bfDisabled = true;
                 bloomFilters[i] = c.getBloomFilter();
                 if (diskComponents.isEmpty())
                     diskComponents = Long.toString(c.getComponentSize());
@@ -267,6 +275,9 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         }
         nextHasBeenCalled = false;
         foundTuple = false;
+
+        if (Paths.get(opCtx.getIndex().getIndexIdentifier()).getFileName().toString().compareTo("usertable") == 0)
+            bloomFilterDisabled = bfDisabled;
     }
 
     private void destroyAndNullifyCursorAtIndex(int i) throws HyracksDataException {

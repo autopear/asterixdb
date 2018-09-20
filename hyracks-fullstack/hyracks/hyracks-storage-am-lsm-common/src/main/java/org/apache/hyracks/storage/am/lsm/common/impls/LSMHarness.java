@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
+import java.nio.file.Paths;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -534,7 +535,8 @@ public class LSMHarness implements ILSMHarness {
         long duration = System.nanoTime() - startTime;
 
         if (operation.getStatus() == LSMIOOperationStatus.SUCCESS) {
-            if (LOGGER.isInfoEnabled() && lsmIndex.getIndexIdentifier().contains("usertable")) {
+            if (LOGGER.isInfoEnabled()
+                    && Paths.get(lsmIndex.getIndexIdentifier()).getFileName().toString().compareTo("usertable") == 0) {
                 String newComponents = "";
                 for (ILSMDiskComponent c : lsmIndex.getDiskComponents()) {
                     if (newComponents.isEmpty())
@@ -630,7 +632,8 @@ public class LSMHarness implements ILSMHarness {
         long duration = System.nanoTime() - startTime;
 
         if (!componentsToMerge.isEmpty() && operation.getStatus() == LSMIOOperationStatus.SUCCESS) {
-            if (LOGGER.isInfoEnabled() && lsmIndex.getIndexIdentifier().contains("usertable")) {
+            if (LOGGER.isInfoEnabled()
+                    && Paths.get(lsmIndex.getIndexIdentifier()).getFileName().toString().compareTo("usertable") == 0) {
                 String newComponents = "";
                 for (ILSMDiskComponent c : lsmIndex.getDiskComponents()) {
                     if (newComponents.isEmpty())
