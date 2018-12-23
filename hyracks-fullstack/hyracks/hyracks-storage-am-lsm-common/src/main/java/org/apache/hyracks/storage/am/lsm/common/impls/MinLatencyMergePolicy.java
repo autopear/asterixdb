@@ -34,8 +34,10 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
-public class ConstantMergePolicy implements ILSMMergePolicy {
+public class MinLatencyMergePolicy implements ILSMMergePolicy {
     private int numComponents;
+
+    private int[][] binomial;
 
     @Override
     public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested, boolean wasMerge)
@@ -59,18 +61,68 @@ public class ConstantMergePolicy implements ILSMMergePolicy {
         if (!latestSeq.isPresent()) {
             return false;
         }
+        // sequence number starts from 0, and thus latestSeq + 1 gives the number of flushes
+        int numFlushes = latestSeq.get().intValue() + 1;
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
-        if (immutableComponents.size() > numComponents) {
-            ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-            accessor.scheduleMerge(immutableComponents);
-            return true;
+        Collections.reverse(immutableComponents);
+        int size = immutableComponents.size();
+        int depth = 0;
+        while (treeDepth(depth) < numFlushes) {
+            depth++;
         }
-        return false;
+        int mergedIndex = binomialIndex(depth, numComponents - 1, numFlushes - treeDepth(depth - 1) - 1);
+        if (mergedIndex == size - 1) {
+            return false;
+        }
+        List<ILSMDiskComponent> mergableComponents = new ArrayList<ILSMDiskComponent>();
+        for (int i = mergedIndex; i < immutableComponents.size(); i++)
+            mergableComponents.add(immutableComponents.get(i));
+        Collections.reverse(mergableComponents);
+        ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+        accessor.scheduleMerge(mergableComponents);
+        return true;
     }
 
-    @Override
-    public void configure(Map<String, String> properties) {
-        numComponents = Integer.parseInt(properties.get(ConstantMergePolicyFactory.NUM_COMPONENTS));
+    private int treeDepth(int d) {
+        if (d < 0) {
+            return 0;
+        }
+        return binomialChoose(d + numComponents, d) - 1;
+    }
+
+    private int binomialIndex(int d, int h, int t) {
+        if (t < 0 || t > binomialChoose(d + h, h)) {
+            throw new IllegalStateException("Illegal binomial values");
+        }
+        if (t == 0) {
+            return 0;
+        } else if (t < binomialChoose(d + h - 1, h)) {
+            return binomialIndex(d - 1, h, t);
+        }
+        return binomialIndex(d, h - 1, t - binomialChoose(d + h - 1, h)) + 1;
+    }
+
+    private int binomialChoose(int n, int k) {
+        if (k < 0 || k > n) {
+            return 0;
+        }
+        if (k == 0 || k == n) {
+            return 1;
+        }
+        // For efficiency, binomial is persisted to avoid re-computations for every merge
+        if (binomial == null || binomial.length <= n) {
+            binomial = new int[n + 1][n + 1];
+            for (int r = 0; r <= n; r++) {
+                for (int c = 0; c <= r; c++) {
+                    if (c == 0 || c == r) {
+                        binomial[r][c] = 1;
+                    } else {
+                        binomial[r][c] = binomial[r - 1][c - 1] + binomial[r - 1][c];
+                    }
+                }
+            }
+        }
+        return binomial[n][k];
     }
 
     private boolean areComponentsReadableWritableState(List<ILSMDiskComponent> immutableComponents) {
@@ -80,6 +132,11 @@ public class ConstantMergePolicy implements ILSMMergePolicy {
             }
         }
         return true;
+    }
+
+    @Override
+    public void configure(Map<String, String> properties) {
+        numComponents = Integer.parseInt(properties.get(MinLatencyMergePolicyFactory.NUM_COMPONENTS));
     }
 
     @Override

@@ -144,7 +144,7 @@ public class ExternalIndexHarness extends LSMHarness {
                                 componentsToBeReplicated.add(newComponent);
                                 triggerReplication(componentsToBeReplicated, opType);
                             }
-                            mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get());
+                            mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get(), true);
                         }
                         break;
                     default:
@@ -213,7 +213,7 @@ public class ExternalIndexHarness extends LSMHarness {
             }
             // Enter the component
             enterComponent(c);
-            mergePolicy.diskComponentAdded(lsmIndex, false);
+            mergePolicy.diskComponentAdded(lsmIndex, false, false);
         }
     }
 
@@ -247,7 +247,7 @@ public class ExternalIndexHarness extends LSMHarness {
                 enterComponent(newComponent);
             }
             index.commitTransactionDiskComponent(newComponent);
-            mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get());
+            mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get(), false);
         }
     }
 

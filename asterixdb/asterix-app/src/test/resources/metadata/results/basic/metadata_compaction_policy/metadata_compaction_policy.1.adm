@@ -2,3 +2,10 @@
 { "DataverseName": "Metadata", "CompactionPolicy": "correlated-prefix", "Classname": "org.apache.asterix.common.context.CorrelatedPrefixMergePolicyFactory" }
 { "DataverseName": "Metadata", "CompactionPolicy": "no-merge", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory" }
 { "DataverseName": "Metadata", "CompactionPolicy": "prefix", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "balance", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.BalanceMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "bigtable", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.BigtableMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "binomial", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.BinomialMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "exploring", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.ExploringMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "min-latency", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.MinLatencyMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "profit", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.ProfitMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "random", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.RandomMergePolicyFactory" }

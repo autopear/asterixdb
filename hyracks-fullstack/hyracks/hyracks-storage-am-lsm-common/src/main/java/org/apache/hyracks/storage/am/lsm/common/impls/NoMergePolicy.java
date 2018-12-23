@@ -27,7 +27,8 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 public class NoMergePolicy implements ILSMMergePolicy {
 
     @Override
-    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
+    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested, boolean wasMerge)
+            throws HyracksDataException {
         // Do nothing
     }
 

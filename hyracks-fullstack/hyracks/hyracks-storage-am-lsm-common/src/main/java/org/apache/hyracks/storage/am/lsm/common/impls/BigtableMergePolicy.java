@@ -34,7 +34,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
-public class ConstantMergePolicy implements ILSMMergePolicy {
+public class BigtableMergePolicy implements ILSMMergePolicy {
     private int numComponents;
 
     @Override
@@ -60,17 +60,37 @@ public class ConstantMergePolicy implements ILSMMergePolicy {
             return false;
         }
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
-        if (immutableComponents.size() > numComponents) {
-            ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-            accessor.scheduleMerge(immutableComponents);
-            return true;
+        Collections.reverse(immutableComponents);
+        int size = immutableComponents.size();
+        if (size <= numComponents) {
+            return false;
         }
-        return false;
+        long sum = getTotalSize(immutableComponents);
+        int endIndex = size - 2;
+        int mergedIndex = endIndex;
+
+        for (int i = 0; i < endIndex; i++) {
+            if (immutableComponents.get(i).getComponentSize() <= sum - immutableComponents.get(i).getComponentSize()) {
+                mergedIndex = i;
+                break;
+            }
+            sum = sum - immutableComponents.get(i).getComponentSize();
+        }
+        List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
+        for (int i = mergedIndex; i < immutableComponents.size(); i++)
+            mergableComponents.add(immutableComponents.get(i));
+        Collections.reverse(mergableComponents);
+        ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+        accessor.scheduleMerge(mergableComponents);
+        return true;
     }
 
-    @Override
-    public void configure(Map<String, String> properties) {
-        numComponents = Integer.parseInt(properties.get(ConstantMergePolicyFactory.NUM_COMPONENTS));
+    private long getTotalSize(List<ILSMDiskComponent> immutableComponents) {
+        long sum = 0;
+        for (int i = 0; i < immutableComponents.size(); i++) {
+            sum = sum + immutableComponents.get(i).getComponentSize();
+        }
+        return sum;
     }
 
     private boolean areComponentsReadableWritableState(List<ILSMDiskComponent> immutableComponents) {
@@ -80,6 +100,11 @@ public class ConstantMergePolicy implements ILSMMergePolicy {
             }
         }
         return true;
+    }
+
+    @Override
+    public void configure(Map<String, String> properties) {
+        numComponents = Integer.parseInt(properties.get(BigtableMergePolicyFactory.NUM_COMPONENTS));
     }
 
     @Override

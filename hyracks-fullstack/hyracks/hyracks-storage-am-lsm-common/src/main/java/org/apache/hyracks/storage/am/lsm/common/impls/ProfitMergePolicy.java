@@ -34,8 +34,9 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
-public class ConstantMergePolicy implements ILSMMergePolicy {
-    private int numComponents;
+public class ProfitMergePolicy implements ILSMMergePolicy {
+    private int uncaches;
+    private int cacheSize;
 
     @Override
     public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested, boolean wasMerge)
@@ -60,17 +61,53 @@ public class ConstantMergePolicy implements ILSMMergePolicy {
             return false;
         }
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
-        if (immutableComponents.size() > numComponents) {
+        int uncachable = 0;
+        long sumSize = 0;
+        long maxUncached = 0;
+        long minUncached = 0;
+        int minIdx = -1;
+        for (int i = 0; i < immutableComponents.size(); i++) {
+            long s = immutableComponents.get(i).getComponentSize();
+            if (sumSize + s > cacheSize) {
+                uncachable += 1;
+                if (s >= maxUncached)
+                    maxUncached = s;
+                if (minUncached == 0)
+                    minUncached = s;
+                else {
+                    if (s <= minUncached) {
+                        minUncached = s;
+                        minIdx = i;
+                    }
+                }
+            }
+        }
+
+        if (uncachable <= uncaches)
+            return false; // Not so many uncached components
+
+        if (maxUncached <= cacheSize) {
+            // If the largest uncached component size is smaller than the buffer cache size, merge all components
             ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
             accessor.scheduleMerge(immutableComponents);
             return true;
         }
-        return false;
+
+        // Merge all components until the smallest uncached component
+        List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
+        for (int i = 0; i < minIdx; i++)
+            mergableComponents.add(immutableComponents.get(i));
+        ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+        accessor.scheduleMerge(mergableComponents);
+        return true;
     }
 
-    @Override
-    public void configure(Map<String, String> properties) {
-        numComponents = Integer.parseInt(properties.get(ConstantMergePolicyFactory.NUM_COMPONENTS));
+    private long getTotalSize(List<ILSMDiskComponent> immutableComponents) {
+        long sum = 0;
+        for (int i = 0; i < immutableComponents.size(); i++) {
+            sum = sum + immutableComponents.get(i).getComponentSize();
+        }
+        return sum;
     }
 
     private boolean areComponentsReadableWritableState(List<ILSMDiskComponent> immutableComponents) {
@@ -80,6 +117,12 @@ public class ConstantMergePolicy implements ILSMMergePolicy {
             }
         }
         return true;
+    }
+
+    @Override
+    public void configure(Map<String, String> properties) {
+        uncaches = Integer.parseInt(properties.get(ProfitMergePolicyFactory.UNCACHED_COMPONENTS));
+        cacheSize = Integer.parseInt(properties.get(ProfitMergePolicyFactory.CACHE_SIZE));
     }
 
     @Override
