@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
+import java.nio.file.Paths;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -499,6 +500,9 @@ public class LSMHarness implements ILSMHarness {
     @Override
     public void flush(ILSMIOOperation operation) throws HyracksDataException {
         LOGGER.debug("Started a flush operation for index: {}", lsmIndex);
+
+        long startTime = System.nanoTime();
+
         synchronized (opTracker) {
             while (!enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.FLUSH)) {
                 try {
@@ -518,6 +522,26 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
+
+        long duration = System.nanoTime() - startTime;
+
+        if (operation.getStatus() == LSMIOOperationStatus.SUCCESS) {
+            if (LOGGER.isInfoEnabled()
+                    && Paths.get(lsmIndex.getIndexIdentifier()).getFileName().toString().compareTo("usertable") == 0) {
+                String newComponents = "";
+                for (ILSMDiskComponent c : lsmIndex.getDiskComponents()) {
+                    if (newComponents.isEmpty())
+                        newComponents = Long.toString(c.getComponentSize());
+                    else
+                        newComponents += ";" + Long.toString(c.getComponentSize());
+                }
+
+                String msg = "[FLUSH]\t" + Long.toString(duration) + "," + newComponents + "," + Long
+                        .toString(((AbstractLSMIndex) lsmIndex).getLatestDiskComponentSequence().get().longValue() + 1);
+                LOGGER.info(msg);
+            }
+        }
+
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the flush operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }
@@ -562,6 +586,23 @@ public class LSMHarness implements ILSMHarness {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Started a merge operation for index: {}", lsmIndex);
         }
+
+        String componentsToMerge = "";
+        for (ILSMDiskComponent c : operation.getAccessor().getOpContext().getComponentsToBeMerged()) {
+            if (componentsToMerge.isEmpty())
+                componentsToMerge = Long.toString(c.getComponentSize());
+            else
+                componentsToMerge += ";" + Long.toString(c.getComponentSize());
+        }
+        String oldComponents = "";
+        for (ILSMDiskComponent c : lsmIndex.getDiskComponents()) {
+            if (oldComponents.isEmpty())
+                oldComponents = Long.toString(c.getComponentSize());
+            else
+                oldComponents += ";" + Long.toString(c.getComponentSize());
+        }
+        long startTime = System.nanoTime();
+
         synchronized (opTracker) {
             enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE);
         }
@@ -574,6 +615,28 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
+
+        long duration = System.nanoTime() - startTime;
+
+        if (!componentsToMerge.isEmpty() && operation.getStatus() == LSMIOOperationStatus.SUCCESS) {
+            if (LOGGER.isInfoEnabled()
+                    && Paths.get(lsmIndex.getIndexIdentifier()).getFileName().toString().compareTo("usertable") == 0) {
+                String newComponents = "";
+                for (ILSMDiskComponent c : lsmIndex.getDiskComponents()) {
+                    if (newComponents.isEmpty())
+                        newComponents = Long.toString(c.getComponentSize());
+                    else
+                        newComponents += ";" + Long.toString(c.getComponentSize());
+                }
+
+                String msg = "[MERGE]\t" + Long.toString(duration) + "," + componentsToMerge + ","
+                        + Long.toString(operation.getNewComponent().getComponentSize()) + "," + oldComponents + ","
+                        + newComponents + "," + Long.toString(
+                                ((AbstractLSMIndex) lsmIndex).getLatestDiskComponentSequence().get().longValue() + 1);
+                LOGGER.info(msg);
+            }
+        }
+
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }

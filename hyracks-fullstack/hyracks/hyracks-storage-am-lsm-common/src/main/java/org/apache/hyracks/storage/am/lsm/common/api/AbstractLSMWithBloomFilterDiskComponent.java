@@ -78,8 +78,10 @@ public abstract class AbstractLSMWithBloomFilterDiskComponent extends AbstractLS
     }
 
     public IChainedComponentBulkLoader createBloomFilterBulkLoader(long numElementsHint) throws HyracksDataException {
-        BloomFilterSpecification bloomFilterSpec = BloomCalculations.computeBloomSpec(
-                BloomCalculations.maxBucketsPerElement(numElementsHint), getLsmIndex().bloomFilterFalsePositiveRate());
+        BloomFilterSpecification bloomFilterSpec =
+                BloomCalculations.computeBloomSpec(BloomCalculations.maxBucketsPerElement(numElementsHint),
+                        getLsmIndex().bloomFilterFalsePositiveRate() > 1.0 ? 1.0
+                                : getLsmIndex().bloomFilterFalsePositiveRate());
         return new BloomFilterBulkLoader(getBloomFilter().createBuilder(numElementsHint, bloomFilterSpec.getNumHashes(),
                 bloomFilterSpec.getNumBucketsPerElements()));
     }
