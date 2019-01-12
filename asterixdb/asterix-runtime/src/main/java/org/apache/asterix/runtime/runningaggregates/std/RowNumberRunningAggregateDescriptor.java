@@ -29,7 +29,7 @@ import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 
 /**
- * Descriptor {@code row_number()} window function
+ * Descriptor for {@code row_number()} window function
  */
 public class RowNumberRunningAggregateDescriptor extends AbstractRunningAggregateFunctionDynamicDescriptor {
 

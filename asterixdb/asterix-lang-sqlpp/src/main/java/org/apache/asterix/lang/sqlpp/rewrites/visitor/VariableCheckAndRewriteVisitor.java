@@ -204,6 +204,7 @@ public class VariableCheckAndRewriteVisitor extends AbstractSqlppExpressionScopi
         return path.length == 2 && metadataProvider.findDataset(path[0], path[1]) != null;
     }
 
+    @Override
     public Expression visit(CallExpr callExpr, ILangExpression arg) throws CompilationException {
         // skip variables inside SQL-92 aggregates (they will be resolved by SqlppGroupByAggregationSugarVisitor)
         if (FunctionMapUtil.isSql92AggregateFunction(callExpr.getFunctionSignature())) {
@@ -218,7 +219,8 @@ public class VariableCheckAndRewriteVisitor extends AbstractSqlppExpressionScopi
         FunctionSignature fs = winExpr.getFunctionSignature();
         FunctionIdentifier winfi = FunctionMapUtil.getInternalWindowFunction(fs);
         if (winfi != null) {
-            if (BuiltinFunctions.windowFunctionWithListArg(winfi)) {
+            if (BuiltinFunctions.windowFunctionHasProperty(winfi,
+                    BuiltinFunctions.WindowFunctionProperty.HAS_LIST_ARG)) {
                 visitWindowExpressionExcludingExprList(winExpr, arg);
                 List<Expression> exprList = winExpr.getExprList();
                 List<Expression> newExprList = new ArrayList<>(exprList.size());

@@ -132,7 +132,7 @@ public class TestExecutor {
     private static final Pattern HANDLE_VARIABLE_PATTERN = Pattern.compile("handlevariable=(\\w+)");
     private static final Pattern VARIABLE_REF_PATTERN = Pattern.compile("\\$(\\w+)");
     private static final Pattern HTTP_PARAM_PATTERN =
-            Pattern.compile("param (?<name>[\\w$]+)(?::(?<type>\\w+))?=(?<value>.*)", Pattern.MULTILINE);
+            Pattern.compile("param (?<name>[\\w-$]+)(?::(?<type>\\w+))?=(?<value>.*)", Pattern.MULTILINE);
     private static final Pattern HTTP_BODY_PATTERN = Pattern.compile("body=(.*)", Pattern.MULTILINE);
     private static final Pattern HTTP_STATUSCODE_PATTERN = Pattern.compile("statuscode (.*)", Pattern.MULTILINE);
     private static final Pattern MAX_RESULT_READS_PATTERN =
@@ -233,6 +233,17 @@ public class TestExecutor {
                 return;
             } else if (actualFile.toString().endsWith(".regexadm")) {
                 runScriptAndCompareWithResultRegexAdm(scriptFile, expectedFile, actualFile);
+                return;
+            } else if (actualFile.toString().endsWith(".regexjson")) {
+                ObjectMapper OM = new ObjectMapper();
+                JsonNode expectedJson = OM.readTree(readerExpected);
+                JsonNode actualJson = OM.readTree(readerActual);
+                if (expectedJson == null || actualJson == null) {
+                    throw new NullPointerException("Error parsing expected or actual result file for " + scriptFile);
+                }
+                if (!TestHelper.equalJson(expectedJson, actualJson)) {
+                    throw new ComparisonException("Result for " + scriptFile + " didn't match the expected JSON");
+                }
                 return;
             }
             String lineExpected, lineActual;
@@ -890,6 +901,7 @@ public class TestExecutor {
                 break;
             case "query":
             case "async":
+            case "parse":
             case "deferred":
             case "metrics":
                 // isDmlRecoveryTest: insert Crash and Recovery
@@ -1220,8 +1232,14 @@ public class TestExecutor {
         if (DELIVERY_IMMEDIATE.equals(delivery)) {
             resultStream =
                     executeQueryService(statement, fmt, uri, params, isJsonEncoded, null, isCancellable(reqType));
-            resultStream = METRICS_QUERY_TYPE.equals(reqType) ? ResultExtractor.extractMetrics(resultStream)
-                    : ResultExtractor.extract(resultStream);
+            switch (reqType) {
+                case METRICS_QUERY_TYPE:
+                    resultStream = ResultExtractor.extractMetrics(resultStream);
+                    break;
+                default:
+                    resultStream = ResultExtractor.extract(resultStream);
+                    break;
+            }
         } else {
             String handleVar = getHandleVariable(statement);
             resultStream = executeQueryService(statement, fmt, uri,
