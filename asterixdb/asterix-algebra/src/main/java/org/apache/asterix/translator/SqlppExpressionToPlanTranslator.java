@@ -32,6 +32,7 @@ import org.apache.asterix.algebra.base.ILangExpressionToPlanTranslator;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.functions.FunctionSignature;
+import org.apache.asterix.lang.common.base.AbstractClause;
 import org.apache.asterix.lang.common.base.Clause.ClauseType;
 import org.apache.asterix.lang.common.base.Expression;
 import org.apache.asterix.lang.common.base.Expression.Kind;
@@ -252,24 +253,18 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
         if (selectBlock.hasFromClause()) {
             currentOpRef = new MutableObject<>(selectBlock.getFromClause().accept(this, currentOpRef).first);
         }
-        if (selectBlock.hasLetClauses()) {
-            for (LetClause letClause : selectBlock.getLetList()) {
-                currentOpRef = new MutableObject<>(letClause.accept(this, currentOpRef).first);
+        if (selectBlock.hasLetWhereClauses()) {
+            for (AbstractClause letWhereClause : selectBlock.getLetWhereList()) {
+                currentOpRef = new MutableObject<>(letWhereClause.accept(this, currentOpRef).first);
             }
-        }
-        if (selectBlock.hasWhereClause()) {
-            currentOpRef = new MutableObject<>(selectBlock.getWhereClause().accept(this, currentOpRef).first);
         }
         if (selectBlock.hasGroupbyClause()) {
             currentOpRef = new MutableObject<>(selectBlock.getGroupbyClause().accept(this, currentOpRef).first);
         }
-        if (selectBlock.hasLetClausesAfterGroupby()) {
-            for (LetClause letClause : selectBlock.getLetListAfterGroupby()) {
-                currentOpRef = new MutableObject<>(letClause.accept(this, currentOpRef).first);
+        if (selectBlock.hasLetHavingClausesAfterGroupby()) {
+            for (AbstractClause letHavingClause : selectBlock.getLetHavingListAfterGroupby()) {
+                currentOpRef = new MutableObject<>(letHavingClause.accept(this, currentOpRef).first);
             }
-        }
-        if (selectBlock.hasHavingClause()) {
-            currentOpRef = new MutableObject<>(selectBlock.getHavingClause().accept(this, currentOpRef).first);
         }
         return processSelectClause(selectBlock, currentOpRef);
     }
@@ -771,16 +766,16 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
             } else if (projection.star()) {
                 if (selectBlock.hasGroupbyClause()) {
                     getGroupBindings(selectBlock.getGroupbyClause(), fieldBindings, fieldNames);
-                    if (selectBlock.hasLetClausesAfterGroupby()) {
-                        getLetBindings(selectBlock.getLetListAfterGroupby(), fieldBindings, fieldNames);
+                    if (selectBlock.hasLetHavingClausesAfterGroupby()) {
+                        getLetBindings(selectBlock.getLetHavingListAfterGroupby(), fieldBindings, fieldNames);
                     }
                 } else if (selectBlock.hasFromClause()) {
                     getFromBindings(selectBlock.getFromClause(), fieldBindings, fieldNames);
-                    if (selectBlock.hasLetClauses()) {
-                        getLetBindings(selectBlock.getLetList(), fieldBindings, fieldNames);
+                    if (selectBlock.hasLetWhereClauses()) {
+                        getLetBindings(selectBlock.getLetWhereList(), fieldBindings, fieldNames);
                     }
-                } else if (selectBlock.hasLetClauses()) {
-                    getLetBindings(selectBlock.getLetList(), fieldBindings, fieldNames);
+                } else if (selectBlock.hasLetWhereClauses()) {
+                    getLetBindings(selectBlock.getLetWhereList(), fieldBindings, fieldNames);
                 }
             } else if (projection.hasName()) {
                 fieldBindings.add(getFieldBinding(projection, fieldNames));
@@ -841,10 +836,13 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
     }
 
     // Generates all field bindings according to the let clause.
-    private void getLetBindings(List<LetClause> letClauses, List<FieldBinding> outFieldBindings,
+    private void getLetBindings(List<AbstractClause> clauses, List<FieldBinding> outFieldBindings,
             Set<String> outFieldNames) throws CompilationException {
-        for (LetClause letClause : letClauses) {
-            outFieldBindings.add(getFieldBinding(letClause.getVarExpr(), outFieldNames));
+        for (AbstractClause clause : clauses) {
+            if (clause.getClauseType() == ClauseType.LET_CLAUSE) {
+                LetClause letClause = (LetClause) clause;
+                outFieldBindings.add(getFieldBinding(letClause.getVarExpr(), outFieldNames));
+            }
         }
     }
 
@@ -1204,8 +1202,8 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
             LogicalVariable denseRankVar = context.newVar();
             ListSet<LogicalVariable> usedVars = new ListSet<>();
 
-            frameValueExprRefs = translateWindowFrameMode(winFrameMode, orderExprListOut, rowNumVar, denseRankVar,
-                    usedVars, sourceLoc);
+            frameValueExprRefs = translateWindowFrameMode(winFrameMode, winFrameStartKind, winFrameEndKind,
+                    orderExprListOut, rowNumVar, denseRankVar, usedVars, sourceLoc);
 
             Pair<List<Mutable<ILogicalExpression>>, Integer> frameExclusionResult =
                     translateWindowExclusion(winFrameExclusionKind, rowNumVar, denseRankVar, usedVars, sourceLoc);
@@ -1225,16 +1223,16 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
                 currentOpRef = new MutableObject<>(helperWinOp);
             }
 
-            Pair<List<Mutable<ILogicalExpression>>, ILogicalOperator> frameStartResult =
-                    translateWindowBoundary(winFrameStartKind, winFrameStartExpr, frameValueExprRefs, currentOpRef);
+            Pair<List<Mutable<ILogicalExpression>>, ILogicalOperator> frameStartResult = translateWindowBoundary(
+                    winFrameStartKind, winFrameStartExpr, frameValueExprRefs, orderExprListOut, currentOpRef);
             if (frameStartResult != null) {
                 frameStartExprRefs = frameStartResult.first;
                 if (frameStartResult.second != null) {
                     currentOpRef = new MutableObject<>(frameStartResult.second);
                 }
             }
-            Pair<List<Mutable<ILogicalExpression>>, ILogicalOperator> frameEndResult =
-                    translateWindowBoundary(winFrameEndKind, winFrameEndExpr, frameValueExprRefs, currentOpRef);
+            Pair<List<Mutable<ILogicalExpression>>, ILogicalOperator> frameEndResult = translateWindowBoundary(
+                    winFrameEndKind, winFrameEndExpr, frameValueExprRefs, orderExprListOut, currentOpRef);
             if (frameEndResult != null) {
                 frameEndExprRefs = frameEndResult.first;
                 if (frameEndResult.second != null) {
@@ -1379,10 +1377,17 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
     }
 
     private List<Pair<OrderOperator.IOrder, Mutable<ILogicalExpression>>> translateWindowFrameMode(
-            WindowExpression.FrameMode frameMode,
+            WindowExpression.FrameMode frameMode, WindowExpression.FrameBoundaryKind winFrameStartKind,
+            WindowExpression.FrameBoundaryKind winFrameEndKind,
             List<Pair<OrderOperator.IOrder, Mutable<ILogicalExpression>>> orderExprList, LogicalVariable rowNumVar,
             LogicalVariable denseRankVar, Set<LogicalVariable> outUsedVars, SourceLocation sourceLoc)
             throws CompilationException {
+        // if the frame is unbounded then no need to generate the frame value expression
+        // because it will not be used
+        if (winFrameStartKind == WindowExpression.FrameBoundaryKind.UNBOUNDED_PRECEDING
+                && winFrameEndKind == WindowExpression.FrameBoundaryKind.UNBOUNDED_FOLLOWING) {
+            return Collections.emptyList();
+        }
         switch (frameMode) {
             case RANGE:
                 List<Pair<OrderOperator.IOrder, Mutable<ILogicalExpression>>> result =
@@ -1456,7 +1461,13 @@ public class SqlppExpressionToPlanTranslator extends LangExpressionToPlanTransla
     private Pair<List<Mutable<ILogicalExpression>>, ILogicalOperator> translateWindowBoundary(
             WindowExpression.FrameBoundaryKind boundaryKind, Expression boundaryExpr,
             List<Pair<OrderOperator.IOrder, Mutable<ILogicalExpression>>> valueExprs,
+            List<Pair<OrderOperator.IOrder, Mutable<ILogicalExpression>>> orderExprList,
             Mutable<ILogicalOperator> tupSource) throws CompilationException {
+        // if no ORDER BY in window specification then all rows are considered peers,
+        // so the frame becomes unbounded
+        if (orderExprList.isEmpty()) {
+            return null;
+        }
         switch (boundaryKind) {
             case CURRENT_ROW:
                 List<Mutable<ILogicalExpression>> resultExprs = new ArrayList<>(valueExprs.size());

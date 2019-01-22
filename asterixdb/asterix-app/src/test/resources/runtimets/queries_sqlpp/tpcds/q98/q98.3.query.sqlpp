@@ -20,20 +20,12 @@
 
 USE tpcds;
 
-SELECT
-       currpricetable.i_item_desc,
-       currpricetable.i_category,
-       currpricetable.i_class,
-       currpricetable.i_current_price,
-       currpricetable.itemrevenue,
-       (currpricetable.itemrevenue * 100 / revrattable.revrat) revenueratio
-FROM
-(SELECT i_item_desc,
-        i_category,
-        i_class,
-        i_current_price,
-        i_item_id,
-        SUM(ss.ss_ext_sales_price) itemrevenue
+SELECT i_item_desc,
+       i_category,
+       i_class,
+       i_current_price,
+       SUM(ss.ss_ext_sales_price) itemrevenue,
+       SUM(ss.ss_ext_sales_price) * 100 / SUM(SUM(ss.ss_ext_sales_price)) OVER (PARTITION BY i_class) revenueratio
 FROM
   store_sales ss,
   item i,
@@ -42,34 +34,16 @@ WHERE
   ss.ss_item_sk = i.i_item_sk
   AND i.i_category IN ["Jewelry", "Sports", "Books"]
   AND ss.ss_sold_date_sk = d.d_date_sk
-  AND date(d.d_date) >= date('2001-01-12')
-  AND date(d.d_date) <= date('2001-02-11')
+  AND date(d.d_date) BETWEEN date('2001-01-12') AND date('2001-02-11')
 GROUP BY
   i.i_item_id,
   i.i_item_desc,
   i.i_category,
   i.i_class,
   i.i_current_price
-) AS currpricetable
-JOIN
-(SELECT i_item_id, i_item_desc, i_category, i_class, SUM(ss.ss_ext_sales_price) revrat
-  FROM
-  store_sales ss,
-  item i
-  WHERE ss.ss_item_sk = i.i_item_sk
-  GROUP BY
-     i.i_item_id,
-     i.i_item_desc,
-     i.i_category,
-     i.i_class
-) AS revrattable
-ON  currpricetable.i_item_id = revrattable.i_item_id
-AND currpricetable.i_class = revrattable.i_class
-AND currpricetable.i_item_desc = revrattable.i_item_desc
-AND currpricetable.i_category = revrattable.i_category
 ORDER BY
-  currpricetable.i_category,
-  currpricetable.i_class,
-  currpricetable.i_item_id,
-  currpricetable.i_item_desc,
+  i_category,
+  i_class,
+  i_item_id,
+  i_item_desc,
   revenueratio;
