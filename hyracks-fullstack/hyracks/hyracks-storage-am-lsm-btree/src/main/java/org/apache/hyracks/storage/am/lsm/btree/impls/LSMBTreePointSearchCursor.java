@@ -255,7 +255,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 }
 
                 LSMBTreeWithBloomFilterDiskComponent c = (LSMBTreeWithBloomFilterDiskComponent) component;
-                if (Double.isInfinite(c.getLsmIndex().bloomFilterFalsePositiveRate()))
+                if (c.getLsmIndex().bloomFilterFalsePositiveRate() > 1.0)
                     bfDisabled = true;
                 bloomFilters[i] = c.getBloomFilter();
                 if (diskComponents.isEmpty())
