@@ -71,6 +71,8 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     private String diskComponents;
     private String accessTrace;
     private static final Logger LOGGER = LogManager.getLogger();
+    private boolean startFlushing = false;
+    private boolean startMerging = false;
 
     public LSMBTreePointSearchCursor(ILSMIndexOperationContext opCtx) {
         this.opCtx = opCtx;
@@ -189,6 +191,10 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         return false;
     }
 
+    private static String opStatus(boolean sf, boolean ef, boolean sm, boolean em) {
+        return (sf ? "1" : "0") + ";" + (ef ? "1" : "0") + ";" + (sm ? "1" : "0") + ";" + (em ? "1" : "0");
+    }
+
     @Override
     public void doClose() throws HyracksDataException {
         try {
@@ -199,12 +205,15 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             if (lsmHarness != null) {
                 lsmHarness.endSearch(opCtx);
 
+                boolean endFlushing = this.opCtx.getIndex().isFlushing();
+                boolean endMerging = this.opCtx.getIndex().isFlushing();
+
                 long duration = System.nanoTime() - startTime;
-                if (foundIn > -1 && LOGGER.isInfoEnabled() && !diskComponents.isEmpty()
-                        && Paths.get(opCtx.getIndex().getIndexIdentifier()).getFileName().toString()
-                                .compareTo("usertable") == 0) {
+                if (LOGGER.isInfoEnabled() && Paths.get(opCtx.getIndex().getIndexIdentifier()).getFileName().toString()
+                        .contains("usertable")) {
                     String msg = "[SEARCH]\t" + Integer.toString(foundIn) + "," + Long.toString(duration) + ","
-                            + diskComponents + "," + accessTrace;
+                            + diskComponents + "," + accessTrace + ","
+                            + opStatus(startFlushing, endFlushing, startMerging, endMerging);
                     LOGGER.info(msg);
                 }
             }
@@ -215,6 +224,8 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     public void doOpen(ICursorInitialState initialState, ISearchPredicate searchPred) throws HyracksDataException {
         diskComponents = "";
         accessTrace = "";
+        startFlushing = this.opCtx.getIndex().isFlushing();
+        startMerging = this.opCtx.getIndex().isMerging();
         startTime = System.nanoTime();
         boolean bfDisabled = false;
 

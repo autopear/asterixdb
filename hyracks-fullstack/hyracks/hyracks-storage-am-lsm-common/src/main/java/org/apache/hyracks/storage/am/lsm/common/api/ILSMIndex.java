@@ -204,4 +204,8 @@ public interface ILSMIndex extends IIndex {
      */
     void resetCurrentComponentIndex();
 
+    boolean isFlushing();
+
+    boolean isMerging();
+
 }
