@@ -523,8 +523,7 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
 
-        long duration = System.nanoTime() - startTime;
-
+        long endTime = System.nanoTime();
         if (operation.getStatus() == LSMIOOperationStatus.SUCCESS) {
             if (LOGGER.isInfoEnabled()
                     && Paths.get(lsmIndex.getIndexIdentifier()).getFileName().toString().compareTo("usertable") == 0) {
@@ -536,7 +535,8 @@ public class LSMHarness implements ILSMHarness {
                         newComponents += ";" + Long.toString(c.getComponentSize());
                 }
 
-                String msg = "[FLUSH]\t" + Long.toString(duration) + "," + newComponents + "," + Long
+                String msg = "[FLUSH]\t" + Long.toString(startTime) + ";" + Long.toString(endTime) + ";"
+                        + Long.toString(endTime-startTime) + "," + newComponents + "," + Long
                         .toString(((AbstractLSMIndex) lsmIndex).getLatestDiskComponentSequence().get().longValue() + 1);
                 LOGGER.info(msg);
             }
@@ -616,8 +616,7 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
 
-        long duration = System.nanoTime() - startTime;
-
+        long endTime = System.nanoTime();
         if (!componentsToMerge.isEmpty() && operation.getStatus() == LSMIOOperationStatus.SUCCESS) {
             if (LOGGER.isInfoEnabled()
                     && Paths.get(lsmIndex.getIndexIdentifier()).getFileName().toString().compareTo("usertable") == 0) {
@@ -629,7 +628,8 @@ public class LSMHarness implements ILSMHarness {
                         newComponents += ";" + Long.toString(c.getComponentSize());
                 }
 
-                String msg = "[MERGE]\t" + Long.toString(duration) + "," + componentsToMerge + ","
+                String msg = "[MERGE]\t" + Long.toString(startTime) + ";" + Long.toString(endTime) + ";"
+                        + Long.toString(endTime-startTime) + "," + componentsToMerge + ","
                         + Long.toString(operation.getNewComponent().getComponentSize()) + "," + oldComponents + ","
                         + newComponents + "," + Long.toString(
                                 ((AbstractLSMIndex) lsmIndex).getLatestDiskComponentSequence().get().longValue() + 1);
@@ -951,4 +951,5 @@ public class LSMHarness implements ILSMHarness {
             }
         }
     }
+
 }

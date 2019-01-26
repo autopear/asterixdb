@@ -206,12 +206,13 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 lsmHarness.endSearch(opCtx);
 
                 boolean endFlushing = this.opCtx.getIndex().isFlushing();
-                boolean endMerging = this.opCtx.getIndex().isFlushing();
+                boolean endMerging = this.opCtx.getIndex().isMerging();
 
-                long duration = System.nanoTime() - startTime;
+                long endTime = System.nanoTime();
                 if (LOGGER.isInfoEnabled() && Paths.get(opCtx.getIndex().getIndexIdentifier()).getFileName().toString()
                         .contains("usertable")) {
-                    String msg = "[SEARCH]\t" + Integer.toString(foundIn) + "," + Long.toString(duration) + ","
+                    String msg = "[SEARCH]\t" + Integer.toString(foundIn) + "," + Long.toString(startTime) + ";"
+                            + Long.toString(endTime) + ";" + Long.toString(endTime-startTime) + ","
                             + diskComponents + "," + accessTrace + ","
                             + opStatus(startFlushing, endFlushing, startMerging, endMerging);
                     LOGGER.info(msg);
