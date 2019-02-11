@@ -536,8 +536,8 @@ public class LSMHarness implements ILSMHarness {
                 }
 
                 String msg = "[FLUSH]\t" + Long.toString(startTime) + ";" + Long.toString(endTime) + ";"
-                        + Long.toString(endTime-startTime) + "," + newComponents + "," + Long
-                        .toString(((AbstractLSMIndex) lsmIndex).getLatestDiskComponentSequence().get().longValue() + 1);
+                        + Long.toString(endTime - startTime) + "," + newComponents + "," + Long.toString(
+                                ((AbstractLSMIndex) lsmIndex).getLatestDiskComponentSequence().get().longValue() + 1);
                 LOGGER.info(msg);
             }
         }
@@ -629,7 +629,7 @@ public class LSMHarness implements ILSMHarness {
                 }
 
                 String msg = "[MERGE]\t" + Long.toString(startTime) + ";" + Long.toString(endTime) + ";"
-                        + Long.toString(endTime-startTime) + "," + componentsToMerge + ","
+                        + Long.toString(endTime - startTime) + "," + componentsToMerge + ","
                         + Long.toString(operation.getNewComponent().getComponentSize()) + "," + oldComponents + ","
                         + newComponents + "," + Long.toString(
                                 ((AbstractLSMIndex) lsmIndex).getLatestDiskComponentSequence().get().longValue() + 1);

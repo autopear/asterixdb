@@ -212,9 +212,8 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 if (LOGGER.isInfoEnabled() && Paths.get(opCtx.getIndex().getIndexIdentifier()).getFileName().toString()
                         .contains("usertable")) {
                     String msg = "[SEARCH]\t" + Integer.toString(foundIn) + "," + Long.toString(startTime) + ";"
-                            + Long.toString(endTime) + ";" + Long.toString(endTime-startTime) + ","
-                            + diskComponents + "," + accessTrace + ","
-                            + opStatus(startFlushing, endFlushing, startMerging, endMerging);
+                            + Long.toString(endTime) + ";" + Long.toString(endTime - startTime) + "," + diskComponents
+                            + "," + accessTrace + "," + opStatus(startFlushing, endFlushing, startMerging, endMerging);
                     LOGGER.info(msg);
                 }
             }
