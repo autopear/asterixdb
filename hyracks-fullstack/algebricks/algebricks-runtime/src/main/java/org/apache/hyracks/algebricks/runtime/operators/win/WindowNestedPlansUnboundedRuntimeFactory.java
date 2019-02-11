@@ -30,15 +30,11 @@ import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
  * Optimized runtime for window operators that performs partition materialization and can evaluate running aggregates
  * as well as regular aggregates (in nested plans) over <b>unbounded</b> window frames.
  */
-public final class WindowNestedPlansUnboundedRuntimeFactory extends AbstractWindowRuntimeFactory {
+public final class WindowNestedPlansUnboundedRuntimeFactory extends AbstractWindowNestedPlansRuntimeFactory {
 
     private static final long serialVersionUID = 1L;
 
     private final int frameMaxObjects;
-
-    private final int nestedAggOutSchemaSize;
-
-    private final WindowAggregatorDescriptorFactory nestedAggFactory;
 
     public WindowNestedPlansUnboundedRuntimeFactory(int[] partitionColumns,
             IBinaryComparatorFactory[] partitionComparatorFactories,
@@ -47,10 +43,9 @@ public final class WindowNestedPlansUnboundedRuntimeFactory extends AbstractWind
             IRunningAggregateEvaluatorFactory[] runningAggFactories, int nestedAggOutSchemaSize,
             WindowAggregatorDescriptorFactory nestedAggFactory) {
         super(partitionColumns, partitionComparatorFactories, orderComparatorFactories,
-                projectionColumnsExcludingSubplans, runningAggOutColumns, runningAggFactories);
+                projectionColumnsExcludingSubplans, runningAggOutColumns, runningAggFactories, nestedAggOutSchemaSize,
+                nestedAggFactory);
         this.frameMaxObjects = frameMaxObjects;
-        this.nestedAggFactory = nestedAggFactory;
-        this.nestedAggOutSchemaSize = nestedAggOutSchemaSize;
     }
 
     @Override

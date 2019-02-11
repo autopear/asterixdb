@@ -52,6 +52,7 @@ import org.apache.hyracks.api.config.IConfigManager;
 import org.apache.hyracks.api.config.IConfigurator;
 import org.apache.hyracks.api.config.IOption;
 import org.apache.hyracks.api.config.Section;
+import org.apache.hyracks.api.config.SerializedOption;
 import org.apache.hyracks.api.exceptions.HyracksException;
 import org.apache.hyracks.control.common.application.ConfigManagerApplicationConfig;
 import org.apache.logging.log4j.Level;
@@ -208,6 +209,10 @@ public class ConfigManager implements IConfigManager, Serializable {
     @Override
     public void setVersionString(String versionString) {
         this.versionString = versionString;
+    }
+
+    public IOption lookupOption(SerializedOption option) {
+        return lookupOption(option.section().sectionName(), IOption.toIni(option.optionName()));
     }
 
     public IOption lookupOption(String section, String key) {
@@ -384,6 +389,8 @@ public class ConfigManager implements IConfigManager, Serializable {
             return map.get(option);
         } else {
             Object value = resolveDefault(option, new ConfigManagerApplicationConfig(this) {
+                private static final long serialVersionUID = -5505664489371709335L;
+
                 @Override
                 public Object getStatic(IOption option) {
                     return getOrDefault(map, option, nodeId);
@@ -453,6 +460,8 @@ public class ConfigManager implements IConfigManager, Serializable {
         final Map<IOption, Object> nodeMap = nodeSpecificDefaultMap.get(nodeId);
         Map<IOption, Object> nodeEffectiveMap = getNodeEffectiveMap(nodeId);
         return new ConfigManagerApplicationConfig(this) {
+            private static final long serialVersionUID = 3166949269001016392L;
+
             @Override
             public Object getStatic(IOption option) {
                 if (!nodeEffectiveMap.containsKey(option)) {
@@ -582,6 +591,8 @@ public class ConfigManager implements IConfigManager, Serializable {
     }
 
     private static class NoOpMapMutator implements CompositeMap.MapMutator<IOption, Object> {
+        private static final long serialVersionUID = -7239155627408457440L;
+
         @Override
         public Object put(CompositeMap<IOption, Object> compositeMap, Map<IOption, Object>[] maps, IOption iOption,
                 Object o) {

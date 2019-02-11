@@ -51,6 +51,7 @@ public class CancellationTestExecutor extends TestExecutor {
     public InputStream executeQueryService(String str, TestCaseContext.OutputFormat fmt, URI uri,
             List<TestCase.CompilationUnit.Parameter> params, boolean jsonEncoded,
             Predicate<Integer> responseCodeValidator, boolean cancellable) throws Exception {
+        cancellable = cancellable && !containsClientContextID(str);
         String clientContextId = UUID.randomUUID().toString();
         final List<TestCase.CompilationUnit.Parameter> newParams = cancellable
                 ? upsertParam(params, "client_context_id", ParameterTypeEnum.STRING, clientContextId) : params;
@@ -69,7 +70,7 @@ public class CancellationTestExecutor extends TestExecutor {
                 Thread.sleep(10);
                 // Cancels the query request while the query is executing.
                 int rc = cancelQuery(getEndpoint(Servlets.RUNNING_REQUESTS), newParams);
-                Assert.assertTrue(rc == 200 || rc == 404);
+                Assert.assertTrue(rc == 200 || rc == 404 || rc == 403);
                 if (rc == 200) {
                     break;
                 }

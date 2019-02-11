@@ -32,17 +32,19 @@ import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
  * Runtime factory for window operators that performs partition materialization and can evaluate running aggregates
  * as well as regular aggregates (in nested plans) over window frames.
  */
-public class WindowNestedPlansRuntimeFactory extends AbstractWindowRuntimeFactory {
+public class WindowNestedPlansRuntimeFactory extends AbstractWindowNestedPlansRuntimeFactory {
 
     private static final long serialVersionUID = 1L;
 
     private final IScalarEvaluatorFactory[] frameValueEvalFactories;
 
+    private final IBinaryComparatorFactory[] frameValueComparatorFactories;
+
     private final IScalarEvaluatorFactory[] frameStartEvalFactories;
 
-    private final IScalarEvaluatorFactory[] frameEndEvalFactories;
+    private final boolean frameStartIsMonotonic;
 
-    private final IBinaryComparatorFactory[] frameValueComparatorFactories;
+    private final IScalarEvaluatorFactory[] frameEndEvalFactories;
 
     private final IScalarEvaluatorFactory[] frameExcludeEvalFactories;
 
@@ -56,45 +58,41 @@ public class WindowNestedPlansRuntimeFactory extends AbstractWindowRuntimeFactor
 
     private final int frameMaxObjects;
 
-    private final int nestedAggOutSchemaSize;
-
-    private final WindowAggregatorDescriptorFactory nestedAggFactory;
-
     public WindowNestedPlansRuntimeFactory(int[] partitionColumns,
             IBinaryComparatorFactory[] partitionComparatorFactories,
             IBinaryComparatorFactory[] orderComparatorFactories, IScalarEvaluatorFactory[] frameValueEvalFactories,
             IBinaryComparatorFactory[] frameValueComparatorFactories, IScalarEvaluatorFactory[] frameStartEvalFactories,
-            IScalarEvaluatorFactory[] frameEndEvalFactories, IScalarEvaluatorFactory[] frameExcludeEvalFactories,
-            int frameExcludeNegationStartIdx, IBinaryComparatorFactory[] frameExcludeComparatorFactories,
-            IScalarEvaluatorFactory frameOffsetEvalFactory,
+            boolean frameStartIsMonotonic, IScalarEvaluatorFactory[] frameEndEvalFactories,
+            IScalarEvaluatorFactory[] frameExcludeEvalFactories, int frameExcludeNegationStartIdx,
+            IBinaryComparatorFactory[] frameExcludeComparatorFactories, IScalarEvaluatorFactory frameOffsetEvalFactory,
             IBinaryIntegerInspectorFactory binaryIntegerInspectorFactory, int frameMaxObjects,
             int[] projectionColumnsExcludingSubplans, int[] runningAggOutColumns,
             IRunningAggregateEvaluatorFactory[] runningAggFactories, int nestedAggOutSchemaSize,
             WindowAggregatorDescriptorFactory nestedAggFactory) {
         super(partitionColumns, partitionComparatorFactories, orderComparatorFactories,
-                projectionColumnsExcludingSubplans, runningAggOutColumns, runningAggFactories);
+                projectionColumnsExcludingSubplans, runningAggOutColumns, runningAggFactories, nestedAggOutSchemaSize,
+                nestedAggFactory);
         this.frameValueEvalFactories = frameValueEvalFactories;
-        this.frameStartEvalFactories = frameStartEvalFactories;
-        this.frameEndEvalFactories = frameEndEvalFactories;
         this.frameValueComparatorFactories = frameValueComparatorFactories;
+        this.frameStartEvalFactories = frameStartEvalFactories;
+        this.frameStartIsMonotonic = frameStartIsMonotonic;
+        this.frameEndEvalFactories = frameEndEvalFactories;
         this.frameExcludeEvalFactories = frameExcludeEvalFactories;
         this.frameExcludeComparatorFactories = frameExcludeComparatorFactories;
         this.frameExcludeNegationStartIdx = frameExcludeNegationStartIdx;
         this.frameOffsetEvalFactory = frameOffsetEvalFactory;
         this.binaryIntegerInspectorFactory = binaryIntegerInspectorFactory;
         this.frameMaxObjects = frameMaxObjects;
-        this.nestedAggFactory = nestedAggFactory;
-        this.nestedAggOutSchemaSize = nestedAggOutSchemaSize;
     }
 
     @Override
     public AbstractOneInputOneOutputOneFramePushRuntime createOneOutputPushRuntime(IHyracksTaskContext ctx) {
         return new WindowNestedPlansPushRuntime(partitionColumns, partitionComparatorFactories,
                 orderComparatorFactories, frameValueEvalFactories, frameValueComparatorFactories,
-                frameStartEvalFactories, frameEndEvalFactories, frameExcludeEvalFactories, frameExcludeNegationStartIdx,
-                frameExcludeComparatorFactories, frameOffsetEvalFactory, binaryIntegerInspectorFactory, frameMaxObjects,
-                projectionList, runningAggOutColumns, runningAggFactories, nestedAggOutSchemaSize, nestedAggFactory,
-                ctx);
+                frameStartEvalFactories, frameStartIsMonotonic, frameEndEvalFactories, frameExcludeEvalFactories,
+                frameExcludeNegationStartIdx, frameExcludeComparatorFactories, frameOffsetEvalFactory,
+                binaryIntegerInspectorFactory, frameMaxObjects, projectionList, runningAggOutColumns,
+                runningAggFactories, nestedAggOutSchemaSize, nestedAggFactory, ctx);
     }
 
     @Override

@@ -20,6 +20,7 @@ package org.apache.asterix.optimizer.rules;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.asterix.algebra.operators.physical.BTreeSearchPOperator;
 import org.apache.asterix.algebra.operators.physical.InvertedIndexPOperator;
@@ -31,6 +32,7 @@ import org.apache.asterix.metadata.declared.DataSourceId;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.Dataset;
 import org.apache.asterix.om.functions.BuiltinFunctions;
+import org.apache.asterix.optimizer.base.AnalysisUtil;
 import org.apache.asterix.optimizer.rules.am.AccessMethodJobGenParams;
 import org.apache.asterix.optimizer.rules.am.BTreeJobGenParams;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -66,6 +68,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.physical.Preclustere
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.WindowPOperator;
 import org.apache.hyracks.algebricks.core.algebra.properties.INodeDomain;
 import org.apache.hyracks.algebricks.core.algebra.properties.OrderColumn;
+import org.apache.hyracks.algebricks.core.algebra.util.OperatorPropertiesUtil;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
 import org.apache.hyracks.algebricks.rewriter.util.JoinUtils;
@@ -364,23 +367,17 @@ public class SetAsterixPhysicalOperatorsRule implements IAlgebraicRewriteRule {
             LogicalVariable var = ((VariableReferenceExpression) orderExpr).getVariableReference();
             orderColumns.add(new OrderColumn(var, p.first.getKind()));
         }
-        boolean partitionMaterialization = winOp.hasNestedPlans();
-        if (!partitionMaterialization) {
-            for (Mutable<ILogicalExpression> exprRef : winOp.getExpressions()) {
-                ILogicalExpression expr = exprRef.getValue();
-                if (expr.getExpressionTag() != LogicalExpressionTag.FUNCTION_CALL) {
-                    throw new CompilationException(ErrorCode.COMPILATION_ILLEGAL_STATE, winOp.getSourceLocation(),
-                            expr.getExpressionTag());
-                }
-                AbstractFunctionCallExpression callExpr = (AbstractFunctionCallExpression) expr;
-                if (BuiltinFunctions.windowFunctionHasProperty(callExpr.getFunctionIdentifier(),
-                        BuiltinFunctions.WindowFunctionProperty.MATERIALIZE_PARTITION)) {
-                    partitionMaterialization = true;
-                    break;
-                }
-            }
-        }
 
-        return new WindowPOperator(partitionColumns, partitionMaterialization, orderColumns);
+        boolean partitionMaterialization = winOp.hasNestedPlans() || AnalysisUtil.hasFunctionWithProperty(winOp,
+                BuiltinFunctions.WindowFunctionProperty.MATERIALIZE_PARTITION);
+        boolean frameStartIsMonotonic = AnalysisUtil.isWindowFrameBoundaryMonotonic(winOp.getFrameStartExpressions(),
+                winOp.getFrameValueExpressions());
+        boolean frameEndIsMonotonic = AnalysisUtil.isWindowFrameBoundaryMonotonic(winOp.getFrameEndExpressions(),
+                winOp.getFrameValueExpressions());
+        boolean nestedTrivialAggregates = winOp.hasNestedPlans()
+                && winOp.getNestedPlans().stream().allMatch(AnalysisUtil::isTrivialAggregateSubplan);
+
+        return new WindowPOperator(partitionColumns, partitionMaterialization, orderColumns, frameStartIsMonotonic,
+                frameEndIsMonotonic, nestedTrivialAggregates);
     }
 }

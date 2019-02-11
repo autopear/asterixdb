@@ -24,9 +24,33 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 public interface IClientRequest {
 
     /**
+     * A system wide unique id representing this {@link IClientRequest}
+     *
+     * @return the system request id
+     */
+    String getId();
+
+    /**
+     * A user supplied id representing this {@link IClientRequest}
+     *
+     * @return the client supplied request id
+     */
+    String getClientContextId();
+
+    /**
      * Mark the request as complete, non-cancellable anymore
      */
     void complete();
+
+    /**
+     * Mark the request as cancellable
+     */
+    void markCancellable();
+
+    /**
+     * @return true if the request can be cancelled. Otherwise false.
+     */
+    boolean isCancellable();
 
     /**
      * Cancel a request
@@ -35,4 +59,9 @@ public interface IClientRequest {
      * @throws HyracksDataException
      */
     void cancel(ICcApplicationContext appCtx) throws HyracksDataException;
+
+    /**
+     * @return A json representation of this request
+     */
+    String toJson();
 }

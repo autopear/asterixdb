@@ -1620,6 +1620,11 @@ public class TestExecutor {
 
     public void executeTest(String actualPath, TestCaseContext testCaseCtx, ProcessBuilder pb,
             boolean isDmlRecoveryTest, TestGroup failedGroup) throws Exception {
+        executeTest(actualPath, testCaseCtx, pb, isDmlRecoveryTest, failedGroup, null);
+    }
+
+    public void executeTest(String actualPath, TestCaseContext testCaseCtx, ProcessBuilder pb,
+            boolean isDmlRecoveryTest, TestGroup failedGroup, TestGroup passedGroup) throws Exception {
         MutableInt queryCount = new MutableInt(0);
         int numOfErrors = 0;
         int numOfFiles = 0;
@@ -1679,6 +1684,9 @@ public class TestExecutor {
                     }
                     LOGGER.info(
                             "[TEST]: " + testCaseCtx.getTestCase().getFilePath() + "/" + cUnit.getName() + " PASSED ");
+                    if (passedGroup != null) {
+                        passedGroup.getTestCase().add(testCaseCtx.getTestCase());
+                    }
                 }
             }
         }
@@ -1997,6 +2005,12 @@ public class TestExecutor {
         public String getTarget() {
             return target;
         }
+    }
+
+    protected static boolean containsClientContextID(String statement) {
+        List<Parameter> httpParams = extractParameters(statement);
+        return httpParams.stream().map(Parameter::getName)
+                .anyMatch(QueryServiceServlet.Parameter.CLIENT_ID.str()::equals);
     }
 
     private static boolean isCancellable(String type) {

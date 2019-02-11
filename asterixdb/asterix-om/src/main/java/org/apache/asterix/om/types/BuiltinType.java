@@ -18,8 +18,9 @@
  */
 package org.apache.asterix.om.types;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.asterix.om.base.IAObject;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public abstract class BuiltinType implements IAType {
@@ -36,7 +37,7 @@ public abstract class BuiltinType implements IAType {
     }
 
     /** the type of all types */
-    public final static BuiltinType ASTERIX_TYPE = new BuiltinType() {
+    public static final BuiltinType ALL_TYPE = new BuiltinType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -47,12 +48,12 @@ public abstract class BuiltinType implements IAType {
 
         @Override
         public String getDisplayName() {
-            return "AsterixType";
+            return "AllType";
         }
 
         @Override
         public String getTypeName() {
-            return "ASTERIX_TYPE";
+            return "ALL_TYPE";
         }
 
         @Override
@@ -64,12 +65,12 @@ public abstract class BuiltinType implements IAType {
         public ObjectNode toJSON() {
             ObjectMapper om = new ObjectMapper();
             ObjectNode type = om.createObjectNode();
-            type.put("type", "ASTERIX_TYPE");
+            type.put("type", "ALL_TYPE");
             return type;
         }
     };
 
-    public final static BuiltinType AINT8 = new LowerCaseConstructorType() {
+    public static final BuiltinType AINT8 = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -97,7 +98,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType AINT16 = new LowerCaseConstructorType() {
+    public static final BuiltinType AINT16 = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -125,7 +126,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType AINT32 = new LowerCaseConstructorType() {
+    public static final BuiltinType AINT32 = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -181,7 +182,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ABINARY = new LowerCaseConstructorType() {
+    public static final BuiltinType ABINARY = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -209,7 +210,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType AFLOAT = new LowerCaseConstructorType() {
+    public static final BuiltinType AFLOAT = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -237,7 +238,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ADOUBLE = new LowerCaseConstructorType() {
+    public static final BuiltinType ADOUBLE = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -265,7 +266,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ASTRING = new LowerCaseConstructorType() {
+    public static final BuiltinType ASTRING = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -293,7 +294,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType AMISSING = new LowerCaseConstructorType() {
+    public static final BuiltinType AMISSING = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -321,7 +322,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ANULL = new LowerCaseConstructorType() {
+    public static final BuiltinType ANULL = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -349,7 +350,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ABOOLEAN = new LowerCaseConstructorType() {
+    public static final BuiltinType ABOOLEAN = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -377,7 +378,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ATIME = new LowerCaseConstructorType() {
+    public static final BuiltinType ATIME = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -405,7 +406,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ADATE = new LowerCaseConstructorType() {
+    public static final BuiltinType ADATE = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -433,7 +434,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ADATETIME = new LowerCaseConstructorType() {
+    public static final BuiltinType ADATETIME = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -461,7 +462,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ADURATION = new LowerCaseConstructorType() {
+    public static final BuiltinType ADURATION = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -489,7 +490,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType AYEARMONTHDURATION = new LowerCaseConstructorType() {
+    public static final BuiltinType AYEARMONTHDURATION = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -517,7 +518,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ADAYTIMEDURATION = new LowerCaseConstructorType() {
+    public static final BuiltinType ADAYTIMEDURATION = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -545,7 +546,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType AINTERVAL = new LowerCaseConstructorType() {
+    public static final BuiltinType AINTERVAL = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -570,7 +571,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType APOINT = new LowerCaseConstructorType() {
+    public static final BuiltinType APOINT = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -598,7 +599,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType APOINT3D = new LowerCaseConstructorType() {
+    public static final BuiltinType APOINT3D = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -626,7 +627,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ALINE = new LowerCaseConstructorType() {
+    public static final BuiltinType ALINE = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -654,7 +655,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType APOLYGON = new LowerCaseConstructorType() {
+    public static final BuiltinType APOLYGON = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -682,7 +683,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType AGEOMETRY = new LowerCaseConstructorType() {
+    public static final BuiltinType AGEOMETRY = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -709,7 +710,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ACIRCLE = new LowerCaseConstructorType() {
+    public static final BuiltinType ACIRCLE = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -737,7 +738,7 @@ public abstract class BuiltinType implements IAType {
         }
     };
 
-    public final static BuiltinType ARECTANGLE = new LowerCaseConstructorType() {
+    public static final BuiltinType ARECTANGLE = new LowerCaseConstructorType() {
 
         private static final long serialVersionUID = 1L;
 
@@ -890,7 +891,7 @@ public abstract class BuiltinType implements IAType {
 
     @Override
     public IAType getType() {
-        return ASTERIX_TYPE;
+        return ALL_TYPE;
     }
 
     @Override

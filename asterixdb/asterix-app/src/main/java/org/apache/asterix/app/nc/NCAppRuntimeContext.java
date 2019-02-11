@@ -36,6 +36,8 @@ import org.apache.asterix.common.api.IDatasetLifecycleManager;
 import org.apache.asterix.common.api.IDatasetMemoryManager;
 import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.api.IPropertiesFactory;
+import org.apache.asterix.common.api.IReceptionist;
+import org.apache.asterix.common.api.IReceptionistFactory;
 import org.apache.asterix.common.cluster.ClusterPartition;
 import org.apache.asterix.common.config.ActiveProperties;
 import org.apache.asterix.common.config.AsterixExtension;
@@ -78,8 +80,8 @@ import org.apache.asterix.runtime.utils.NoOpCoordinationService;
 import org.apache.asterix.transaction.management.resource.PersistentLocalResourceRepository;
 import org.apache.asterix.transaction.management.resource.PersistentLocalResourceRepositoryFactory;
 import org.apache.hyracks.api.application.INCServiceContext;
+import org.apache.hyracks.api.client.ClusterControllerInfo;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
-import org.apache.hyracks.api.client.impl.ClusterControllerInfo;
 import org.apache.hyracks.api.control.CcId;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.IIOManager;
@@ -146,6 +148,7 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     private IHyracksClientConnection hcc;
     private IIndexCheckpointManagerProvider indexCheckpointManagerProvider;
     private IReplicaManager replicaManager;
+    private IReceptionist receptionist;
 
     public NCAppRuntimeContext(INCServiceContext ncServiceContext, List<AsterixExtension> extensions,
             IPropertiesFactory propertiesFactory) throws AsterixException, InstantiationException,
@@ -175,7 +178,8 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     }
 
     @Override
-    public void initialize(IRecoveryManagerFactory recoveryManagerFactory, boolean initialRun) throws IOException {
+    public void initialize(IRecoveryManagerFactory recoveryManagerFactory, IReceptionistFactory receptionistFactory,
+            boolean initialRun) throws IOException {
         ioManager = getServiceContext().getIoManager();
         threadExecutor =
                 MaintainedThreadNameExecutorService.newCachedThreadPool(getServiceContext().getThreadFactory());
@@ -215,6 +219,7 @@ public class NCAppRuntimeContext implements INcApplicationContext {
         activeManager = new ActiveManager(threadExecutor, getServiceContext().getNodeId(),
                 activeProperties.getMemoryComponentGlobalBudget(), compilerProperties.getFrameSize(),
                 this.ncServiceContext);
+        receptionist = receptionistFactory.create();
 
         if (replicationProperties.isReplicationEnabled()) {
             replicationManager = new ReplicationManager(this, replicationProperties);
@@ -435,11 +440,18 @@ public class NCAppRuntimeContext implements INcApplicationContext {
         if (metadataNodeStub == null) {
             final INetworkSecurityManager networkSecurityManager =
                     ncServiceContext.getControllerService().getNetworkSecurityManager();
-            final RMIServerFactory serverSocketFactory = new RMIServerFactory(networkSecurityManager);
-            final RMIClientFactory clientSocketFactory =
-                    new RMIClientFactory(networkSecurityManager.getConfiguration().isSslEnabled());
-            metadataNodeStub = (IMetadataNode) UnicastRemoteObject.exportObject(MetadataNode.INSTANCE,
-                    getMetadataProperties().getMetadataPort(), clientSocketFactory, serverSocketFactory);
+
+            // clients need to have the client factory on their classpath- to enable older clients, only use
+            // our client socket factory when SSL is enabled
+            if (networkSecurityManager.getConfiguration().isSslEnabled()) {
+                final RMIServerFactory serverSocketFactory = new RMIServerFactory(networkSecurityManager);
+                final RMIClientFactory clientSocketFactory = new RMIClientFactory(true);
+                metadataNodeStub = (IMetadataNode) UnicastRemoteObject.exportObject(MetadataNode.INSTANCE,
+                        getMetadataProperties().getMetadataPort(), clientSocketFactory, serverSocketFactory);
+            } else {
+                metadataNodeStub = (IMetadataNode) UnicastRemoteObject.exportObject(MetadataNode.INSTANCE,
+                        getMetadataProperties().getMetadataPort());
+            }
         }
     }
 
@@ -525,5 +537,10 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     @Override
     public IPersistedResourceRegistry getPersistedResourceRegistry() {
         return persistedResourceRegistry;
+    }
+
+    @Override
+    public IReceptionist getReceptionist() {
+        return receptionist;
     }
 }

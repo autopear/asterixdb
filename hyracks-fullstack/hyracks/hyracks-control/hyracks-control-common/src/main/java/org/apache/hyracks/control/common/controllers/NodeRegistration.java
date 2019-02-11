@@ -23,10 +23,14 @@ import static org.apache.hyracks.util.MXHelper.runtimeMXBean;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.hyracks.api.comm.NetworkAddress;
+import org.apache.hyracks.api.config.IApplicationConfig;
+import org.apache.hyracks.api.config.IOption;
+import org.apache.hyracks.api.config.SerializedOption;
 import org.apache.hyracks.api.job.resource.NodeCapacity;
 import org.apache.hyracks.control.common.heartbeat.HeartbeatSchema;
 import org.apache.hyracks.util.MXHelper;
@@ -38,8 +42,6 @@ public final class NodeRegistration implements Serializable {
     private final InetSocketAddress ncAddress;
 
     private final String nodeId;
-
-    private final NCConfig ncConfig;
 
     private final NetworkAddress dataPort;
 
@@ -77,11 +79,12 @@ public final class NodeRegistration implements Serializable {
 
     private final NodeCapacity capacity;
 
+    private final HashMap<SerializedOption, Object> config;
+
     public NodeRegistration(InetSocketAddress ncAddress, String nodeId, NCConfig ncConfig, NetworkAddress dataPort,
             NetworkAddress resultPort, HeartbeatSchema hbSchema, NetworkAddress messagingPort, NodeCapacity capacity) {
         this.ncAddress = ncAddress;
         this.nodeId = nodeId;
-        this.ncConfig = ncConfig;
         this.dataPort = dataPort;
         this.resultPort = resultPort;
         this.hbSchema = hbSchema;
@@ -100,6 +103,11 @@ public final class NodeRegistration implements Serializable {
         this.inputArguments = runtimeMXBean.getInputArguments();
         this.systemProperties = runtimeMXBean.getSystemProperties();
         this.pid = PidHelper.getPid();
+        IApplicationConfig cfg = ncConfig.getConfigManager().getNodeEffectiveConfig(nodeId);
+        this.config = new HashMap<>();
+        for (IOption option : cfg.getOptions()) {
+            config.put(option.toSerializable(), cfg.get(option));
+        }
     }
 
     public InetSocketAddress getNodeControllerAddress() {
@@ -114,8 +122,8 @@ public final class NodeRegistration implements Serializable {
         return capacity;
     }
 
-    public NCConfig getNCConfig() {
-        return ncConfig;
+    public Map<SerializedOption, Object> getConfig() {
+        return config;
     }
 
     public NetworkAddress getDataPort() {

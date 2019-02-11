@@ -23,7 +23,8 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 public enum RequestStatus {
     SUCCESS,
     FAILED,
-    NOT_FOUND;
+    NOT_FOUND,
+    REJECTED;
 
     public HttpResponseStatus toHttpResponse() {
         switch (this) {
@@ -33,6 +34,8 @@ public enum RequestStatus {
                 return HttpResponseStatus.INTERNAL_SERVER_ERROR;
             case NOT_FOUND:
                 return HttpResponseStatus.NOT_FOUND;
+            case REJECTED:
+                return HttpResponseStatus.FORBIDDEN;
             default:
                 throw new IllegalStateException("Unrecognized status: " + this);
         }

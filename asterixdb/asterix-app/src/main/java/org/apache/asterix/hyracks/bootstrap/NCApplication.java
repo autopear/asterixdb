@@ -34,6 +34,8 @@ import org.apache.asterix.app.replication.message.RegistrationTasksRequestMessag
 import org.apache.asterix.common.api.AsterixThreadFactory;
 import org.apache.asterix.common.api.INcApplicationContext;
 import org.apache.asterix.common.api.IPropertiesFactory;
+import org.apache.asterix.common.api.IReceptionistFactory;
+import org.apache.asterix.translator.Receptionist;
 import org.apache.asterix.common.config.AsterixExtension;
 import org.apache.asterix.common.config.ExternalProperties;
 import org.apache.asterix.common.config.GlobalConfig;
@@ -64,7 +66,6 @@ import org.apache.hyracks.api.control.CcId;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.IFileDeviceResolver;
 import org.apache.hyracks.api.job.resource.NodeCapacity;
-import org.apache.hyracks.api.messages.IMessageBroker;
 import org.apache.hyracks.control.common.controllers.NCConfig;
 import org.apache.hyracks.control.nc.BaseNCApplication;
 import org.apache.hyracks.control.nc.NodeControllerService;
@@ -96,6 +97,7 @@ public class NCApplication extends BaseNCApplication {
     @Override
     public void init(IServiceContext serviceCtx) throws Exception {
         ncServiceCtx = (INCServiceContext) serviceCtx;
+        configureLoggingLevel(ncServiceCtx.getAppConfig().getLoggingLevel(ExternalProperties.Option.LOG_LEVEL));
         // set the node status initially to idle to indicate that it is pending booting
         ((NodeControllerService) serviceCtx.getControllerService()).setNodeStatus(NodeStatus.IDLE);
         ncServiceCtx.setThreadFactory(
@@ -113,8 +115,6 @@ public class NCApplication extends BaseNCApplication {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Starting Asterix node controller: " + nodeId);
         }
-        configureLoggingLevel(ncServiceCtx.getAppConfig().getLoggingLevel(ExternalProperties.Option.LOG_LEVEL));
-
         final NodeControllerService controllerService = (NodeControllerService) ncServiceCtx.getControllerService();
 
         if (System.getProperty("java.rmi.server.hostname") == null) {
@@ -130,12 +130,13 @@ public class NCApplication extends BaseNCApplication {
             }
             updateOnNodeJoin();
         }
-        runtimeContext.initialize(getRecoveryManagerFactory(), runtimeContext.getNodeProperties().isInitialRun());
+        runtimeContext.initialize(getRecoveryManagerFactory(), getReceptionistFactory(),
+                runtimeContext.getNodeProperties().isInitialRun());
         MessagingProperties messagingProperties = runtimeContext.getMessagingProperties();
-        IMessageBroker messageBroker = new NCMessageBroker(controllerService, messagingProperties);
+        NCMessageBroker messageBroker = new NCMessageBroker(controllerService, messagingProperties);
         this.ncServiceCtx.setMessageBroker(messageBroker);
         MessagingChannelInterfaceFactory interfaceFactory =
-                new MessagingChannelInterfaceFactory((NCMessageBroker) messageBroker, messagingProperties);
+                new MessagingChannelInterfaceFactory(messageBroker, messagingProperties);
         this.ncServiceCtx.setMessagingChannelInterfaceFactory(interfaceFactory);
         final Checkpoint latestCheckpoint = runtimeContext.getTransactionSubsystem().getCheckpointManager().getLatest();
         if (latestCheckpoint != null && latestCheckpoint.getStorageVersion() != StorageConstants.VERSION) {
@@ -155,6 +156,10 @@ public class NCApplication extends BaseNCApplication {
 
     protected IRecoveryManagerFactory getRecoveryManagerFactory() {
         return RecoveryManager::new;
+    }
+
+    protected IReceptionistFactory getReceptionistFactory() {
+        return () -> new Receptionist(nodeId);
     }
 
     @Override
