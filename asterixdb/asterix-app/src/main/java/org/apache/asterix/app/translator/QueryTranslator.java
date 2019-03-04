@@ -67,6 +67,7 @@ import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.exceptions.MetadataException;
+import org.apache.asterix.common.exceptions.RuntimeDataException;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.utils.JobUtils;
 import org.apache.asterix.common.utils.JobUtils.ProgressState;
@@ -162,6 +163,7 @@ import org.apache.asterix.translator.ExecutionPlans;
 import org.apache.asterix.translator.ExecutionPlansHtmlPrintUtil;
 import org.apache.asterix.translator.IRequestParameters;
 import org.apache.asterix.translator.IStatementExecutor;
+import org.apache.asterix.translator.SchedulableClientRequest;
 import org.apache.asterix.translator.SessionConfig;
 import org.apache.asterix.translator.SessionOutput;
 import org.apache.asterix.translator.TypeTranslator;
@@ -2498,7 +2500,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             case ASYNC:
                 MutableBoolean printed = new MutableBoolean(false);
                 executorService.submit(() -> asyncCreateAndRunJob(hcc, compiler, locker, resultDelivery,
-                        requestParameters, cancellable, resultSetId, printed));
+                        requestParameters, cancellable, resultSetId, printed, metadataProvider));
                 synchronized (printed) {
                     while (!printed.booleanValue()) {
                         printed.wait();
@@ -2513,7 +2515,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     sessionOutput.release();
                     ResultUtil.printResults(appCtx, resultReader, sessionOutput, stats,
                             metadataProvider.findOutputRecordType());
-                }, requestParameters, cancellable, appCtx);
+                }, requestParameters, cancellable, appCtx, metadataProvider);
                 break;
             case DEFERRED:
                 createAndRunJob(hcc, jobFlags, null, compiler, locker, resultDelivery, id -> {
@@ -2523,7 +2525,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         outMetadata.getResultSets()
                                 .add(Triple.of(id, resultSetId, metadataProvider.findOutputRecordType()));
                     }
-                }, requestParameters, cancellable, appCtx);
+                }, requestParameters, cancellable, appCtx, metadataProvider);
                 break;
             default:
                 break;
@@ -2551,7 +2553,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
     private void asyncCreateAndRunJob(IHyracksClientConnection hcc, IStatementCompiler compiler, IMetadataLocker locker,
             ResultDelivery resultDelivery, IRequestParameters requestParameters, boolean cancellable,
-            ResultSetId resultSetId, MutableBoolean printed) {
+            ResultSetId resultSetId, MutableBoolean printed, MetadataProvider metadataProvider) {
         Mutable<JobId> jobId = new MutableObject<>(JobId.INVALID);
         try {
             createAndRunJob(hcc, jobFlags, jobId, compiler, locker, resultDelivery, id -> {
@@ -2562,7 +2564,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     printed.setTrue();
                     printed.notify();
                 }
-            }, requestParameters, cancellable, appCtx);
+            }, requestParameters, cancellable, appCtx, metadataProvider);
         } catch (Exception e) {
             if (Objects.equals(JobId.INVALID, jobId.getValue())) {
                 // compilation failed
@@ -2593,7 +2595,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
     private static void createAndRunJob(IHyracksClientConnection hcc, EnumSet<JobFlag> jobFlags, Mutable<JobId> jId,
             IStatementCompiler compiler, IMetadataLocker locker, ResultDelivery resultDelivery, IResultPrinter printer,
-            IRequestParameters requestParameters, boolean cancellable, ICcApplicationContext appCtx) throws Exception {
+            IRequestParameters requestParameters, boolean cancellable, ICcApplicationContext appCtx,
+            MetadataProvider metadataProvider) throws Exception {
         final IRequestTracker requestTracker = appCtx.getRequestTracker();
         final ClientRequest clientRequest =
                 (ClientRequest) requestTracker.get(requestParameters.getRequestReference().getUuid());
@@ -2603,11 +2606,14 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             if (jobSpec == null) {
                 return;
             }
-            final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
-            clientRequest.setJobId(jobId);
             if (cancellable) {
                 clientRequest.markCancellable();
             }
+            final SchedulableClientRequest schedulableRequest =
+                    SchedulableClientRequest.of(clientRequest, requestParameters, metadataProvider, jobSpec);
+            appCtx.getReceptionist().ensureSchedulable(schedulableRequest);
+            final JobId jobId = JobUtils.runJob(hcc, jobSpec, jobFlags, false);
+            clientRequest.setJobId(jobId);
             if (jId != null) {
                 jId.setValue(jobId);
             }
@@ -2618,6 +2624,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 hcc.waitForCompletion(jobId);
                 printer.print(jobId);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeDataException(ErrorCode.REQUEST_CANCELLED, clientRequest.getId());
         } finally {
             // complete async jobs after their job completes
             if (ResultDelivery.ASYNC == resultDelivery) {
@@ -2942,9 +2951,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     protected void trackRequest(IRequestParameters requestParameters) throws HyracksDataException {
-        final IClientRequest clientRequest = appCtx.getReceptionist().requestReceived(
-                requestParameters.getRequestReference(), requestParameters.getClientContextId(),
-                requestParameters.getStatement(), requestParameters.getOptionalParameters());
+        final IClientRequest clientRequest = appCtx.getReceptionist().requestReceived(requestParameters);
         appCtx.getRequestTracker().track(clientRequest);
     }
 

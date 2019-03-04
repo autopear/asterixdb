@@ -18,8 +18,6 @@
  */
 package org.apache.asterix.common.api;
 
-import java.util.Map;
-
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.http.api.IServletRequest;
 
@@ -36,13 +34,17 @@ public interface IReceptionist {
     /**
      * Generates a {@link IClientRequest} based on the requests parameters
      *
-     * @param requestRef
-     * @param clientContextId
-     * @param statement
-     * @param getOptionalParameters
-     * @return A client request
+     * @param requestParameters
+     * @return the client request
      * @throws HyracksDataException
      */
-    IClientRequest requestReceived(IRequestReference requestRef, String clientContextId, String statement,
-            Map<String, String> getOptionalParameters) throws HyracksDataException;
+    IClientRequest requestReceived(ICommonRequestParameters requestParameters) throws HyracksDataException;
+
+    /**
+     * Ensures a client's request can be executed before its job is started
+     *
+     * @param schedulableRequest
+     * @throws HyracksDataException
+     */
+    void ensureSchedulable(ISchedulableClientRequest schedulableRequest) throws HyracksDataException;
 }

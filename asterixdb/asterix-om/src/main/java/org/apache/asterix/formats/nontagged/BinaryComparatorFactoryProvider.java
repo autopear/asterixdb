@@ -25,8 +25,8 @@ import org.apache.asterix.dataflow.data.nontagged.comparators.ADurationPartialBi
 import org.apache.asterix.dataflow.data.nontagged.comparators.AIntervalAscPartialBinaryComparatorFactory;
 import org.apache.asterix.dataflow.data.nontagged.comparators.AIntervalDescPartialBinaryComparatorFactory;
 import org.apache.asterix.dataflow.data.nontagged.comparators.ALinePartialBinaryComparatorFactory;
-import org.apache.asterix.dataflow.data.nontagged.comparators.AObjectAscBinaryComparatorFactory;
-import org.apache.asterix.dataflow.data.nontagged.comparators.AObjectDescBinaryComparatorFactory;
+import org.apache.asterix.dataflow.data.nontagged.comparators.AGenericAscBinaryComparatorFactory;
+import org.apache.asterix.dataflow.data.nontagged.comparators.AGenericDescBinaryComparatorFactory;
 import org.apache.asterix.dataflow.data.nontagged.comparators.APoint3DPartialBinaryComparatorFactory;
 import org.apache.asterix.dataflow.data.nontagged.comparators.APointPartialBinaryComparatorFactory;
 import org.apache.asterix.dataflow.data.nontagged.comparators.APolygonPartialBinaryComparatorFactory;
@@ -86,21 +86,33 @@ public class BinaryComparatorFactoryProvider implements IBinaryComparatorFactory
     // TODO: We should incorporate this option more nicely, but I'd have to change algebricks.
     @Override
     public IBinaryComparatorFactory getBinaryComparatorFactory(Object type, boolean ascending, boolean ignoreCase) {
-        if (type == null) {
-            return anyBinaryComparatorFactory(ascending);
-        }
-        IAType aqlType = (IAType) type;
-        if (aqlType.getTypeTag() == ATypeTag.STRING && ignoreCase) {
-            return addOffset(UTF8STRING_LOWERCASE_POINTABLE_INSTANCE, ascending);
-        }
-        return getBinaryComparatorFactory(type, ascending);
+        return getBinaryComparatorFactory(type, type, ascending, ignoreCase);
     }
 
     @Override
     public IBinaryComparatorFactory getBinaryComparatorFactory(Object type, boolean ascending) {
+        return getBinaryComparatorFactory(type, type, ascending);
+    }
+
+    @Override
+    public IBinaryComparatorFactory getBinaryComparatorFactory(Object leftType, Object rightType, boolean ascending,
+            boolean ignoreCase) {
+        if (leftType == null || rightType == null) {
+            return createGenericBinaryComparatorFactory(null, null, ascending);
+        }
+        IAType left = (IAType) leftType;
+        IAType right = (IAType) rightType;
+        if (left.getTypeTag() == ATypeTag.STRING && right.getTypeTag() == ATypeTag.STRING && ignoreCase) {
+            return addOffset(UTF8STRING_LOWERCASE_POINTABLE_INSTANCE, ascending);
+        }
+        return createGenericBinaryComparatorFactory(left, right, ascending);
+    }
+
+    @Override
+    public IBinaryComparatorFactory getBinaryComparatorFactory(Object leftType, Object rightType, boolean ascending) {
         // During a comparison, since proper type promotion among several numeric types are required,
-        // we will use AObjectAscBinaryComparatorFactory, instead of using a specific comparator
-        return anyBinaryComparatorFactory(ascending);
+        // we will use AGenericAscBinaryComparatorFactory, instead of using a specific comparator
+        return createGenericBinaryComparatorFactory((IAType) leftType, (IAType) rightType, ascending);
     }
 
     public IBinaryComparatorFactory getBinaryComparatorFactory(ATypeTag type, boolean ascending) {
@@ -108,7 +120,7 @@ public class BinaryComparatorFactoryProvider implements IBinaryComparatorFactory
             case ANY:
             case UNION:
                 // we could do smth better for nullable fields
-                return anyBinaryComparatorFactory(ascending);
+                return createGenericBinaryComparatorFactory(null, null, ascending);
             case NULL:
             case MISSING:
                 return new AnyBinaryComparatorFactory();
@@ -162,11 +174,12 @@ public class BinaryComparatorFactoryProvider implements IBinaryComparatorFactory
         return new OrderedBinaryComparatorFactory(inst, ascending);
     }
 
-    private IBinaryComparatorFactory anyBinaryComparatorFactory(boolean ascending) {
+    private IBinaryComparatorFactory createGenericBinaryComparatorFactory(IAType leftType, IAType rightType,
+            boolean ascending) {
         if (ascending) {
-            return AObjectAscBinaryComparatorFactory.INSTANCE;
+            return new AGenericAscBinaryComparatorFactory(leftType, rightType);
         } else {
-            return AObjectDescBinaryComparatorFactory.INSTANCE;
+            return new AGenericDescBinaryComparatorFactory(leftType, rightType);
         }
     }
 

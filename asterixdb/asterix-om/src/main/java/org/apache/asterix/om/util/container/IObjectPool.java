@@ -31,10 +31,18 @@ public interface IObjectPool<E, T> {
      *            the argument to create E
      * @return an E instance
      */
-    public E allocate(T arg);
+    E allocate(T arg);
 
     /**
      * Mark all instances in the pool as unused
      */
-    public void reset();
+    void reset();
+
+    /**
+     * Frees the argument element in the pool and makes it available again.
+     *
+     * @param element instance to free.
+     * @return true if the element is marked available in the pool. Otherwise, false.
+     */
+    boolean free(E element);
 }

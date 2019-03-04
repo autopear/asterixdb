@@ -19,7 +19,11 @@
 package org.apache.asterix.om.types;
 
 import org.apache.asterix.om.base.IAObject;
+import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.IJsonSerializable;
+import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -27,6 +31,7 @@ public class AUnorderedListType extends AbstractCollectionType {
 
     private static final long serialVersionUID = 1L;
 
+    // TODO: why is the item type "null"? why not ANY?
     public static final AUnorderedListType FULLY_OPEN_UNORDEREDLIST_TYPE = new AUnorderedListType(null, "");
 
     /**
@@ -83,5 +88,15 @@ public class AUnorderedListType extends AbstractCollectionType {
         type.put("type", AUnorderedListType.class.getName());
         type.set("item-type", itemType.toJSON());
         return type;
+    }
+
+    @Override
+    public JsonNode toJson(IPersistedResourceRegistry registry) throws HyracksDataException {
+        return convertToJson(registry, getClass(), serialVersionUID);
+    }
+
+    public static IJsonSerializable fromJson(IPersistedResourceRegistry registry, JsonNode json)
+            throws HyracksDataException {
+        return convertToObject(registry, json, false);
     }
 }

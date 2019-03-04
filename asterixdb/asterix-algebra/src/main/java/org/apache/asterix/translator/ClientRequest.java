@@ -18,9 +18,7 @@
  */
 package org.apache.asterix.translator;
 
-import java.util.Map;
-
-import org.apache.asterix.common.api.IRequestReference;
+import org.apache.asterix.common.api.ICommonRequestParameters;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -30,16 +28,16 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class ClientRequest extends BaseClientRequest {
 
-    protected String statement;
-    protected JobId jobId;
-    protected Thread executor;
-    protected String clientContextId;
+    protected final long creationTime = System.nanoTime();
+    protected final Thread executor;
+    protected final String statement;
+    protected final String clientContextId;
+    protected volatile JobId jobId;
 
-    public ClientRequest(IRequestReference requestReference, String clientContextId, String statement,
-            Map<String, String> optionalParameters) {
-        super(requestReference);
-        this.clientContextId = clientContextId;
-        this.statement = statement;
+    public ClientRequest(ICommonRequestParameters requestParameters) {
+        super(requestParameters.getRequestReference());
+        this.clientContextId = requestParameters.getClientContextId();
+        this.statement = requestParameters.getStatement();
         this.executor = Thread.currentThread();
     }
 
@@ -73,10 +71,14 @@ public class ClientRequest extends BaseClientRequest {
         }
     }
 
+    public long getCreationTime() {
+        return creationTime;
+    }
+
     @Override
     protected ObjectNode asJson() {
         ObjectNode json = super.asJson();
-        json.put("jobId", jobId.toString());
+        json.put("jobId", jobId != null ? jobId.toString() : null);
         json.put("statement", statement);
         json.put("clientContextID", clientContextId);
         return json;

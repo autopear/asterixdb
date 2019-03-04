@@ -21,6 +21,7 @@ package org.apache.asterix.test.common;
 
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
@@ -49,7 +50,7 @@ public class CancellationTestExecutor extends TestExecutor {
 
     @Override
     public InputStream executeQueryService(String str, TestCaseContext.OutputFormat fmt, URI uri,
-            List<TestCase.CompilationUnit.Parameter> params, boolean jsonEncoded,
+            List<TestCase.CompilationUnit.Parameter> params, boolean jsonEncoded, Charset responseCharset,
             Predicate<Integer> responseCodeValidator, boolean cancellable) throws Exception {
         cancellable = cancellable && !containsClientContextID(str);
         String clientContextId = UUID.randomUUID().toString();
@@ -58,7 +59,7 @@ public class CancellationTestExecutor extends TestExecutor {
         Callable<InputStream> query = () -> {
             try {
                 return CancellationTestExecutor.super.executeQueryService(str, fmt, uri, newParams, jsonEncoded,
-                        responseCodeValidator, true);
+                        responseCharset, responseCodeValidator, true);
             } catch (Exception e) {
                 e.printStackTrace();
                 throw e;
@@ -114,8 +115,8 @@ public class CancellationTestExecutor extends TestExecutor {
             }
         }
         String errorMsg = ExceptionUtils.getErrorMessage(e);
-        // Expected, "HYR0025" means a user cancelled the query.)
-        if (errorMsg.startsWith("HYR0025")) {
+        // Expected, "HYR0025" or "ASX0041" means a user cancelled the query.)
+        if (errorMsg.startsWith("HYR0025") || errorMsg.startsWith("ASX0041")) {
             SqlppExecutionWithCancellationTest.numCancelledQueries++;
             queryCount.increment();
             return false;
