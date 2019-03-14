@@ -20,6 +20,12 @@ package org.apache.hyracks.api.dataflow.value;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
+/**
+ * Ideally, {@code IBinaryHashFunction} should be stateless and thread-safe. Also, it should be made into a singleton.
+ * However, this is implementation-dependent.
+ * TODO: current implementations are stateful and are not thread-safe.
+ */
 public interface IBinaryHashFunction {
+
     int hash(byte[] bytes, int offset, int length) throws HyracksDataException;
 }
