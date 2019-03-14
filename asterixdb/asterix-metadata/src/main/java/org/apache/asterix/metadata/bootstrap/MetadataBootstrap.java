@@ -261,12 +261,13 @@ public class MetadataBootstrap {
 
     private static void insertInitialCompactionPolicies(MetadataTransactionContext mdTxnCtx)
             throws AlgebricksException {
-        String[] builtInCompactionPolicyClassNames = new String[] { ConstantMergePolicyFactory.class.getName(),
-                PrefixMergePolicyFactory.class.getName(), NoMergePolicyFactory.class.getName(),
-                CorrelatedPrefixMergePolicyFactory.class.getName(), BalanceMergePolicyFactory.class.getName(),
-                BigtableMergePolicyFactory.class.getName(), BinomialMergePolicyFactory.class.getName(),
-                ExploringMergePolicyFactory.class.getName(), MinLatencyMergePolicyFactory.class.getName(),
-                ProfitMergePolicyFactory.class.getName(), RandomMergePolicyFactory.class.getName() };
+        String[] builtInCompactionPolicyClassNames =
+                new String[] { ConstantMergePolicyFactory.class.getName(), PrefixMergePolicyFactory.class.getName(),
+                        NoMergePolicyFactory.class.getName(), CorrelatedPrefixMergePolicyFactory.class.getName(),
+                        BalanceMergePolicyFactory.class.getName(), BigtableMergePolicyFactory.class.getName(),
+                        BinomialMergePolicyFactory.class.getName(), ExploringMergePolicyFactory.class.getName(),
+                        MinLatencyMergePolicyFactory.class.getName(), ProfitMergePolicyFactory.class.getName(),
+                        RandomMergePolicyFactory.class.getName(), SizeTieredMergePolicyFactory.class.getName() };
         for (String policyClassName : builtInCompactionPolicyClassNames) {
             CompactionPolicy compactionPolicy = getCompactionPolicyEntity(policyClassName);
             MetadataManager.INSTANCE.addCompactionPolicy(mdTxnCtx, compactionPolicy);

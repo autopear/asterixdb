@@ -155,6 +155,7 @@ public class PersistedResourceRegistry implements IPersistedResourceRegistry {
         REGISTERED_CLASSES.put("MinLatencyMergePolicyFactory", MinLatencyMergePolicyFactory.class);
         REGISTERED_CLASSES.put("ProfitMergePolicyFactory", ProfitMergePolicyFactory.class);
         REGISTERED_CLASSES.put("RandomMergePolicyFactory", RandomMergePolicyFactory.class);
+        REGISTERED_CLASSES.put("SizeTieredMergePolicyFactory", SizeTieredMergePolicyFactory.class);
 
         // ILSMIOOperationSchedulerProvider
         REGISTERED_CLASSES.put("RuntimeComponentsProvider", RuntimeComponentsProvider.class);
