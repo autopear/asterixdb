@@ -62,6 +62,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="flwor">
+      <compilation-unit name="at07">
+        <output-dir compare="Text">at07</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="flwor">
       <compilation-unit name="order-by-13">
         <output-dir compare="Text">order-by-13</output-dir>
       </compilation-unit>
@@ -1250,6 +1255,16 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="aggregate">
+      <compilation-unit name="stddev_misc">
+        <output-dir compare="Text">stddev_misc</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate">
+      <compilation-unit name="stddev_pop_misc">
+        <output-dir compare="Text">stddev_pop_misc</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate">
       <compilation-unit name="sum_double">
         <output-dir compare="Text">sum_double</output-dir>
       </compilation-unit>
@@ -1418,6 +1433,16 @@
     <test-case FilePath="aggregate">
       <compilation-unit name="var_distinct">
         <output-dir compare="Text">var_distinct</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate">
+      <compilation-unit name="var_misc">
+        <output-dir compare="Text">var_misc</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate">
+      <compilation-unit name="var_pop_misc">
+        <output-dir compare="Text">var_pop_misc</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -2413,6 +2438,16 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="aggregate-sql">
+      <compilation-unit name="stddev_misc">
+        <output-dir compare="Text">stddev_misc</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate-sql">
+      <compilation-unit name="stddev_pop_misc">
+        <output-dir compare="Text">stddev_pop_misc</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate-sql">
       <compilation-unit name="sum_double">
         <output-dir compare="Text">sum_double</output-dir>
       </compilation-unit>
@@ -2576,6 +2611,33 @@
     <test-case FilePath="aggregate-sql">
       <compilation-unit name="var_distinct">
         <output-dir compare="Text">var_distinct</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate-sql">
+      <compilation-unit name="var_misc">
+        <output-dir compare="Text">var_misc</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate-sql">
+      <compilation-unit name="var_pop_misc">
+        <output-dir compare="Text">var_pop_misc</output-dir>
+      </compilation-unit>
+    </test-case>
+  </test-group>
+  <test-group name="aggregate-sql-sugar">
+    <test-case FilePath="aggregate-sql-sugar">
+      <compilation-unit name="distinct_mixed">
+        <output-dir compare="Text">distinct_mixed</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate-sql-sugar">
+      <compilation-unit name="stddev">
+        <output-dir compare="Text">stddev</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate-sql-sugar">
+      <compilation-unit name="var">
+        <output-dir compare="Text">var</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -4066,31 +4128,31 @@
     <test-case FilePath="failure">
       <compilation-unit name="group_by_failure">
         <output-dir compare="Text">group_by_failure</output-dir>
-        <expected-error>Injected failure in asterix:inject-failure</expected-error>
+        <expected-error>Injected failure in inject-failure</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="failure">
       <compilation-unit name="group_by_hash_failure">
         <output-dir compare="Text">group_by_hash_failure</output-dir>
-        <expected-error>Injected failure in asterix:inject-failure</expected-error>
+        <expected-error>Injected failure in inject-failure</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="failure">
       <compilation-unit name="q01_pricing_summary_report_failure">
         <output-dir compare="Text">q01_pricing_summary_report_failure</output-dir>
-        <expected-error>Injected failure in asterix:inject-failure</expected-error>
+        <expected-error>Injected failure in inject-failure</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="failure">
       <compilation-unit name="q18_large_volume_customer_failure">
         <output-dir compare="Text">q18_large_volume_customer_failure</output-dir>
-        <expected-error>Injected failure in asterix:inject-failure</expected-error>
+        <expected-error>Injected failure in inject-failure</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="failure">
       <compilation-unit name="order_by_failure">
         <output-dir compare="Text">order_by_failure</output-dir>
-        <expected-error>Injected failure in asterix:inject-failure</expected-error>
+        <expected-error>Injected failure in inject-failure</expected-error>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -5695,6 +5757,11 @@
         <output-dir compare="Text">jobs</output-dir>
       </compilation-unit>
     </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="completed_requests">
+        <output-dir compare="Text">completed_requests</output-dir>
+      </compilation-unit>
+    </test-case>
   </test-group>
   <test-group name="index">
     <test-group name="index/validations">
@@ -6849,6 +6916,11 @@
     <test-case FilePath="numeric">
       <compilation-unit name="power">
         <output-dir compare="Text">power</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="query-ASTERIXDB-2530">
+        <output-dir compare="Text">query-ASTERIXDB-2530</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="numeric">
@@ -8244,7 +8316,7 @@
     <test-case FilePath="string">
       <compilation-unit name="repeat_error">
         <output-dir compare="Text">repeat</output-dir>
-        <expected-error>Invalid value: function asterix:repeat expects its 1 input parameter to be a non-negative value, but gets -1</expected-error>
+        <expected-error>Invalid value: function repeat expects its 1 input parameter to be a non-negative value, but gets -1</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="string">

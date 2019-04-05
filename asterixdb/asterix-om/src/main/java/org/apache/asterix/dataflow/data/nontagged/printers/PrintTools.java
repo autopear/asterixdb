@@ -21,6 +21,8 @@ package org.apache.asterix.dataflow.data.nontagged.printers;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AFloatSerializerDeserializer;
@@ -35,7 +37,7 @@ import org.apache.hyracks.util.string.UTF8StringUtil;
 public class PrintTools {
 
     private static final GregorianCalendarSystem gCalInstance = GregorianCalendarSystem.getInstance();
-    private static long CHRONON_OF_DAY = 24 * 60 * 60 * 1000;
+    private static final long CHRONON_OF_DAY = TimeUnit.DAYS.toMillis(1);
 
     public static void printDateString(byte[] b, int s, int l, PrintStream ps) throws HyracksDataException {
         long chrononTime = AInt32SerializerDeserializer.getInt(b, s + 1) * CHRONON_OF_DAY;
@@ -217,44 +219,54 @@ public class PrintTools {
         }
     }
 
-    public static void printDoubleForJson(byte[] b, int s, PrintStream ps) throws HyracksDataException {
+    public static void printDoubleForJson(byte[] b, int s, PrintStream ps) {
         final double d = ADoubleSerializerDeserializer.getDouble(b, s + 1);
         if (Double.isFinite(d)) {
             ps.print(d);
         } else {
             ps.append('"');
-            ps.print(Double.isNaN(d) ? "NaN" : (d == Double.POSITIVE_INFINITY) ? "INF" : "-INF");
+            ps.print(printNonFiniteDouble(d));
             ps.append('"');
         }
     }
 
-    public static void printDouble(byte[] b, int s, PrintStream ps) throws HyracksDataException {
+    public static void printDouble(byte[] b, int s, PrintStream ps) {
         final double d = ADoubleSerializerDeserializer.getDouble(b, s + 1);
         if (Double.isFinite(d)) {
             ps.print(d);
         } else {
-            ps.print(Double.isNaN(d) ? "NaN" : (d == Double.POSITIVE_INFINITY) ? "INF" : "-INF");
+            ps.print(printNonFiniteDouble(d));
         }
     }
 
-    public static void printFloatForJson(byte[] b, int s, PrintStream ps) throws HyracksDataException {
+    public static void printFloatForJson(byte[] b, int s, PrintStream ps) {
         final float f = AFloatSerializerDeserializer.getFloat(b, s + 1);
         if (Float.isFinite(f)) {
             ps.print(f);
         } else {
             ps.print('"');
-            ps.print(Float.isNaN(f) ? "NaN" : (f == Float.POSITIVE_INFINITY) ? "INF" : "-INF");
+            ps.print(printNonFiniteFloat(f));
             ps.print('"');
         }
     }
 
-    public static void printFloat(byte[] b, int s, PrintStream ps) throws HyracksDataException {
+    public static void printFloat(byte[] b, int s, PrintStream ps) {
         final float f = AFloatSerializerDeserializer.getFloat(b, s + 1);
         if (Float.isFinite(f)) {
             ps.print(f);
         } else {
-            ps.print(Float.isNaN(f) ? "NaN" : (f == Float.POSITIVE_INFINITY) ? "INF" : "-INF");
+            ps.print(printNonFiniteFloat(f));
         }
+    }
+
+    @SuppressWarnings("squid:S1244") // equality comparison w/ infinity is not problematic
+    private static String printNonFiniteDouble(double d) {
+        return Double.isNaN(d) ? "NaN" : d == Double.POSITIVE_INFINITY ? "INF" : "-INF";
+    }
+
+    @SuppressWarnings("squid:S1244") // equality comparison w/ infinity is not problematic
+    private static String printNonFiniteFloat(float f) {
+        return Float.isNaN(f) ? "NaN" : f == Float.POSITIVE_INFINITY ? "INF" : "-INF";
     }
 
     public enum CASE {
@@ -381,8 +393,8 @@ public class PrintTools {
         os.write('u');
         os.write('0');
         os.write('0');
-        os.write(HexPrinter.hex((c >>> 4) & 0x0f, HexPrinter.CASE.LOWER_CASE));
-        os.write(HexPrinter.hex(c & 0x0f, HexPrinter.CASE.LOWER_CASE));
+        os.write(HexPrinter.hex((c >>> 4) & 0x0f, HexPrinter.Case.LOWER_CASE));
+        os.write(HexPrinter.hex(c & 0x0f, HexPrinter.Case.LOWER_CASE));
     }
 
     /**
@@ -399,7 +411,7 @@ public class PrintTools {
         }
         final char lowSurrogate = UTF8StringUtil.charAt(src, lowSurrogatePos);
         final int lowSurrogateSize = UTF8StringUtil.charSize(src, lowSurrogatePos);
-        os.write(new String(new char[] { highSurrogate, lowSurrogate }).getBytes());
+        os.write(new String(new char[] { highSurrogate, lowSurrogate }).getBytes(StandardCharsets.UTF_8));
         return highSurrogateSize + lowSurrogateSize;
     }
 

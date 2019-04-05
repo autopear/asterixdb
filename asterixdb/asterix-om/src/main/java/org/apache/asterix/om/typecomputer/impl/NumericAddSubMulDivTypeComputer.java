@@ -27,6 +27,7 @@ import org.apache.asterix.om.types.IAType;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
+import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 
 public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer {
     /**
@@ -48,7 +49,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
     @Override
     protected IAType getResultType(ILogicalExpression expr, IAType... strippedInputTypes) throws AlgebricksException {
         AbstractFunctionCallExpression funcExpr = (AbstractFunctionCallExpression) expr;
-        String funcName = funcExpr.getFunctionIdentifier().getName();
+        FunctionIdentifier funcId = funcExpr.getFunctionIdentifier();
         IAType t1 = strippedInputTypes[0];
         IAType t2 = strippedInputTypes[1];
         ATypeTag tag1 = t1.getTypeTag();
@@ -70,7 +71,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case FLOAT:
@@ -89,7 +90,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case BIGINT:
@@ -110,7 +111,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case INTEGER:
@@ -133,7 +134,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case SMALLINT:
@@ -158,7 +159,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case TINYINT:
@@ -185,7 +186,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case ANY:
@@ -195,12 +196,18 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                     case INTEGER:
                     case BIGINT:
                     case FLOAT:
-                    case ANY:
                     case DOUBLE:
+                    case DATE:
+                    case TIME:
+                    case DATETIME:
+                    case DURATION:
+                    case YEARMONTHDURATION:
+                    case DAYTIMEDURATION:
+                    case ANY:
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case DATE:
@@ -217,7 +224,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case TIME:
@@ -234,7 +241,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case DATETIME:
@@ -248,7 +255,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ADATETIME;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case DURATION:
@@ -266,7 +273,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case YEARMONTHDURATION:
@@ -287,7 +294,7 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             case DAYTIMEDURATION:
@@ -308,11 +315,11 @@ public class NumericAddSubMulDivTypeComputer extends AbstractResultTypeComputer 
                         type = BuiltinType.ANY;
                         break;
                     default:
-                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                        throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
                 }
                 break;
             default:
-                throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcName, tag1, tag2);
+                throw new IncompatibleTypeException(funcExpr.getSourceLocation(), funcId, tag1, tag2);
         }
 
         if (nullable && type.getTypeTag() != ATypeTag.ANY) {

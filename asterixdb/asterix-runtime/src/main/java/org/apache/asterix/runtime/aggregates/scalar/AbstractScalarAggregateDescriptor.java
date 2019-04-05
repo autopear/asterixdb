@@ -18,11 +18,12 @@
  */
 package org.apache.asterix.runtime.aggregates.scalar;
 
-import org.apache.asterix.om.functions.IFunctionDescriptor;
+import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.runtime.aggregates.base.AbstractAggregateFunctionDynamicDescriptor;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
 import org.apache.asterix.runtime.unnestingfunctions.std.ScanCollectionDescriptor.ScanCollectionUnnestingFunctionFactory;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+import org.apache.hyracks.algebricks.runtime.base.IAggregateEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IAggregateEvaluatorFactory;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
@@ -35,17 +36,25 @@ public abstract class AbstractScalarAggregateDescriptor extends AbstractScalarFu
 
     protected final AbstractAggregateFunctionDynamicDescriptor aggFuncDesc;
 
-    protected AbstractScalarAggregateDescriptor(IFunctionDescriptor aggFuncDesc) {
-        this.aggFuncDesc = (AbstractAggregateFunctionDynamicDescriptor) aggFuncDesc;
+    public AbstractScalarAggregateDescriptor(IFunctionDescriptorFactory aggFuncDescFactory) {
+        this.aggFuncDesc = (AbstractAggregateFunctionDynamicDescriptor) aggFuncDescFactory.createFunctionDescriptor();
     }
 
     @Override
     public IScalarEvaluatorFactory createEvaluatorFactory(final IScalarEvaluatorFactory[] args)
             throws AlgebricksException {
-        // The aggregate function will get a SingleFieldFrameTupleReference that points to the result of the ScanCollection.
-        // The list-item will always reside in the first field (column) of the SingleFieldFrameTupleReference.
-        IScalarEvaluatorFactory[] aggFuncArgs = new IScalarEvaluatorFactory[1];
+
+        // The aggregate function will get a SingleFieldFrameTupleReference that points to the result of the
+        // ScanCollection. The list-item will always reside in the first field (column) of the
+        // SingleFieldFrameTupleReference.
+        int numArgs = args.length;
+        IScalarEvaluatorFactory[] aggFuncArgs = new IScalarEvaluatorFactory[numArgs];
+
         aggFuncArgs[0] = new ColumnAccessEvalFactory(0);
+
+        for (int i = 1; i < numArgs; ++i) {
+            aggFuncArgs[i] = args[i];
+        }
         // Create aggregate function from this scalar version.
         final IAggregateEvaluatorFactory aggFuncFactory = aggFuncDesc.createAggregateEvaluatorFactory(aggFuncArgs);
 
@@ -57,9 +66,15 @@ public abstract class AbstractScalarAggregateDescriptor extends AbstractScalarFu
                 // Use ScanCollection to iterate over list items.
                 ScanCollectionUnnestingFunctionFactory scanCollectionFactory =
                         new ScanCollectionUnnestingFunctionFactory(args[0], sourceLoc);
-                return new GenericScalarAggregateFunction(aggFuncFactory.createAggregateEvaluator(ctx),
+                return createScalarAggregateEvaluator(aggFuncFactory.createAggregateEvaluator(ctx),
                         scanCollectionFactory, ctx);
             }
         };
+    }
+
+    protected IScalarEvaluator createScalarAggregateEvaluator(IAggregateEvaluator aggEval,
+            ScanCollectionUnnestingFunctionFactory scanCollectionFactory, IHyracksTaskContext ctx)
+            throws HyracksDataException {
+        return new GenericScalarAggregateFunction(aggEval, scanCollectionFactory, ctx, sourceLoc);
     }
 }

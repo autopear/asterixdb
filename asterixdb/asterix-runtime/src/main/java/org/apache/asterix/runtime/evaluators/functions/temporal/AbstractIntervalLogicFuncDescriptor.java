@@ -22,12 +22,12 @@ import java.io.DataOutput;
 
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABoolean;
-import org.apache.asterix.runtime.exceptions.IncompatibleTypeException;
-import org.apache.asterix.runtime.exceptions.TypeMismatchException;
 import org.apache.asterix.om.pointables.nonvisitor.AIntervalPointable;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
+import org.apache.asterix.runtime.exceptions.IncompatibleTypeException;
+import org.apache.asterix.runtime.exceptions.TypeMismatchException;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
@@ -79,7 +79,7 @@ public abstract class AbstractIntervalLogicFuncDescriptor extends AbstractScalar
                             throw new TypeMismatchException(sourceLoc, getIdentifier(), 0, typeTag0,
                                     ATypeTag.SERIALIZED_INTERVAL_TYPE_TAG);
                         }
-                        byte typeTag1 = argPtr0.getTag();
+                        byte typeTag1 = argPtr1.getTag();
                         if (typeTag1 != ATypeTag.SERIALIZED_INTERVAL_TYPE_TAG) {
                             throw new TypeMismatchException(sourceLoc, getIdentifier(), 1, typeTag1,
                                     ATypeTag.SERIALIZED_INTERVAL_TYPE_TAG);

@@ -19,6 +19,8 @@
 
 package org.apache.asterix.translator;
 
+import static org.apache.asterix.om.types.BuiltinType.ANY;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -200,7 +202,7 @@ public class TypeTranslator {
             throws AlgebricksException {
         TypeExpression tExpr = oltd.getItemTypeExpression();
         String typeName = typeSignature != null ? typeSignature.getName() : null;
-        AOrderedListType aolt = new AOrderedListType(null, typeName);
+        AOrderedListType aolt = new AOrderedListType(ANY, typeName);
         setCollectionItemType(tExpr, typeMap, incompleteItemTypes, incompleteFieldTypes, aolt, defaultDataverse);
         return aolt;
     }
@@ -212,7 +214,7 @@ public class TypeTranslator {
             throws AlgebricksException {
         TypeExpression tExpr = ultd.getItemTypeExpression();
         String typeName = typeSignature != null ? typeSignature.getName() : null;
-        AUnorderedListType ault = new AUnorderedListType(null, typeName);
+        AUnorderedListType ault = new AUnorderedListType(ANY, typeName);
         setCollectionItemType(tExpr, typeMap, incompleteItemTypes, incompleteFieldTypes, ault, defaulDataverse);
         return ault;
     }

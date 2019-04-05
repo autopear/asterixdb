@@ -18,11 +18,29 @@
  */
 package org.apache.asterix.runtime.aggregates.serializable.std;
 
+import java.io.DataOutput;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 import org.apache.asterix.common.config.GlobalConfig;
-import org.apache.asterix.dataflow.data.nontagged.serde.*;
+import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AFloatSerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt16SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt32SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt64SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.AInt8SerializerDeserializer;
+import org.apache.asterix.dataflow.data.nontagged.serde.ARecordSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
-import org.apache.asterix.om.base.*;
-import org.apache.asterix.om.types.*;
+import org.apache.asterix.om.base.ADouble;
+import org.apache.asterix.om.base.AInt64;
+import org.apache.asterix.om.base.AMutableDouble;
+import org.apache.asterix.om.base.AMutableInt64;
+import org.apache.asterix.om.base.ANull;
+import org.apache.asterix.om.types.ARecordType;
+import org.apache.asterix.om.types.ATypeTag;
+import org.apache.asterix.om.types.BuiltinType;
+import org.apache.asterix.om.types.EnumDeserializer;
+import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.types.hierachy.ATypeHierarchy;
 import org.apache.asterix.runtime.aggregates.utils.SingleVarFunctionsUtil;
 import org.apache.asterix.runtime.evaluators.common.AccessibleByteArrayEval;
@@ -35,15 +53,11 @@ import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ByteArrayAccessibleOutputStream;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
-import org.apache.hyracks.api.exceptions.SourceLocation;
-
-import java.io.DataOutput;
-import java.io.DataOutputStream;
-import java.io.IOException;
 
 public abstract class AbstractSerializableSingleVariableStatisticsAggregateFunction
         extends AbstractSerializableAggregateFunction {

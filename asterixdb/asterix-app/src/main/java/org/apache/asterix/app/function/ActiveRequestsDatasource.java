@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.app.function;
 
+import org.apache.asterix.app.message.ClientRequestsRequest;
 import org.apache.asterix.metadata.api.IDatasourceFunction;
 import org.apache.asterix.metadata.declared.DataSourceId;
 import org.apache.asterix.metadata.declared.FunctionDataSource;
@@ -40,6 +41,6 @@ public class ActiveRequestsDatasource extends FunctionDataSource {
             AlgebricksAbsolutePartitionConstraint locations) {
         AlgebricksAbsolutePartitionConstraint randomLocation =
                 AlgebricksAbsolutePartitionConstraint.randomLocation(locations.getLocations());
-        return new ActiveRequestsFunction(randomLocation);
+        return new ClientRequestsFunction(randomLocation, ClientRequestsRequest.RequestType.RUNNING);
     }
 }
