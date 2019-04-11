@@ -16,12 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/*
-* Description  : Testing an array function that needs to compare elements
-* Expected Res : Error due to comparing non-primitive values, which is {"id": 5}
-*/
-
-use TinySocial;
-
-select array_sort([19, 3, {"id": 5}]);
+SET `import-private-functions` `true`;
+SELECT VALUE DUMP_INDEX("test", "ds", "name_idx");

@@ -16,12 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/*
-* Description  : Testing an array function that needs to compare elements
-* Expected Res : Error due to comparing non-primitive values, which is {"id": 5}
-*/
-
-use TinySocial;
-
-select array_position([5,{"id": 5},9], {"id": 5});
+USE test;
+INSERT INTO ds ([{"id":1, "name": "name1"}, {"id":2, "name": "name2"}]);

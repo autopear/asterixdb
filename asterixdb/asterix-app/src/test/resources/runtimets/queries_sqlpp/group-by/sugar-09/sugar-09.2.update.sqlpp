@@ -18,10 +18,9 @@
  */
 
 /*
-* Description  : Testing an array function that needs to compare elements
-* Expected Res : Error due to comparing non-primitive values, which is [9]
-*/
+ * Description: Test quantified expression inside SQL aggregate
+ */
 
-use TinySocial;
+use test;
 
-select array_put([3], 3, [9], 4, "sth");
+load  dataset Customers using localfs ((`path`=`asterix_nc1://data/semistructured/co1k/customer.adm`),(`format`=`adm`));
