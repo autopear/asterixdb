@@ -38,63 +38,59 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
 public class SizeTieredMergePolicy implements ILSMMergePolicy {
-    private int threshold;
-    private List<Long> stack = new ArrayList<>();
+    private double bucket_low;
+    private double bucket_high;
+    private int threshold_min;
+    private int threshold_max;
+    private long min_sstable_size;
 
-    private int getLastComponentToMerge() {
-        stack.add(0, new Long(1));
-        boolean canMerge = true;
-        int lastIdx = stack.size() - 1;
-        int maxLastIdx = -1;
-        while (canMerge) {
-            long victim = 0;
-            int checked = 0;
-            boolean merged = false;
-            for (int i = 0; i < stack.size(); i++) {
-                long c = stack.get(i).longValue();
-                if (c == victim)
-                    checked++;
-                else {
-                    victim = c;
-                    checked = 1;
-                }
-                if (checked == threshold) {
-                    int start = i - threshold + 1;
-                    int end = i;
-                    int currentLastIdx = stack.size() - 1 - end;
-                    if (maxLastIdx == -1 || currentLastIdx < maxLastIdx)
-                        maxLastIdx = currentLastIdx;
-                    long sum = 0;
-                    for (int j = start; j <= end; j++) {
-                        sum += stack.get(start).longValue();
-                        stack.remove(start);
-                    }
-                    stack.add(start, new Long(sum));
-                    merged = true;
-                    break;
-                }
-            }
-            if (!merged)
-                canMerge = false;
-        }
-        if (maxLastIdx > -1)
-            return lastIdx - maxLastIdx;
-        else
-            return -1;
-    }
+//    private int getLastComponentToMerge() {
+//        stack.add(0, new Long(1));
+//        boolean canMerge = true;
+//        int lastIdx = stack.size() - 1;
+//        int maxLastIdx = -1;
+//        while (canMerge) {
+//            long victim = 0;
+//            int checked = 0;
+//            boolean merged = false;
+//            for (int i = 0; i < stack.size(); i++) {
+//                long c = stack.get(i).longValue();
+//                if (c == victim)
+//                    checked++;
+//                else {
+//                    victim = c;
+//                    checked = 1;
+//                }
+//                if (checked == threshold) {
+//                    int start = i - threshold + 1;
+//                    int end = i;
+//                    int currentLastIdx = stack.size() - 1 - end;
+//                    if (maxLastIdx == -1 || currentLastIdx < maxLastIdx)
+//                        maxLastIdx = currentLastIdx;
+//                    long sum = 0;
+//                    for (int j = start; j <= end; j++) {
+//                        sum += stack.get(start).longValue();
+//                        stack.remove(start);
+//                    }
+//                    stack.add(start, new Long(sum));
+//                    merged = true;
+//                    break;
+//                }
+//            }
+//            if (!merged)
+//                canMerge = false;
+//        }
+//        if (maxLastIdx > -1)
+//            return lastIdx - maxLastIdx;
+//        else
+//            return -1;
+//    }
 
     @Override
     public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested, boolean wasMerge)
             throws HyracksDataException {
-        if (wasMerge)
-            return;
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
         if (!areComponentsReadableWritableState(immutableComponents)) {
-            return;
-        }
-        if (fullMergeIsRequested) {
-            ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-            accessor.scheduleFullMerge();
             return;
         }
         scheduleMerge(index);
@@ -119,14 +115,40 @@ public class SizeTieredMergePolicy implements ILSMMergePolicy {
     }
 
     private List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> immutableComponents) {
-        int lastIdx = getLastComponentToMerge();
-        if (lastIdx < 1)
-            return null;
-
+        int length = immutableComponents.size();
         List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
-        for (int i = 0; i <= lastIdx; i++)
-            mergableComponents.add(immutableComponents.get(i));
-        return mergableComponents;
+        for (int start=0; start<=length-threshold_min; start++) {
+            int max_end = start+threshold_max;
+            if (max_end > length)
+                max_end = length;
+            for (int end=max_end-1; end>=start+threshold_min-1; end--) {
+                boolean all_small = true;
+                double total = 0;
+                mergableComponents.clear();
+                for (int i=start; i<=end; i++) {
+                    ILSMDiskComponent c = immutableComponents.get(i);
+                    mergableComponents.add(c);
+                    long size = c.getComponentSize();
+                    total += size;
+                    if (size >= min_sstable_size)
+                        all_small = false;
+                }
+                if (all_small)
+                    return mergableComponents;
+                double avg_size = total / (end-start+1);
+                boolean is_bucket = true;
+                for (ILSMDiskComponent c : mergableComponents) {
+                    double size = (double)c.getComponentSize();
+                    if (size < avg_size * bucket_low || size > avg_size * bucket_high) {
+                        is_bucket = false;
+                        break;
+                    }
+                }
+                if (is_bucket)
+                    return mergableComponents;
+            }
+        }
+        return null;
     }
 
     private boolean areComponentsMergable(List<ILSMDiskComponent> immutableComponents) {
@@ -149,7 +171,11 @@ public class SizeTieredMergePolicy implements ILSMMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
-        threshold = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.THRESHOLD));
+        bucket_low = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.BUCKET_LOW));
+        bucket_high = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.BUCKET_HIGH));
+        threshold_min = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.THRESHOLD_MIN));
+        threshold_max = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.THRESHOLD_MAX));
+        min_sstable_size = Long.parseLong(properties.get(SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE));
     }
 
     @Override
