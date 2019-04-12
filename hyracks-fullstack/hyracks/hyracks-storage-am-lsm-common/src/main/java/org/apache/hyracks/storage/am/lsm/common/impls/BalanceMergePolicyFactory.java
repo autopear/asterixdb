@@ -18,7 +18,9 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.hyracks.api.application.INCServiceContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;

@@ -18,7 +18,11 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.hyracks.api.application.INCServiceContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -38,9 +42,8 @@ public class SizeTieredMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String THRESHOLD_MIN = "threshold_min";
     public static final String THRESHOLD_MAX = "threshold_max";
     public static final String MIN_SSTABLE_SIZE = "min_sstable_size";
-    public static final Set<String> PROPERTIES_NAMES =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(BUCKET_LOW, BUCKET_HIGH,
-                    THRESHOLD_MIN, THRESHOLD_MAX, MIN_SSTABLE_SIZE)));
+    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList(BUCKET_LOW, BUCKET_HIGH, THRESHOLD_MIN, THRESHOLD_MAX, MIN_SSTABLE_SIZE)));
 
     @Override
     public String getName() {

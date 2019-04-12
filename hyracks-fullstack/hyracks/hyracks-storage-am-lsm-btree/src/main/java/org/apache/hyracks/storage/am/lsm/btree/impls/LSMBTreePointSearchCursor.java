@@ -19,8 +19,8 @@
 
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
-import java.util.List;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.util.CleanupUtils;
