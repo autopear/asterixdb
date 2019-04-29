@@ -38,10 +38,10 @@ public class ExploringMergePolicyFactory implements ILSMMergePolicyFactory {
     private static final long serialVersionUID = 1L;
     public static final String NAME = "exploring";
     public static final String LAMBDA = "lambda";
-    public static final String MIN = "min";
-    public static final String MAX = "max";
+    public static final String MIN_COMPONENTS = "min-components";
+    public static final String MAX_COMPONENTS = "max-components";
     public static final Set<String> PROPERTIES_NAMES =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(LAMBDA, MIN, MAX)));
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(LAMBDA, MIN_COMPONENTS, MAX_COMPONENTS)));
 
     @Override
     public String getName() {

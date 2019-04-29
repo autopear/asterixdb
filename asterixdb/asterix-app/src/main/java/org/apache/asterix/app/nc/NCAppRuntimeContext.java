@@ -272,6 +272,18 @@ public class NCAppRuntimeContext implements INcApplicationContext {
         lccm.register((ILifeCycleComponent) txnSubsystem.getTransactionManager());
         lccm.register((ILifeCycleComponent) txnSubsystem.getLockManager());
         lccm.register(txnSubsystem.getCheckpointManager());
+
+        String propStr =
+                "[PROPERTIES]\t" + "BloomFilterFalsePositiveRate:" + storageProperties.getBloomFilterFalsePositiveRate()
+                        + ",BufferCacheNumPages:" + storageProperties.getBufferCacheNumPages() + ",BufferCachePageSize:"
+                        + storageProperties.getBufferCachePageSize() + ",BufferCacheSize:"
+                        + storageProperties.getBufferCacheSize() + ",MaxActiveWritableDatasets:"
+                        + storageProperties.getMaxActiveWritableDatasets() + ",MemoryComponentGlobalBudget:"
+                        + storageProperties.getMemoryComponentGlobalBudget() + ",MemoryComponentNumPages:"
+                        + storageProperties.getMemoryComponentNumPages() + ",MemoryComponentPageSize:"
+                        + storageProperties.getMemoryComponentPageSize() + ",MemoryComponentsNum:"
+                        + storageProperties.getMemoryComponentsNum();
+        LOGGER.info(propStr);
     }
 
     @Override

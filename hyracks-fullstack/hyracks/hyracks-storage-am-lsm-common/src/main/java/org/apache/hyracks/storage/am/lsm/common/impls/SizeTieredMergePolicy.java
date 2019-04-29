@@ -34,11 +34,11 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
 public class SizeTieredMergePolicy implements ILSMMergePolicy {
-    private double bucket_low;
-    private double bucket_high;
-    private int threshold_min;
-    private int threshold_max;
-    private long min_sstable_size;
+    private double lowBucket;
+    private double highBucket;
+    private int minComponents;
+    private int maxComponents;
+    private long minSSTable;
 
     //    private int getLastComponentToMerge() {
     //        stack.add(0, new Long(1));
@@ -113,11 +113,11 @@ public class SizeTieredMergePolicy implements ILSMMergePolicy {
     private List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> immutableComponents) {
         int length = immutableComponents.size();
         List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
-        for (int start = 0; start <= length - threshold_min; start++) {
-            int max_end = start + threshold_max;
+        for (int start = 0; start <= length - minComponents; start++) {
+            int max_end = start + maxComponents;
             if (max_end > length)
                 max_end = length;
-            for (int end = max_end - 1; end >= start + threshold_min - 1; end--) {
+            for (int end = max_end - 1; end >= start + minComponents - 1; end--) {
                 boolean all_small = true;
                 double total = 0;
                 mergableComponents.clear();
@@ -126,7 +126,7 @@ public class SizeTieredMergePolicy implements ILSMMergePolicy {
                     mergableComponents.add(c);
                     long size = c.getComponentSize();
                     total += size;
-                    if (size >= min_sstable_size)
+                    if (size >= minSSTable)
                         all_small = false;
                 }
                 if (all_small)
@@ -135,7 +135,7 @@ public class SizeTieredMergePolicy implements ILSMMergePolicy {
                 boolean is_bucket = true;
                 for (ILSMDiskComponent c : mergableComponents) {
                     double size = (double) c.getComponentSize();
-                    if (size < avg_size * bucket_low || size > avg_size * bucket_high) {
+                    if (size < avg_size * lowBucket || size > avg_size * highBucket) {
                         is_bucket = false;
                         break;
                     }
@@ -167,11 +167,11 @@ public class SizeTieredMergePolicy implements ILSMMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
-        bucket_low = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.BUCKET_LOW));
-        bucket_high = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.BUCKET_HIGH));
-        threshold_min = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.THRESHOLD_MIN));
-        threshold_max = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.THRESHOLD_MAX));
-        min_sstable_size = Long.parseLong(properties.get(SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE));
+        lowBucket = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.LOW_BUCKET));
+        highBucket = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.HIGH_BUCKET));
+        minComponents = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.MIN_COMPONENTS));
+        maxComponents = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.MAX_COMPONENTS));
+        minSSTable = Long.parseLong(properties.get(SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE));
     }
 
     @Override

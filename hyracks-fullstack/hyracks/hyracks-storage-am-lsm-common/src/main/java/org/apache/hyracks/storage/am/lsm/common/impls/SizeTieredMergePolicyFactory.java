@@ -37,13 +37,13 @@ public class SizeTieredMergePolicyFactory implements ILSMMergePolicyFactory {
 
     private static final long serialVersionUID = 1L;
     public static final String NAME = "size-tiered";
-    public static final String BUCKET_LOW = "bucket_low";
-    public static final String BUCKET_HIGH = "bucket_high";
-    public static final String THRESHOLD_MIN = "threshold_min";
-    public static final String THRESHOLD_MAX = "threshold_max";
+    public static final String LOW_BUCKET = "low_bucket";
+    public static final String HIGH_BUCKET = "hight_bucket";
+    public static final String MIN_COMPONENTS = "min-components";
+    public static final String MAX_COMPONENTS = "max-components";
     public static final String MIN_SSTABLE_SIZE = "min_sstable_size";
     public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(
-            new HashSet<>(Arrays.asList(BUCKET_LOW, BUCKET_HIGH, THRESHOLD_MIN, THRESHOLD_MAX, MIN_SSTABLE_SIZE)));
+            new HashSet<>(Arrays.asList(LOW_BUCKET, HIGH_BUCKET, MIN_COMPONENTS, MAX_COMPONENTS, MIN_SSTABLE_SIZE)));
 
     @Override
     public String getName() {

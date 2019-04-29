@@ -36,8 +36,8 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
 public class ExploringMergePolicy implements ILSMMergePolicy {
     private double lambda;
-    private int min;
-    private int max;
+    private int minComponents;
+    private int maxComponents;
 
     @Override
     public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested, boolean wasMerge)
@@ -64,10 +64,10 @@ public class ExploringMergePolicy implements ILSMMergePolicy {
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
         Collections.reverse(immutableComponents);
         int length = immutableComponents.size();
-        if (length <= min - 1) {
+        if (length <= minComponents - 1) {
             return false;
         }
-        boolean mightBeStuck = (length > max) ? true : false;
+        boolean mightBeStuck = (length > maxComponents) ? true : false;
         List<ILSMDiskComponent> bestSelection = new ArrayList<>(0);
         List<ILSMDiskComponent> smallest = new ArrayList<>(0);
         List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
@@ -80,9 +80,9 @@ public class ExploringMergePolicy implements ILSMMergePolicy {
         boolean merging = false;
 
         for (int start = 0; start < length; start++) {
-            for (int currentEnd = start + min - 1; currentEnd < length; currentEnd++) {
+            for (int currentEnd = start + minComponents - 1; currentEnd < length; currentEnd++) {
                 List<ILSMDiskComponent> potentialMatchFiles = immutableComponents.subList(start, currentEnd + 1);
-                if (potentialMatchFiles.size() < min) {
+                if (potentialMatchFiles.size() < minComponents) {
                     continue;
                 }
                 long size = getTotalSize(potentialMatchFiles);
@@ -164,8 +164,8 @@ public class ExploringMergePolicy implements ILSMMergePolicy {
     @Override
     public void configure(Map<String, String> properties) {
         lambda = Double.parseDouble(properties.get(ExploringMergePolicyFactory.LAMBDA));
-        min = Integer.parseInt(properties.get(ExploringMergePolicyFactory.MIN));
-        max = Integer.parseInt(properties.get(ExploringMergePolicyFactory.MAX));
+        minComponents = Integer.parseInt(properties.get(ExploringMergePolicyFactory.MIN_COMPONENTS));
+        maxComponents = Integer.parseInt(properties.get(ExploringMergePolicyFactory.MAX_COMPONENTS));
     }
 
     @Override

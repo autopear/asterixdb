@@ -110,6 +110,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.ProfitMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.RandomMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.SlowMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.invertedindex.dataflow.LSMInvertedIndexLocalResource;
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.DelimitedUTF8StringBinaryTokenizerFactory;
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.HashedUTF8NGramTokenFactory;
@@ -172,6 +173,7 @@ public class PersistedResourceRegistry implements IPersistedResourceRegistry {
         REGISTERED_CLASSES.put("ProfitMergePolicyFactory", ProfitMergePolicyFactory.class);
         REGISTERED_CLASSES.put("RandomMergePolicyFactory", RandomMergePolicyFactory.class);
         REGISTERED_CLASSES.put("SizeTieredMergePolicyFactory", SizeTieredMergePolicyFactory.class);
+        REGISTERED_CLASSES.put("SlowMergePolicyFactory", SlowMergePolicyFactory.class);
 
         // ILSMIOOperationSchedulerProvider
         REGISTERED_CLASSES.put("RuntimeComponentsProvider", RuntimeComponentsProvider.class);

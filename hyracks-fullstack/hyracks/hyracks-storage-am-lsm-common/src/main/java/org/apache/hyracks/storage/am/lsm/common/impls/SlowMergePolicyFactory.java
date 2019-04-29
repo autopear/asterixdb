@@ -33,16 +33,15 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class RandomMergePolicyFactory implements ILSMMergePolicyFactory {
+public class SlowMergePolicyFactory implements ILSMMergePolicyFactory {
 
     private static final long serialVersionUID = 1L;
-    public static final String NAME = "random";
-    public static final String PROBABILITY = "probability";
+    public static final String NAME = "slow";
     public static final String MIN_COMPONENTS = "min-components";
-    public static final String MAX_COMPONENTS = "max-components";
-    public static final String DISTRIBUTION = "distribution";
-    public static final Set<String> PROPERTIES_NAMES = Collections
-            .unmodifiableSet(new HashSet<>(Arrays.asList(PROBABILITY, MIN_COMPONENTS, MAX_COMPONENTS, DISTRIBUTION)));
+    public static final String MIN_DELAY = "min-delay";
+    public static final String MAX_DELAY = "max-delay";
+    public static final Set<String> PROPERTIES_NAMES =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(MIN_COMPONENTS, MIN_DELAY, MAX_DELAY)));
 
     @Override
     public String getName() {
@@ -56,7 +55,7 @@ public class RandomMergePolicyFactory implements ILSMMergePolicyFactory {
 
     @Override
     public ILSMMergePolicy createMergePolicy(Map<String, String> configuration, INCServiceContext ctx) {
-        ILSMMergePolicy policy = new RandomMergePolicy();
+        ILSMMergePolicy policy = new SlowMergePolicy();
         policy.configure(configuration);
         return policy;
     }
@@ -68,6 +67,6 @@ public class RandomMergePolicyFactory implements ILSMMergePolicyFactory {
 
     @SuppressWarnings("squid:S1172") // unused parameter
     public static IJsonSerializable fromJson(IPersistedResourceRegistry registry, JsonNode json) {
-        return new RandomMergePolicyFactory();
+        return new SlowMergePolicyFactory();
     }
 }

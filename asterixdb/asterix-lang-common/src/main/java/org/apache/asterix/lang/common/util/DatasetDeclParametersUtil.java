@@ -38,6 +38,24 @@ public class DatasetDeclParametersUtil {
     public static final String MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME = "max-tolerance-component-count";
     public static final String MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME = "num-components";
 
+    // Slow merge policy
+    public static final String MERGE_POLICY_MIN_COMPONENTS_PARAMETER_NAME = "min-components";
+    public static final String MERGE_POLICY_MAX_COMPONENTS_PARAMETER_NAME = "max-components";
+    public static final String MERGE_POLICY_MIN_DELAY_PARAMETER_NAME = "min-delay";
+    public static final String MERGE_POLICY_MAX_DELAY_PARAMETER_NAME = "max-delay";
+
+    // Exploring merge policy
+    public static final String MERGE_POLICY_LAMBDA_PARAMETER_NAME = "lambda";
+
+    // Random merge policy
+    public static final String MERGE_POLICY_PROBABILITY_PARAMETER_NAME = "probability";
+    public static final String MERGE_POLICY_DISTRIBUTION_PARAMETER_NAME = "distribution";
+
+    // Size-Tiered merge policy
+    public static final String MERGE_POLICY_LOW_BUCKET_PARAMETER_NAME = "low-bucket";
+    public static final String MERGE_POLICY_HIGH_BUCKET_PARAMETER_NAME = "high-bucket";
+    public static final String MERGE_POLICY_MIN_SSTABLE_SIZE_PARAMETER_NAME = "min_sstable_size";
+
     /* ***********************************************
      * Storage Block Compression Parameters
      * ***********************************************
@@ -75,9 +93,26 @@ public class DatasetDeclParametersUtil {
     private static ARecordType getMergePolicyType() {
         //merge-policy.parameters
         final String[] parameterNames = { MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME,
-                MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME, MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME };
+                MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME, MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME,
+
+                MERGE_POLICY_MIN_COMPONENTS_PARAMETER_NAME, MERGE_POLICY_MAX_COMPONENTS_PARAMETER_NAME,
+                MERGE_POLICY_MIN_DELAY_PARAMETER_NAME, MERGE_POLICY_MAX_DELAY_PARAMETER_NAME,
+                MERGE_POLICY_LAMBDA_PARAMETER_NAME, MERGE_POLICY_PROBABILITY_PARAMETER_NAME,
+                MERGE_POLICY_DISTRIBUTION_PARAMETER_NAME, MERGE_POLICY_LOW_BUCKET_PARAMETER_NAME,
+                MERGE_POLICY_HIGH_BUCKET_PARAMETER_NAME, MERGE_POLICY_MIN_SSTABLE_SIZE_PARAMETER_NAME };
         final IAType[] parametersTypes = { AUnionType.createUnknownableType(BuiltinType.AINT64),
                 AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.AINT64),
+
+                AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.ADOUBLE),
+                AUnionType.createUnknownableType(BuiltinType.ADOUBLE),
+                AUnionType.createUnknownableType(BuiltinType.ASTRING),
+                AUnionType.createUnknownableType(BuiltinType.ADOUBLE),
+                AUnionType.createUnknownableType(BuiltinType.ADOUBLE),
                 AUnionType.createUnknownableType(BuiltinType.AINT64) };
         final ARecordType parameters =
                 new ARecordType(MERGE_POLICY_PARAMETERS_PARAMETER_NAME, parameterNames, parametersTypes, false);

@@ -10,3 +10,4 @@
 { "DataverseName": "Metadata", "CompactionPolicy": "profit", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.ProfitMergePolicyFactory" }
 { "DataverseName": "Metadata", "CompactionPolicy": "random", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.RandomMergePolicyFactory" }
 { "DataverseName": "Metadata", "CompactionPolicy": "size-tiered", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "slow", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.SlowMergePolicyFactory" }
