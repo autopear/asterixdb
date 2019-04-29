@@ -21,6 +21,7 @@ package org.apache.asterix.runtime.evaluators.functions;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMissing;
 import org.apache.asterix.om.base.ANull;
@@ -45,6 +46,7 @@ import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 import org.apache.hyracks.util.string.UTF8StringUtil;
 
+@MissingNullInOutFunction
 public class StringConcatDescriptor extends AbstractScalarFunctionDynamicDescriptor {
 
     private static final long serialVersionUID = 1L;
@@ -73,6 +75,7 @@ public class StringConcatDescriptor extends AbstractScalarFunctionDynamicDescrip
                     @SuppressWarnings("unchecked")
                     private ISerializerDeserializer<ANull> nullSerde =
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
+                    @SuppressWarnings("unchecked")
                     private ISerializerDeserializer<AMissing> missingSerde =
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AMISSING);
                     private final byte[] tempLengthArray = new byte[5];
@@ -82,6 +85,11 @@ public class StringConcatDescriptor extends AbstractScalarFunctionDynamicDescrip
                         resultStorage.reset();
                         try {
                             evalList.evaluate(tuple, inputArgList);
+
+                            if (PointableHelper.checkAndSetMissingOrNull(result, inputArgList)) {
+                                return;
+                            }
+
                             byte[] listBytes = inputArgList.getByteArray();
                             int listOffset = inputArgList.getStartOffset();
 

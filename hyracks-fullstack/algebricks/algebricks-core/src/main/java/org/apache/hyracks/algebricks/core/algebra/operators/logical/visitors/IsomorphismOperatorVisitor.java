@@ -605,9 +605,9 @@ public class IsomorphismOperatorVisitor implements ILogicalOperatorVisitor<Boole
             return Boolean.FALSE;
         }
         ForwardOperator otherOp = (ForwardOperator) copyAndSubstituteVar(op, arg);
-        ILogicalExpression rangeMapExp = op.getRangeMapExpression().getValue();
-        ILogicalExpression otherRangeMapExp = otherOp.getRangeMapExpression().getValue();
-        return rangeMapExp.equals(otherRangeMapExp) && op.getRangeMapKey().equals(otherOp.getRangeMapKey());
+        ILogicalExpression rangeMapExp = op.getSideDataExpression().getValue();
+        ILogicalExpression otherRangeMapExp = otherOp.getSideDataExpression().getValue();
+        return rangeMapExp.equals(otherRangeMapExp) && op.getSideDataKey().equals(otherOp.getSideDataKey());
     }
 
     @Override
@@ -649,13 +649,22 @@ public class IsomorphismOperatorVisitor implements ILogicalOperatorVisitor<Boole
     }
 
     public static boolean compareWindowFrameSpec(WindowOperator winOp1, WindowOperator winOp2) {
+        return compareWindowFrameSpecExcludingMaxObjects(winOp1, winOp2)
+                && winOp1.getFrameMaxObjects() == winOp2.getFrameMaxObjects();
+    }
+
+    public static boolean compareWindowFrameSpecExcludingMaxObjects(WindowOperator winOp1, WindowOperator winOp2) {
         return compareIOrderAndExpressions(winOp1.getFrameValueExpressions(), winOp2.getFrameValueExpressions())
                 && compareExpressions(winOp1.getFrameStartExpressions(), winOp2.getFrameStartExpressions())
+                && compareExpressions(winOp1.getFrameStartValidationExpressions(),
+                        winOp2.getFrameStartValidationExpressions())
                 && compareExpressions(winOp1.getFrameEndExpressions(), winOp2.getFrameEndExpressions())
+                && compareExpressions(winOp1.getFrameEndValidationExpressions(),
+                        winOp2.getFrameEndValidationExpressions())
                 && compareExpressions(winOp1.getFrameExcludeExpressions(), winOp2.getFrameExcludeExpressions())
                 && winOp1.getFrameExcludeNegationStartIdx() == winOp2.getFrameExcludeNegationStartIdx()
-                && Objects.equals(winOp1.getFrameOffset().getValue(), winOp2.getFrameOffset().getValue())
-                && winOp1.getFrameMaxObjects() == winOp2.getFrameMaxObjects();
+                && Objects.equals(winOp1.getFrameOffset().getValue(), winOp2.getFrameOffset().getValue());
+        // do not include WindowOperator.getFrameMaxObjects()
     }
 
     private static boolean compareExpressions(List<Mutable<ILogicalExpression>> opExprs,

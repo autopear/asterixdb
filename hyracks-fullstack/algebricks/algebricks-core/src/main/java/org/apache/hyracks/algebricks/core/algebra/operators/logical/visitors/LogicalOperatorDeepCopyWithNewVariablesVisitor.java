@@ -590,8 +590,8 @@ public class LogicalOperatorDeepCopyWithNewVariablesVisitor
 
     @Override
     public ILogicalOperator visitForwardOperator(ForwardOperator op, ILogicalOperator arg) throws AlgebricksException {
-        ForwardOperator opCopy = new ForwardOperator(op.getRangeMapKey(),
-                exprDeepCopyVisitor.deepCopyExpressionReference(op.getRangeMapExpression()));
+        ForwardOperator opCopy = new ForwardOperator(op.getSideDataKey(),
+                exprDeepCopyVisitor.deepCopyExpressionReference(op.getSideDataExpression()));
         deepCopyInputsAnnotationsAndExecutionMode(op, arg, opCopy);
         return opCopy;
     }
@@ -622,8 +622,12 @@ public class LogicalOperatorDeepCopyWithNewVariablesVisitor
                 deepCopyOrderExpressionReferencePairList(op.getFrameValueExpressions());
         List<Mutable<ILogicalExpression>> frameStartExprCopy =
                 exprDeepCopyVisitor.deepCopyExpressionReferenceList(op.getFrameStartExpressions());
+        List<Mutable<ILogicalExpression>> frameStartValidationExprCopy =
+                exprDeepCopyVisitor.deepCopyExpressionReferenceList(op.getFrameStartValidationExpressions());
         List<Mutable<ILogicalExpression>> frameEndExprCopy =
                 exprDeepCopyVisitor.deepCopyExpressionReferenceList(op.getFrameEndExpressions());
+        List<Mutable<ILogicalExpression>> frameEndValidationExprCopy =
+                exprDeepCopyVisitor.deepCopyExpressionReferenceList(op.getFrameEndValidationExpressions());
         List<Mutable<ILogicalExpression>> frameExclusionExprCopy =
                 exprDeepCopyVisitor.deepCopyExpressionReferenceList(op.getFrameExcludeExpressions());
         ILogicalExpression frameOffsetCopy = exprDeepCopyVisitor.deepCopy(op.getFrameOffset().getValue());
@@ -632,8 +636,9 @@ public class LogicalOperatorDeepCopyWithNewVariablesVisitor
                 exprDeepCopyVisitor.deepCopyExpressionReferenceList(op.getExpressions());
         List<ILogicalPlan> nestedPlansCopy = new ArrayList<>();
         WindowOperator opCopy = new WindowOperator(partitionExprCopy, orderExprCopy, frameValueExprCopy,
-                frameStartExprCopy, frameEndExprCopy, frameExclusionExprCopy, op.getFrameExcludeNegationStartIdx(),
-                frameOffsetCopy, op.getFrameMaxObjects(), varCopy, exprCopy, nestedPlansCopy);
+                frameStartExprCopy, frameStartValidationExprCopy, frameEndExprCopy, frameEndValidationExprCopy,
+                frameExclusionExprCopy, op.getFrameExcludeNegationStartIdx(), frameOffsetCopy, op.getFrameMaxObjects(),
+                varCopy, exprCopy, nestedPlansCopy);
         deepCopyInputsAnnotationsAndExecutionMode(op, arg, opCopy);
         deepCopyPlanList(op.getNestedPlans(), nestedPlansCopy, opCopy);
         return opCopy;

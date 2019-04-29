@@ -3664,6 +3664,13 @@
         <source-location>false</source-location>
       </compilation-unit>
     </test-case>
+     <test-case FilePath="dml">
+      <compilation-unit name="insert-duplicated-keys-with-pk-index">
+        <output-dir compare="Text">insert-duplicated-keys-with-pk-index</output-dir>
+        <expected-error>Inserting duplicate keys into the primary storage</expected-error>
+        <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
     <test-case FilePath="dml">
       <compilation-unit name="insert_less_nc">
         <output-dir compare="Text">insert_less_nc</output-dir>
@@ -4765,6 +4772,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="group-by">
+      <compilation-unit name="core-06">
+        <output-dir compare="Text">core-06</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="group-by">
       <compilation-unit name="sugar-01">
         <output-dir compare="Text">core-01</output-dir>
       </compilation-unit>
@@ -5720,6 +5732,12 @@
     <test-case FilePath="misc">
       <compilation-unit name="query-ASTERIXDB-2380">
         <output-dir compare="Text">query-ASTERIXDB-2380</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="query-ASTERIXDB-2550">
+        <output-dir compare="Text">none</output-dir>
+        <expected-error>ASX0037: Type mismatch: expected value of type array or multiset, but got the value of type object (in line 28, at column 2)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="misc">
@@ -6840,6 +6858,11 @@
     <test-case FilePath="numeric">
       <compilation-unit name="divide_int8">
         <output-dir compare="Text">divide_int8</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="div_mod_case_insensitive">
+        <output-dir compare="Text">div_mod_case_insensitive</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="numeric">
@@ -10115,6 +10138,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="window">
+      <compilation-unit name="win_null_missing">
+        <output-dir compare="Text">win_null_missing</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
       <compilation-unit name="win_opt_01">
         <output-dir compare="Text">win_opt_01</output-dir>
       </compilation-unit>
@@ -10770,6 +10798,11 @@
     </test-case>
     <test-case FilePath="feeds">
       <compilation-unit name="insert-feed">
+        <output-dir compare="Text">insert-feed</output-dir>
+      </compilation-unit>
+    </test-case>
+     <test-case FilePath="feeds">
+      <compilation-unit name="insert-feed-with-pk-index">
         <output-dir compare="Text">insert-feed</output-dir>
       </compilation-unit>
     </test-case>

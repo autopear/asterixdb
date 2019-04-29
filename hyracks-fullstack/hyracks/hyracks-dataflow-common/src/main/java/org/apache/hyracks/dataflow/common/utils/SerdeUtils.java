@@ -23,12 +23,13 @@ import org.apache.hyracks.api.dataflow.value.IBinaryComparator;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
+import org.apache.hyracks.data.std.accessors.BooleanBinaryComparatorFactory;
 import org.apache.hyracks.data.std.accessors.DoubleBinaryComparatorFactory;
 import org.apache.hyracks.data.std.accessors.FloatBinaryComparatorFactory;
 import org.apache.hyracks.data.std.accessors.IntegerBinaryComparatorFactory;
 import org.apache.hyracks.data.std.accessors.LongBinaryComparatorFactory;
-import org.apache.hyracks.data.std.accessors.PointableBinaryComparatorFactory;
 import org.apache.hyracks.data.std.accessors.ShortBinaryComparatorFactory;
+import org.apache.hyracks.data.std.accessors.UTF8StringBinaryComparatorFactory;
 import org.apache.hyracks.data.std.primitive.BooleanPointable;
 import org.apache.hyracks.data.std.primitive.DoublePointable;
 import org.apache.hyracks.data.std.primitive.FixedLengthTypeTrait;
@@ -126,11 +127,10 @@ public class SerdeUtils {
             return DoubleBinaryComparatorFactory.INSTANCE;
         }
         if (serde instanceof BooleanSerializerDeserializer) {
-            // TODO(ali): how come?
-            throw new UnsupportedOperationException("Binary comparator factory for Boolean not implemented.");
+            return BooleanBinaryComparatorFactory.INSTANCE;
         }
         if (serde instanceof UTF8StringSerializerDeserializer) {
-            return PointableBinaryComparatorFactory.of(UTF8StringPointable.FACTORY);
+            return UTF8StringBinaryComparatorFactory.INSTANCE;
         }
         throw new UnsupportedOperationException("Binary comparator for + " + serde.toString() + " not implemented.");
     }

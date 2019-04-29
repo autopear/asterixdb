@@ -21,6 +21,7 @@ package org.apache.asterix.runtime.evaluators.functions;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptor;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
@@ -40,6 +41,7 @@ import org.apache.hyracks.data.std.util.GrowableArray;
 import org.apache.hyracks.data.std.util.UTF8StringBuilder;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
+@MissingNullInOutFunction
 public class SubstringBeforeDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
     public static final IFunctionDescriptorFactory FACTORY = new IFunctionDescriptorFactory() {
@@ -73,11 +75,15 @@ public class SubstringBeforeDescriptor extends AbstractScalarFunctionDynamicDesc
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
                         resultStorage.reset();
                         evalString.evaluate(tuple, array0);
+                        evalPattern.evaluate(tuple, array1);
+
+                        if (PointableHelper.checkAndSetMissingOrNull(result, array0, array1)) {
+                            return;
+                        }
+
                         byte[] src = array0.getByteArray();
                         int srcOffset = array0.getStartOffset();
                         int srcLen = array0.getLength();
-
-                        evalPattern.evaluate(tuple, array1);
                         byte[] pattern = array1.getByteArray();
                         int patternOffset = array1.getStartOffset();
                         int patternLen = array1.getLength();

@@ -21,6 +21,7 @@ package org.apache.asterix.runtime.evaluators.constructors;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableUUID;
 import org.apache.asterix.om.base.AUUID;
@@ -30,6 +31,7 @@ import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.asterix.runtime.exceptions.InvalidDataFormatException;
 import org.apache.asterix.runtime.exceptions.TypeMismatchException;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
@@ -49,6 +51,8 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
  * a UUID is represented by 32 lowercase hexadecimal digits (8-4-4-4-12). (E.g.
  * uuid("02a199ca-bf58-412e-bd9f-60a0c975a8ac"))
  */
+
+@MissingNullInOutFunction
 public class AUUIDFromStringConstructorDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
     public static final IFunctionDescriptorFactory FACTORY = new IFunctionDescriptorFactory() {
@@ -82,6 +86,11 @@ public class AUUIDFromStringConstructorDescriptor extends AbstractScalarFunction
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
                         try {
                             eval.evaluate(tuple, inputArg);
+
+                            if (PointableHelper.checkAndSetMissingOrNull(result, inputArg)) {
+                                return;
+                            }
+
                             byte[] serString = inputArg.getByteArray();
                             int start = inputArg.getStartOffset();
                             int len = inputArg.getLength();

@@ -36,6 +36,7 @@ import org.apache.hyracks.algebricks.common.utils.Triple;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparator;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.data.std.accessors.UTF8StringBinaryComparatorFactory;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.UTF8StringPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
@@ -46,7 +47,8 @@ class RecordRemoveEvaluator implements IScalarEvaluator {
 
     private final IPointable inputRecordPointable = new VoidPointable();
     private final UTF8StringPointable fieldToRemovePointable = new UTF8StringPointable();
-    private final IBinaryComparator stringBinaryComparator = PointableHelper.createStringBinaryComparator();
+    private final IBinaryComparator stringBinaryComparator =
+            UTF8StringBinaryComparatorFactory.INSTANCE.createBinaryComparator();
     private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
     private final DataOutput resultOutput = resultStorage.getDataOutput();
     private final RecordBuilder outRecordBuilder = new RecordBuilder();
@@ -78,13 +80,19 @@ class RecordRemoveEvaluator implements IScalarEvaluator {
         resultStorage.reset();
         boolean returnNull = false;
         eval0.evaluate(tuple, inputRecordPointable);
+        eval1.evaluate(tuple, fieldToRemovePointable);
+
+        if (PointableHelper.checkAndSetMissingOrNull(result, inputRecordPointable, fieldToRemovePointable)) {
+            return;
+        }
+
         byte[] data = inputRecordPointable.getByteArray();
         int offset = inputRecordPointable.getStartOffset();
         byte typeTag = data[offset];
         if (typeTag != ATypeTag.SERIALIZED_RECORD_TYPE_TAG) {
             returnNull = true;
         }
-        eval1.evaluate(tuple, fieldToRemovePointable);
+
         data = fieldToRemovePointable.getByteArray();
         offset = fieldToRemovePointable.getStartOffset();
         typeTag = data[offset];

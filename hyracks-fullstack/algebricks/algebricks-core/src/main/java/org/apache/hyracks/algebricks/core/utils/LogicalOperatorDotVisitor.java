@@ -590,7 +590,7 @@ public class LogicalOperatorDotVisitor implements ILogicalOperatorVisitor<String
     @Override
     public String visitForwardOperator(ForwardOperator op, Boolean showDetails) throws AlgebricksException {
         stringBuilder.setLength(0);
-        stringBuilder.append("forward(").append(op.getRangeMapExpression().getValue().toString()).append(")");
+        stringBuilder.append("forward(").append(op.getSideDataExpression().getValue().toString()).append(")");
         appendSchema(op, showDetails);
         appendAnnotations(op, showDetails);
         appendPhysicalOperatorInfo(op, showDetails);
@@ -614,10 +614,20 @@ public class LogicalOperatorDotVisitor implements ILogicalOperatorVisitor<String
                 stringBuilder.append(") frame start (");
                 printExprList(frameStartExpressions);
             }
+            List<Mutable<ILogicalExpression>> frameStartValidationExpressions = op.getFrameStartValidationExpressions();
+            if (!frameStartValidationExpressions.isEmpty()) {
+                stringBuilder.append(") if (");
+                printExprList(frameStartValidationExpressions);
+            }
             List<Mutable<ILogicalExpression>> frameEndExpressions = op.getFrameEndExpressions();
             if (!frameEndExpressions.isEmpty()) {
                 stringBuilder.append(") frame end (");
                 printExprList(frameEndExpressions);
+            }
+            List<Mutable<ILogicalExpression>> frameEndValidationExpressions = op.getFrameEndValidationExpressions();
+            if (!frameEndValidationExpressions.isEmpty()) {
+                stringBuilder.append(") if (");
+                printExprList(frameEndValidationExpressions);
             }
             List<Mutable<ILogicalExpression>> frameExcludeExpressions = op.getFrameExcludeExpressions();
             if (!frameExcludeExpressions.isEmpty()) {

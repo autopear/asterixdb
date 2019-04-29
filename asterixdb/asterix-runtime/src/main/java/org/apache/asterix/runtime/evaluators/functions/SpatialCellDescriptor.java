@@ -21,6 +21,7 @@ package org.apache.asterix.runtime.evaluators.functions;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.dataflow.data.nontagged.Coordinate;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.APointSerializerDeserializer;
@@ -46,6 +47,7 @@ import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
+@MissingNullInOutFunction
 public class SpatialCellDescriptor extends AbstractScalarFunctionDynamicDescriptor {
 
     private static final long serialVersionUID = 1L;
@@ -89,6 +91,11 @@ public class SpatialCellDescriptor extends AbstractScalarFunctionDynamicDescript
                         eval1.evaluate(tuple, inputArg1);
                         eval2.evaluate(tuple, inputArg2);
                         eval3.evaluate(tuple, inputArg3);
+
+                        if (PointableHelper.checkAndSetMissingOrNull(result, inputArg0, inputArg1, inputArg2,
+                                inputArg3)) {
+                            return;
+                        }
 
                         byte[] bytes0 = inputArg0.getByteArray();
                         byte[] bytes1 = inputArg1.getByteArray();

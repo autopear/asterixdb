@@ -31,6 +31,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import org.apache.asterix.active.ActiveManager;
+import org.apache.asterix.common.api.IConfigValidator;
+import org.apache.asterix.common.api.IConfigValidatorFactory;
 import org.apache.asterix.common.api.ICoordinationService;
 import org.apache.asterix.common.api.IDatasetLifecycleManager;
 import org.apache.asterix.common.api.IDatasetMemoryManager;
@@ -89,6 +91,7 @@ import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.api.lifecycle.ILifeCycleComponent;
 import org.apache.hyracks.api.lifecycle.ILifeCycleComponentManager;
 import org.apache.hyracks.api.network.INetworkSecurityManager;
+import org.apache.hyracks.control.common.controllers.NCConfig;
 import org.apache.hyracks.control.nc.NodeControllerService;
 import org.apache.hyracks.ipc.impl.HyracksConnection;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
@@ -152,6 +155,7 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     private IReplicaManager replicaManager;
     private IReceptionist receptionist;
     private ICacheManager cacheManager;
+    private IConfigValidator configValidator;
 
     public NCAppRuntimeContext(INCServiceContext ncServiceContext, List<AsterixExtension> extensions,
             IPropertiesFactory propertiesFactory) throws AsterixException, InstantiationException,
@@ -183,8 +187,9 @@ public class NCAppRuntimeContext implements INcApplicationContext {
 
     @Override
     public void initialize(IRecoveryManagerFactory recoveryManagerFactory, IReceptionistFactory receptionistFactory,
-            boolean initialRun) throws IOException {
+            IConfigValidatorFactory configValidatorFactory, boolean initialRun) throws IOException {
         ioManager = getServiceContext().getIoManager();
+        int ioQueueLen = getServiceContext().getAppConfig().getInt(NCConfig.Option.IO_QUEUE_SIZE);
         threadExecutor =
                 MaintainedThreadNameExecutorService.newCachedThreadPool(getServiceContext().getThreadFactory());
         ICacheMemoryAllocator allocator = new HeapBufferAllocator();
@@ -199,6 +204,7 @@ public class NCAppRuntimeContext implements INcApplicationContext {
                         persistedResourceRegistry);
         localResourceRepository =
                 (PersistentLocalResourceRepository) persistentLocalResourceRepositoryFactory.createRepository();
+        configValidator = configValidatorFactory.create();
         txnSubsystem = new TransactionSubsystem(this, recoveryManagerFactory);
         IRecoveryManager recoveryMgr = txnSubsystem.getRecoveryManager();
         SystemState systemState = recoveryMgr.getSystemState();
@@ -239,11 +245,11 @@ public class NCAppRuntimeContext implements INcApplicationContext {
             replicationChannel = new ReplicationChannel(this);
 
             bufferCache = new BufferCache(ioManager, prs, pcp, new FileMapManager(),
-                    storageProperties.getBufferCacheMaxOpenFiles(), getServiceContext().getThreadFactory(),
+                    storageProperties.getBufferCacheMaxOpenFiles(), ioQueueLen, getServiceContext().getThreadFactory(),
                     replicationManager);
         } else {
             bufferCache = new BufferCache(ioManager, prs, pcp, new FileMapManager(),
-                    storageProperties.getBufferCacheMaxOpenFiles(), getServiceContext().getThreadFactory());
+                    storageProperties.getBufferCacheMaxOpenFiles(), ioQueueLen, getServiceContext().getThreadFactory());
         }
 
         /*
@@ -563,5 +569,10 @@ public class NCAppRuntimeContext implements INcApplicationContext {
     @Override
     public ICacheManager getCacheManager() {
         return cacheManager;
+    }
+
+    @Override
+    public IConfigValidator getConfigValidator() {
+        return configValidator;
     }
 }

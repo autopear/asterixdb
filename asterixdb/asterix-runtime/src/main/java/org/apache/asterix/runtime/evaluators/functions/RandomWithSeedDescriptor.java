@@ -19,6 +19,7 @@
 
 package org.apache.asterix.runtime.evaluators.functions;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptor;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
@@ -34,6 +35,7 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
+@MissingNullInOutFunction
 public class RandomWithSeedDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
 
@@ -61,6 +63,10 @@ public class RandomWithSeedDescriptor extends AbstractScalarFunctionDynamicDescr
                     public void evaluate(IFrameTupleReference tuple, IPointable resultPointable)
                             throws HyracksDataException {
                         eval0.evaluate(tuple, arg0);
+
+                        if (PointableHelper.checkAndSetMissingOrNull(resultPointable, arg0)) {
+                            return;
+                        }
 
                         byte[] bytes = arg0.getByteArray();
                         int offset = arg0.getStartOffset();

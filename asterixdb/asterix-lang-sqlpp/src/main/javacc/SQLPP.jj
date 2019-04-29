@@ -3416,9 +3416,6 @@ GroupbyClause GroupbyClause()throws ParseException :
         var = Variable()
         )?
         {
-            if(var==null){
-                var = ExpressionToVariableUtil.getGeneratedVariable(expr, false);
-            }
             GbyVariableExpressionPair pair1 = new GbyVariableExpressionPair(var, expr);
             vePairList.add(pair1);
         }
@@ -3431,9 +3428,6 @@ GroupbyClause GroupbyClause()throws ParseException :
          var = Variable()
          )?
          {
-             if(var==null){
-                var = ExpressionToVariableUtil.getGeneratedVariable(expr, false);
-             }
              GbyVariableExpressionPair pair2 = new GbyVariableExpressionPair(var, expr);
              vePairList.add(pair2);
          }
@@ -3606,6 +3600,7 @@ TOKEN [IGNORE_CASE]:
   | <DESC : "desc">
   | <DISCONNECT : "disconnect">
   | <DISTINCT : "distinct">
+  | <DIV : "div">
   | <DROP : "drop">
   | <ELEMENT : "element">
   | <EXPLAIN : "explain">
@@ -3647,6 +3642,7 @@ TOKEN [IGNORE_CASE]:
   | <LIKE : "like">
   | <LIMIT : "limit">
   | <LOAD : "load">
+  | <MOD : "mod">
   | <NODEGROUP : "nodegroup">
   | <NGRAM : "ngram">
   | <NOT : "not">
@@ -3700,9 +3696,7 @@ TOKEN :
     <CARET : "^">
   | <CONCAT : "||">
   | <DIVIDE : "/">
-  | <DIV : "div">
   | <MINUS : "-">
-  | <MOD : "mod">
   | <MUL : "*">
   | <PLUS : "+">
 

@@ -20,6 +20,7 @@ package org.apache.asterix.runtime.evaluators.functions.temporal;
 
 import java.io.DataOutput;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ADate;
 import org.apache.asterix.om.base.AMutableDate;
@@ -33,6 +34,7 @@ import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.asterix.runtime.exceptions.InvalidDataFormatException;
 import org.apache.asterix.runtime.exceptions.TypeMismatchException;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
@@ -54,6 +56,8 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
  * This means that a time string like <it>08:23:12 AM</it> will not be valid for the format string <it>h:m:s</it>
  * as there is no AM/PM format character in the format string.
  */
+
+@MissingNullInOutFunction
 public class ParseDateDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
 
@@ -95,6 +99,10 @@ public class ParseDateDescriptor extends AbstractScalarFunctionDynamicDescriptor
                         resultStorage.reset();
                         eval0.evaluate(tuple, argPtr0);
                         eval1.evaluate(tuple, argPtr1);
+
+                        if (PointableHelper.checkAndSetMissingOrNull(result, argPtr0, argPtr1)) {
+                            return;
+                        }
 
                         byte[] bytes0 = argPtr0.getByteArray();
                         int offset0 = argPtr0.getStartOffset();

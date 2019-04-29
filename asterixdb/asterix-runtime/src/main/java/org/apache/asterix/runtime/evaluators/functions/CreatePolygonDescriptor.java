@@ -21,6 +21,7 @@ package org.apache.asterix.runtime.evaluators.functions;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.dataflow.data.nontagged.serde.ADoubleSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.APointSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
@@ -47,6 +48,7 @@ import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
+@MissingNullInOutFunction
 public class CreatePolygonDescriptor extends AbstractScalarFunctionDynamicDescriptor {
 
     private static final long serialVersionUID = 1L;
@@ -76,6 +78,7 @@ public class CreatePolygonDescriptor extends AbstractScalarFunctionDynamicDescri
                     @SuppressWarnings("unchecked")
                     private final ISerializerDeserializer<ANull> nullSerde =
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
+                    @SuppressWarnings("unchecked")
                     private final ISerializerDeserializer<AMissing> missingSerde =
                             SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AMISSING);
 
@@ -84,6 +87,11 @@ public class CreatePolygonDescriptor extends AbstractScalarFunctionDynamicDescri
                         try {
                             resultStorage.reset();
                             evalList.evaluate(tuple, inputArgList);
+
+                            if (PointableHelper.checkAndSetMissingOrNull(result, inputArgList)) {
+                                return;
+                            }
+
                             byte[] listBytes = inputArgList.getByteArray();
                             int offset = inputArgList.getStartOffset();
 

@@ -23,6 +23,7 @@ import java.io.DataOutput;
 import java.util.List;
 
 import org.apache.asterix.builders.RecordBuilder;
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.exceptions.RuntimeDataException;
@@ -62,6 +63,7 @@ import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.data.std.util.BinaryEntry;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
+@MissingNullInOutFunction
 public class RecordAddFieldsDescriptor extends AbstractScalarFunctionDynamicDescriptor {
 
     public static final IFunctionDescriptorFactory FACTORY = new IFunctionDescriptorFactory() {
@@ -143,6 +145,10 @@ public class RecordAddFieldsDescriptor extends AbstractScalarFunctionDynamicDesc
                         requiredRecordTypeInfo.reset(outRecType);
                         eval0.evaluate(tuple, argPtr0);
                         eval1.evaluate(tuple, argPtr1);
+
+                        if (PointableHelper.checkAndSetMissingOrNull(result, argPtr0, argPtr1)) {
+                            return;
+                        }
 
                         // Make sure we get a valid record
                         byte typeTag0 = argPtr0.getByteArray()[argPtr0.getStartOffset()];

@@ -21,6 +21,7 @@ package org.apache.asterix.runtime.evaluators.functions;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.dataflow.data.nontagged.serde.AFloatSerializerDeserializer;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.fuzzyjoin.similarity.SimilarityFiltersJaccard;
@@ -45,6 +46,7 @@ import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
+@MissingNullInOutFunction
 public class PrefixLenJaccardDescriptor extends AbstractScalarFunctionDynamicDescriptor {
 
     private static final long serialVersionUID = 1L;
@@ -86,6 +88,10 @@ public class PrefixLenJaccardDescriptor extends AbstractScalarFunctionDynamicDes
                         resultStorage.reset();
                         evalLen.evaluate(tuple, lenPtr);
                         evalThreshold.evaluate(tuple, thresholdPtr);
+
+                        if (PointableHelper.checkAndSetMissingOrNull(result, lenPtr, thresholdPtr)) {
+                            return;
+                        }
 
                         // length
                         int length = ATypeHierarchy.getIntegerValue(getIdentifier().getName(), 0, lenPtr.getByteArray(),

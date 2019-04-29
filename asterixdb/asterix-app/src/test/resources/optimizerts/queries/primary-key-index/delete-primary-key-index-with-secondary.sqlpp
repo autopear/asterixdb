@@ -16,16 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.external.library;
+/*
+ * Description     : Testing delete primary key index
+ * Expected Result : Success
+ * Date            : March 3rh 2018
+ */
 
-import org.apache.asterix.external.api.IExternalScalarFunction;
-import org.apache.asterix.external.api.IFunctionFactory;
+drop  dataverse test if exists;
+create  dataverse test;
 
-public class SumFactory implements IFunctionFactory {
+use test;
 
-    @Override
-    public IExternalScalarFunction getExternalFunction() {
-        return new SumFunction();
-    }
+create type test.DBLPType as
+ closed {
+  id : int64,
+  dblpid : string,
+  title : string,
+  authors : string,
+  misc : string
+};
 
-}
+create  dataset DBLP(DBLPType) primary key id;
+create primary index pkIndex on DBLP;
+create index titleIndex on DBLP(title) type btree;
+
+delete from DBLP
+where id>10;

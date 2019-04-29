@@ -639,7 +639,7 @@ public class LogicalOperatorPrettyPrintVisitorJson extends AbstractLogicalOperat
         addIndent(indent).append("\"operator\": \"forward\"");
         addIndent(0).append(",\n");
         addIndent(indent).append("\"expressions\": \""
-                + op.getRangeMapExpression().getValue().accept(exprVisitor, indent).replace('"', ' ') + "\"");
+                + op.getSideDataExpression().getValue().accept(exprVisitor, indent).replace('"', ' ') + "\"");
         return null;
     }
 
@@ -695,11 +695,27 @@ public class LogicalOperatorPrettyPrintVisitorJson extends AbstractLogicalOperat
                 buffer.append("\n");
                 addIndent(indent).append("}");
             }
+            List<Mutable<ILogicalExpression>> frameStartValidationExpressions = op.getFrameStartValidationExpressions();
+            if (!frameStartValidationExpressions.isEmpty()) {
+                buffer.append(",\n");
+                addIndent(indent).append("\"frame-start-if\": {\n");
+                pprintExprList(frameStartValidationExpressions, fldIndent);
+                buffer.append("\n");
+                addIndent(indent).append("}");
+            }
             List<Mutable<ILogicalExpression>> frameEndExpressions = op.getFrameEndExpressions();
             if (!frameEndExpressions.isEmpty()) {
                 buffer.append(",\n");
                 addIndent(indent).append("\"frame-end\": {\n");
                 pprintExprList(frameEndExpressions, fldIndent);
+                buffer.append("\n");
+                addIndent(indent).append("}");
+            }
+            List<Mutable<ILogicalExpression>> frameEndValidationExpressions = op.getFrameEndValidationExpressions();
+            if (!frameEndValidationExpressions.isEmpty()) {
+                buffer.append(",\n");
+                addIndent(indent).append("\"frame-end-if\": {\n");
+                pprintExprList(frameEndValidationExpressions, fldIndent);
                 buffer.append("\n");
                 addIndent(indent).append("}");
             }

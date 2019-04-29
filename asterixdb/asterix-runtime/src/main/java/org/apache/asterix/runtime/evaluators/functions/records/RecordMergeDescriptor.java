@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.asterix.builders.RecordBuilder;
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.exceptions.RuntimeDataException;
 import org.apache.asterix.om.functions.BuiltinFunctions;
@@ -49,6 +50,7 @@ import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparator;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.data.std.accessors.UTF8StringBinaryComparatorFactory;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
@@ -63,6 +65,8 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
  * Records A and B can be combined yielding a nested record called "metadata"
  * That will have all three fields
  */
+
+@MissingNullInOutFunction
 public class RecordMergeDescriptor extends AbstractScalarFunctionDynamicDescriptor {
 
     public static final IFunctionDescriptorFactory FACTORY = new IFunctionDescriptorFactory() {
@@ -109,7 +113,8 @@ public class RecordMergeDescriptor extends AbstractScalarFunctionDynamicDescript
                 final List<RecordBuilder> rbStack = new ArrayList<>();
 
                 final ArrayBackedValueStorage tabvs = new ArrayBackedValueStorage();
-                final IBinaryComparator stringBinaryComparator = PointableHelper.createStringBinaryComparator();
+                final IBinaryComparator stringBinaryComparator =
+                        UTF8StringBinaryComparatorFactory.INSTANCE.createBinaryComparator();
 
                 return new IScalarEvaluator() {
 
@@ -123,6 +128,10 @@ public class RecordMergeDescriptor extends AbstractScalarFunctionDynamicDescript
                         resultStorage.reset();
                         eval0.evaluate(tuple, argPtr0);
                         eval1.evaluate(tuple, argPtr1);
+
+                        if (PointableHelper.checkAndSetMissingOrNull(result, argPtr0, argPtr1)) {
+                            return;
+                        }
 
                         vp0.set(argPtr0);
                         vp1.set(argPtr1);

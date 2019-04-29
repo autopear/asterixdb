@@ -22,11 +22,13 @@ package org.apache.asterix.runtime.evaluators.constructors;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptor;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.asterix.runtime.exceptions.InvalidDataFormatException;
 import org.apache.asterix.runtime.exceptions.TypeMismatchException;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
@@ -44,6 +46,7 @@ import org.apache.hyracks.dataflow.common.data.parsers.ByteArrayHexParserFactory
 import org.apache.hyracks.dataflow.common.data.parsers.IValueParser;
 import org.apache.hyracks.dataflow.common.data.parsers.IValueParserFactory;
 
+@MissingNullInOutFunction
 public class ABinaryHexStringConstructorDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
     public static final IFunctionDescriptorFactory FACTORY = new IFunctionDescriptorFactory() {
@@ -91,6 +94,11 @@ public class ABinaryHexStringConstructorDescriptor extends AbstractScalarFunctio
         public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
             try {
                 eval.evaluate(tuple, inputArg);
+
+                if (PointableHelper.checkAndSetMissingOrNull(result, inputArg)) {
+                    return;
+                }
+
                 byte[] binary = inputArg.getByteArray();
                 int startOffset = inputArg.getStartOffset();
                 int len = inputArg.getLength();

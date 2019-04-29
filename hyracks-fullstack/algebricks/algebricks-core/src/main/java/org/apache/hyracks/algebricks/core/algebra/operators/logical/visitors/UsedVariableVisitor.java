@@ -428,7 +428,7 @@ public class UsedVariableVisitor implements ILogicalOperatorVisitor<Void, Void> 
 
     @Override
     public Void visitForwardOperator(ForwardOperator op, Void arg) throws AlgebricksException {
-        op.getRangeMapExpression().getValue().getUsedVariables(usedVariables);
+        op.getSideDataExpression().getValue().getUsedVariables(usedVariables);
         return null;
     }
 
@@ -480,7 +480,13 @@ public class UsedVariableVisitor implements ILogicalOperatorVisitor<Void, Void> 
         for (Mutable<ILogicalExpression> exprRef : op.getFrameStartExpressions()) {
             exprRef.getValue().getUsedVariables(usedVariables);
         }
+        for (Mutable<ILogicalExpression> exprRef : op.getFrameStartValidationExpressions()) {
+            exprRef.getValue().getUsedVariables(usedVariables);
+        }
         for (Mutable<ILogicalExpression> exprRef : op.getFrameEndExpressions()) {
+            exprRef.getValue().getUsedVariables(usedVariables);
+        }
+        for (Mutable<ILogicalExpression> exprRef : op.getFrameEndValidationExpressions()) {
             exprRef.getValue().getUsedVariables(usedVariables);
         }
         for (Mutable<ILogicalExpression> exprRef : op.getFrameExcludeExpressions()) {

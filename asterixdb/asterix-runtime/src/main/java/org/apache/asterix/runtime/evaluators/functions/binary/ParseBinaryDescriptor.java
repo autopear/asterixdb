@@ -19,6 +19,7 @@
 
 package org.apache.asterix.runtime.evaluators.functions.binary;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.ABinary;
 import org.apache.asterix.om.base.AMutableBinary;
@@ -28,6 +29,7 @@ import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.runtime.evaluators.base.AbstractScalarFunctionDynamicDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.PointableHelper;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
@@ -41,6 +43,7 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 import org.apache.hyracks.util.bytes.Base64Parser;
 import org.apache.hyracks.util.bytes.HexParser;
 
+@MissingNullInOutFunction
 public class ParseBinaryDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
     private static final UTF8StringPointable HEX_FORMAT = UTF8StringPointable.generateUTF8Pointable("hex");
@@ -85,6 +88,10 @@ public class ParseBinaryDescriptor extends AbstractScalarFunctionDynamicDescript
                         resultStorage.reset();
                         evaluators[0].evaluate(tuple, pointables[0]);
                         evaluators[1].evaluate(tuple, pointables[1]);
+
+                        if (PointableHelper.checkAndSetMissingOrNull(result, pointables[0], pointables[1])) {
+                            return;
+                        }
 
                         ATypeTag binaryTag = ATypeTag.VALUE_TYPE_MAPPING[pointables[0].getByteArray()[pointables[0]
                                 .getStartOffset()]];

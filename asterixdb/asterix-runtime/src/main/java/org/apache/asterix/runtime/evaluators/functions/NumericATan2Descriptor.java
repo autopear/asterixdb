@@ -20,6 +20,7 @@ package org.apache.asterix.runtime.evaluators.functions;
 
 import java.io.DataOutput;
 
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableDouble;
 import org.apache.asterix.om.functions.BuiltinFunctions;
@@ -39,6 +40,7 @@ import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
+@MissingNullInOutFunction
 public class NumericATan2Descriptor extends AbstractScalarFunctionDynamicDescriptor {
 
     private static final long serialVersionUID = 1L;
@@ -83,6 +85,11 @@ public class NumericATan2Descriptor extends AbstractScalarFunctionDynamicDescrip
                         resultStorage.reset();
                         evalLeft.evaluate(tuple, leftPtr);
                         evalRight.evaluate(tuple, rightPtr);
+
+                        if (PointableHelper.checkAndSetMissingOrNull(result, leftPtr, rightPtr)) {
+                            return;
+                        }
+
                         for (int i = 0; i < args.length; i++) {
                             IPointable argPtr = i == 0 ? leftPtr : rightPtr;
                             byte[] data = argPtr.getByteArray();

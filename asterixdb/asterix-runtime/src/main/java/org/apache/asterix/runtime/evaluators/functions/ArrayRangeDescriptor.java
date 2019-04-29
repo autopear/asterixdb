@@ -21,6 +21,7 @@ package org.apache.asterix.runtime.evaluators.functions;
 import static org.apache.asterix.om.types.EnumDeserializer.ATYPETAGDESERIALIZER;
 
 import org.apache.asterix.builders.OrderedListBuilder;
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMutableDouble;
 import org.apache.asterix.om.base.AMutableInt64;
@@ -60,6 +61,8 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
  *
  * </pre>
  */
+
+@MissingNullInOutFunction
 public class ArrayRangeDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
 
@@ -119,6 +122,14 @@ public class ArrayRangeDescriptor extends AbstractScalarFunctionDynamicDescripto
         public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
             startNumEval.evaluate(tuple, start);
             endNumEval.evaluate(tuple, end);
+            if (stepNumEval != null) {
+                stepNumEval.evaluate(tuple, step);
+            }
+
+            if (PointableHelper.checkAndSetMissingOrNull(result, start, end, step)) {
+                return;
+            }
+
             String n = getIdentifier().getName();
             ATypeTag startTag = ATYPETAGDESERIALIZER.deserialize(start.getTag());
             ATypeTag endTag = ATYPETAGDESERIALIZER.deserialize(end.getTag());

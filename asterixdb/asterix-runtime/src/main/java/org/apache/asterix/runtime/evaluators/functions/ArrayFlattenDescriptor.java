@@ -26,6 +26,7 @@ import org.apache.asterix.builders.AbvsBuilderFactory;
 import org.apache.asterix.builders.IAsterixListBuilder;
 import org.apache.asterix.builders.OrderedListBuilder;
 import org.apache.asterix.builders.UnorderedListBuilder;
+import org.apache.asterix.common.annotations.MissingNullInOutFunction;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptor;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
@@ -77,6 +78,8 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
  *
  * </pre>
  */
+
+@MissingNullInOutFunction
 public class ArrayFlattenDescriptor extends AbstractScalarFunctionDynamicDescriptor {
     private static final long serialVersionUID = 1L;
     private IAType inputListType;
@@ -150,6 +153,10 @@ public class ArrayFlattenDescriptor extends AbstractScalarFunctionDynamicDescrip
             listEval.evaluate(tuple, pointable);
             // 2nd arg: depthArg
             depthEval.evaluate(tuple, depthArg);
+
+            if (PointableHelper.checkAndSetMissingOrNull(result, pointable, depthArg)) {
+                return;
+            }
 
             ATypeTag listType = ATYPETAGDESERIALIZER.deserialize(pointable.getByteArray()[pointable.getStartOffset()]);
             if (!ATypeHierarchy.isCompatible(ATYPETAGDESERIALIZER.deserialize(depthArg.getTag()), ATypeTag.DOUBLE)
