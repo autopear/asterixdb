@@ -26,12 +26,13 @@ import org.apache.hyracks.storage.am.common.freepage.MutableArrayValueReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
 import org.apache.hyracks.storage.am.lsm.common.api.LSMOperationType;
 import org.apache.hyracks.storage.am.lsm.common.util.ComponentUtils;
 import org.apache.hyracks.storage.am.lsm.common.util.LSMComponentIdUtils;
 import org.apache.hyracks.storage.common.MultiComparator;
-import org.apache.logging.log4j.Level;
+import org.apache.hyracks.storage.common.buffercache.IPageWriteFailureCallback;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -58,6 +59,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         level = 0;
         rangeOrMBR = new Rectangle();
     }
+
     public AbstractLSMDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
             ILSMComponentFilter filter, int l) {
         super(lsmIndex, filter);
@@ -66,33 +68,42 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         level = l;
         rangeOrMBR = new Rectangle();
     }
-    public abstract List<Double> GetMBR () throws Exception;
-    public void SetId (ILSMComponentId componentId) throws Exception
-    {
+
+    public abstract List<Double> GetMBR() throws Exception;
+
+    public void SetId(ILSMComponentId componentId) throws Exception {
         this.componentId = componentId;
     }
+
+    @Override
+    public void schedule(LSMIOOperationType ioOperationType) throws HyracksDataException {
+        if (ioOperationType != LSMIOOperationType.MERGE) {
+            throw new IllegalStateException("Unsupported operation type: " + ioOperationType);
+        }
+        if (state == ComponentState.INACTIVE) {
+            throw new IllegalStateException("Trying to schedule a merge of an inactive disk component");
+        }
+        if (state == ComponentState.READABLE_MERGING) {
+            // This should never happen unless there are two concurrent merges that were scheduled
+            // concurrently and they have interleaving components to be merged.
+            // This should be handled properly by the merge policy, but we guard against that here anyway.
+            throw new IllegalStateException("The disk component has already been scheduled for a merge");
+        }
+        state = ComponentState.READABLE_MERGING;
+    }
+
     @Override
     public boolean threadEnter(LSMOperationType opType, boolean isMutableComponent) {
         if (state == ComponentState.INACTIVE) {
             throw new IllegalStateException("Trying to enter an inactive disk component");
         }
-
         switch (opType) {
             case FORCE_MODIFICATION:
             case MODIFICATION:
             case REPLICATE:
             case SEARCH:
             case DISK_COMPONENT_SCAN:
-                readerCount++;
-                break;
             case MERGE:
-                if (state == ComponentState.READABLE_MERGING) {
-                    // This should never happen unless there are two concurrent merges that were scheduled
-                    // concurrently and they have interleaving components to be merged.
-                    // This should be handled properly by the merge policy, but we guard against that here anyway.
-                    return false;
-                }
-                state = ComponentState.READABLE_MERGING;
                 readerCount++;
                 break;
             default:
@@ -106,19 +117,22 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
             throws HyracksDataException {
         switch (opType) {
             case MERGE:
+                readerCount--;
                 // In case two merge operations were scheduled to merge an overlapping set of components,
                 // the second merge will fail and it must reset those components back to their previous state.
                 if (failedOperation) {
                     state = ComponentState.READABLE_UNWRITABLE;
+                } else {
+                    state = (readerCount == 0) ? ComponentState.INACTIVE : ComponentState.UNREADABLE_UNWRITABLE;
                 }
-                // Fallthrough
+                break;
             case FORCE_MODIFICATION:
             case MODIFICATION:
             case REPLICATE:
             case SEARCH:
             case DISK_COMPONENT_SCAN:
                 readerCount--;
-                if (readerCount == 0 && state == ComponentState.READABLE_MERGING) {
+                if (readerCount == 0 && state == ComponentState.UNREADABLE_UNWRITABLE) {
                     state = ComponentState.INACTIVE;
                 }
                 break;
@@ -164,10 +178,10 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
      * @throws HyracksDataException
      */
     @Override
-    public void markAsValid(boolean persist) throws HyracksDataException {
-        ComponentUtils.markAsValid(getMetadataHolder(), persist);
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.log(Level.INFO, "Marked as valid component with id: " + getId());
+    public void markAsValid(boolean persist, IPageWriteFailureCallback callback) throws HyracksDataException {
+        ComponentUtils.markAsValid(getMetadataHolder(), persist, callback);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Marked as valid component with id: " + getId());
         }
     }
 
@@ -181,18 +195,16 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
             getLsmIndex().getFilterManager().readFilter(getLSMComponentFilter(), getMetadataHolder());
         }
         //Load the level number from Disk Component Metadata
-        if(!createNewComponent)
-        {
+        if (!createNewComponent) {
             LongPointable pointable = new LongPointable();
             IMetadataPageManager metadataPageManager = this.getMetadata().getMetadataPageManager();
             metadataPageManager.get(metadataPageManager.createMetadataFrame(), LEVEL_KEY, pointable);
-            int level =  pointable.getLength() == 0 ? 0 : (int)pointable.longValue();
+            int level = pointable.getLength() == 0 ? 0 : (int) pointable.longValue();
             this.setLevel(level);
             Rectangle newComponentMBR;
             try {
                 List<Double> mbrpoints = this.GetMBR();
-                if(mbrpoints!=null)
-                {
+                if (mbrpoints != null) {
                     newComponentMBR = new Rectangle(mbrpoints);
                     newComponentMBR.print();
                     setRangeOrMBR(newComponentMBR);
@@ -201,14 +213,19 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
                 e.printStackTrace();
             }
 
-
         }
     }
 
     @Override
-    public void deactivateAndDestroy() throws HyracksDataException {
-        getIndex().deactivate();
-        getIndex().destroy();
+    public final void deactivateAndDestroy() throws HyracksDataException {
+        deactivateAndPurge();
+        destroy();
+    }
+
+    @Override
+    public final void deactivateAndPurge() throws HyracksDataException {
+        deactivate();
+        purge();
     }
 
     @Override
@@ -221,9 +238,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         getIndex().deactivate();
     }
 
-    @Override
-    public void deactivateAndPurge() throws HyracksDataException {
-        getIndex().deactivate();
+    protected void purge() throws HyracksDataException {
         getIndex().purge();
     }
 
@@ -255,26 +270,28 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     }
 
     @Override
-    public ChainedLSMDiskComponentBulkLoader createBulkLoader(LSMIOOperationType opType, float fillFactor,
+    public ChainedLSMDiskComponentBulkLoader createBulkLoader(ILSMIOOperation operation, float fillFactor,
             boolean verifyInput, long numElementsHint, boolean checkIfEmptyIndex, boolean withFilter,
             boolean cleanupEmptyComponent) throws HyracksDataException {
         ChainedLSMDiskComponentBulkLoader chainedBulkLoader =
-                new ChainedLSMDiskComponentBulkLoader(this, cleanupEmptyComponent);
+                new ChainedLSMDiskComponentBulkLoader(operation, this, cleanupEmptyComponent);
         if (withFilter && getLsmIndex().getFilterFields() != null) {
             chainedBulkLoader.addBulkLoader(createFilterBulkLoader());
         }
-        IChainedComponentBulkLoader indexBulkloader = opType == LSMIOOperationType.MERGE
+        IChainedComponentBulkLoader indexBulkloader = operation.getIOOpertionType() == LSMIOOperationType.MERGE
                 ? createMergeIndexBulkLoader(fillFactor, verifyInput, numElementsHint, checkIfEmptyIndex)
                 : createIndexBulkLoader(fillFactor, verifyInput, numElementsHint, checkIfEmptyIndex);
         chainedBulkLoader.addBulkLoader(indexBulkloader);
         return chainedBulkLoader;
     }
 
-    @Override public int getLevel() {
+    @Override
+    public int getLevel() {
         return level;
     }
 
-    @Override public void setLevel(int level) {
+    @Override
+    public void setLevel(int level) {
         this.level = level;
     }
 
@@ -286,6 +303,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     public Rectangle getRangeOrMBR() {
         return rangeOrMBR;
     }
+
     public void setRangeOrMBR(Rectangle r) {
         rangeOrMBR.set(r);
     }

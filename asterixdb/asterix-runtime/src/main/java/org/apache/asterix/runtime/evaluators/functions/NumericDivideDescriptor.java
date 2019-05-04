@@ -18,21 +18,20 @@
  */
 package org.apache.asterix.runtime.evaluators.functions;
 
-import org.apache.asterix.common.exceptions.ErrorCode;
-import org.apache.asterix.common.exceptions.RuntimeDataException;
+import org.apache.asterix.om.base.AMutableDouble;
+import org.apache.asterix.om.base.AMutableInt64;
 import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.functions.IFunctionDescriptor;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.types.ATypeTag;
-import org.apache.asterix.runtime.exceptions.OverflowException;
 import org.apache.asterix.runtime.exceptions.UnsupportedTypeException;
 import org.apache.hyracks.algebricks.common.exceptions.NotImplementedException;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 public class NumericDivideDescriptor extends AbstractNumericArithmeticEval {
-
     private static final long serialVersionUID = 1L;
+
     public static final IFunctionDescriptorFactory FACTORY = new IFunctionDescriptorFactory() {
         public IFunctionDescriptor createFunctionDescriptor() {
             return new NumericDivideDescriptor();
@@ -45,29 +44,34 @@ public class NumericDivideDescriptor extends AbstractNumericArithmeticEval {
     }
 
     @Override
-    protected long evaluateInteger(long lhs, long rhs) throws HyracksDataException {
+    protected ATypeTag getNumericResultType(ATypeTag argTypeMax) {
+        return argTypeMax.ordinal() < ATypeTag.FLOAT.ordinal() ? ATypeTag.DOUBLE : argTypeMax;
+    }
+
+    @Override
+    protected boolean evaluateDouble(double lhs, double rhs, AMutableDouble result) {
         if (rhs == 0) {
-            throw new RuntimeDataException(ErrorCode.DIVISION_BY_ZERO);
+            return false; // result = NULL
         }
-        if ((lhs == Long.MIN_VALUE) && (rhs == -1L)) {
-            throw new OverflowException(getIdentifier());
-        }
-        return lhs / rhs;
+        double res = lhs / rhs;
+        result.setValue(res);
+        return true;
     }
 
     @Override
-    protected double evaluateDouble(double lhs, double rhs) {
-        return lhs / rhs;
+    protected boolean evaluateInteger(long lhs, long rhs, AMutableInt64 result) {
+        throw new IllegalStateException();
     }
 
     @Override
-    protected long evaluateTimeDurationArithmetic(long chronon, int yearMonth, long dayTime, boolean isTimeOnly)
-            throws HyracksDataException {
+    protected boolean evaluateTimeDurationArithmetic(long chronon, int yearMonth, long dayTime, boolean isTimeOnly,
+            AMutableInt64 result) {
         throw new NotImplementedException("Divide operation is not defined for temporal types");
     }
 
     @Override
-    protected long evaluateTimeInstanceArithmetic(long chronon0, long chronon1) throws HyracksDataException {
-        throw new UnsupportedTypeException(getIdentifier(), ATypeTag.SERIALIZED_TIME_TYPE_TAG);
+    protected boolean evaluateTimeInstanceArithmetic(long chronon0, long chronon1, AMutableInt64 result)
+            throws HyracksDataException {
+        throw new UnsupportedTypeException(sourceLoc, getIdentifier(), ATypeTag.SERIALIZED_TIME_TYPE_TAG);
     }
 }

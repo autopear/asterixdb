@@ -52,5 +52,4 @@ public class LSMRTreeDiskComponentFactory implements ILSMDiskComponentFactory {
                 filterHelper == null ? null : filterHelper.createFilter());
     }
 
-
 }

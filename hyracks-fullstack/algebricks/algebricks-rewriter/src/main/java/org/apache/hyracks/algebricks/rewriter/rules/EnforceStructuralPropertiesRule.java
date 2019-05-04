@@ -89,6 +89,7 @@ import org.apache.hyracks.algebricks.core.config.AlgebricksConfig;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 import org.apache.hyracks.algebricks.core.rewriter.base.PhysicalOptimizationConfig;
 import org.apache.hyracks.algebricks.rewriter.util.PhysicalOptimizationsUtil;
+import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.dataflow.common.data.partition.range.IRangeMap;
 
 public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
@@ -123,8 +124,8 @@ public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
         // somewhere else, too.
 
         physicalOptimizationConfig = context.getPhysicalOptimizationConfig();
-        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
-            AlgebricksConfig.ALGEBRICKS_LOGGER.debug(">>>> Optimizing operator " + op.getPhysicalOperator() + ".\n");
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled()) {
+            AlgebricksConfig.ALGEBRICKS_LOGGER.trace(">>>> Optimizing operator " + op.getPhysicalOperator() + ".\n");
         }
 
         PhysicalOptimizationsUtil.computeFDsAndEquivalenceClasses(op, context);
@@ -319,7 +320,7 @@ public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
         }
 
         if (opIsRedundantSort) {
-            if (AlgebricksConfig.DEBUG && loggerTraceEnabled) {
+            if (loggerTraceEnabled) {
                 AlgebricksConfig.ALGEBRICKS_LOGGER
                         .trace(">>>> Removing redundant SORT operator " + op.getPhysicalOperator() + "\n");
                 printOp(op);
@@ -476,7 +477,7 @@ public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
 
     private void addLocalEnforcers(AbstractLogicalOperator op, int i, List<ILocalStructuralProperty> localProperties,
             boolean nestedPlan, IOptimizationContext context) throws AlgebricksException {
-        if (AlgebricksConfig.DEBUG && AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled()) {
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled()) {
             AlgebricksConfig.ALGEBRICKS_LOGGER
                     .trace(">>>> Adding local enforcers for local props = " + localProperties + "\n");
         }
@@ -526,16 +527,20 @@ public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
     private Mutable<ILogicalOperator> enforceOrderProperties(List<LocalOrderProperty> oList,
             Mutable<ILogicalOperator> topOp, boolean isMicroOp, IOptimizationContext context)
             throws AlgebricksException {
+        SourceLocation sourceLoc = topOp.getValue().getSourceLocation();
         List<Pair<IOrder, Mutable<ILogicalExpression>>> oe = new LinkedList<>();
         for (LocalOrderProperty orderProperty : oList) {
             for (OrderColumn oc : orderProperty.getOrderColumns()) {
                 IOrder ordType = (oc.getOrder() == OrderKind.ASC) ? OrderOperator.ASC_ORDER : OrderOperator.DESC_ORDER;
-                Pair<IOrder, Mutable<ILogicalExpression>> pair = new Pair<>(ordType,
-                        new MutableObject<ILogicalExpression>(new VariableReferenceExpression(oc.getColumn())));
+                VariableReferenceExpression ocColumnRef = new VariableReferenceExpression(oc.getColumn());
+                ocColumnRef.setSourceLocation(sourceLoc);
+                Pair<IOrder, Mutable<ILogicalExpression>> pair =
+                        new Pair<>(ordType, new MutableObject<ILogicalExpression>(ocColumnRef));
                 oe.add(pair);
             }
         }
         OrderOperator oo = new OrderOperator(oe);
+        oo.setSourceLocation(sourceLoc);
         oo.setExecutionMode(AbstractLogicalOperator.ExecutionMode.LOCAL);
         if (isMicroOp) {
             oo.setPhysicalOperator(new InMemoryStableSortPOperator());
@@ -544,7 +549,7 @@ public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
         }
         oo.getInputs().add(topOp);
         context.computeAndSetTypeEnvironmentForOperator(oo);
-        if (AlgebricksConfig.DEBUG && AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled()) {
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled()) {
             AlgebricksConfig.ALGEBRICKS_LOGGER.trace(">>>> Added sort enforcer " + oo.getPhysicalOperator() + ".\n");
         }
         return new MutableObject<ILogicalOperator>(oo);
@@ -575,7 +580,7 @@ public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
                 }
                 case UNORDERED_PARTITIONED: {
                     List<LogicalVariable> varList = new ArrayList<>(((UnorderedPartitionedProperty) pp).getColumnSet());
-                    String hashMergeHint = context.getMetadataProvider().getConfig().get(HASH_MERGE);
+                    String hashMergeHint = (String) context.getMetadataProvider().getConfig().get(HASH_MERGE);
                     if (hashMergeHint == null || !hashMergeHint.equalsIgnoreCase(TRUE_CONSTANT)) {
                         pop = new HashPartitionExchangePOperator(varList, domain);
                         break;
@@ -627,9 +632,9 @@ public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
             exchg.setExecutionMode(AbstractLogicalOperator.ExecutionMode.PARTITIONED);
             OperatorPropertiesUtil.computeSchemaAndPropertiesRecIfNull(exchg, context);
             context.computeAndSetTypeEnvironmentForOperator(exchg);
-            if (AlgebricksConfig.DEBUG && AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
+            if (AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled()) {
                 AlgebricksConfig.ALGEBRICKS_LOGGER
-                        .debug(">>>> Added partitioning enforcer " + exchg.getPhysicalOperator() + ".\n");
+                        .trace(">>>> Added partitioning enforcer " + exchg.getPhysicalOperator() + ".\n");
                 printOp((AbstractLogicalOperator) op);
             }
         }
@@ -647,8 +652,8 @@ public class EnforceStructuralPropertiesRule implements IAlgebraicRewriteRule {
     private void printOp(AbstractLogicalOperator op) throws AlgebricksException {
         LogicalOperatorPrettyPrintVisitor pvisitor = new LogicalOperatorPrettyPrintVisitor();
         PlanPrettyPrinter.printOperator(op, pvisitor, 0);
-        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
-            AlgebricksConfig.ALGEBRICKS_LOGGER.debug(pvisitor.get().toString());
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled()) {
+            AlgebricksConfig.ALGEBRICKS_LOGGER.trace(pvisitor.get().toString());
         }
     }
 

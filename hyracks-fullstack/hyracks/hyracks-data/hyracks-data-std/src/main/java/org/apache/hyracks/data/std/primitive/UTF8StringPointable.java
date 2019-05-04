@@ -24,6 +24,9 @@ import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.lang3.CharSet;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
+import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.IJsonSerializable;
+import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.data.std.api.AbstractPointable;
 import org.apache.hyracks.data.std.api.IComparable;
 import org.apache.hyracks.data.std.api.IHashable;
@@ -33,8 +36,12 @@ import org.apache.hyracks.data.std.util.GrowableArray;
 import org.apache.hyracks.data.std.util.UTF8StringBuilder;
 import org.apache.hyracks.util.string.UTF8StringUtil;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 public final class UTF8StringPointable extends AbstractPointable implements IHashable, IComparable {
 
+    public static final UTF8StringPointableFactory FACTORY = new UTF8StringPointableFactory();
+    public static final ITypeTraits TYPE_TRAITS = VarLengthTypeTrait.INSTANCE;
     // These values are cached to speed up the length data access.
     // Since we are using the variable-length encoding, we can save the repeated decoding efforts.
     // WARNING: must call the resetConstants() method after each reset().
@@ -56,25 +63,14 @@ public final class UTF8StringPointable extends AbstractPointable implements IHas
         stringLength = -1;
     }
 
-    public static final ITypeTraits TYPE_TRAITS = new ITypeTraits() {
+    public static class UTF8StringPointableFactory implements IPointableFactory {
         private static final long serialVersionUID = 1L;
 
-        @Override
-        public boolean isFixedLength() {
-            return false;
+        private UTF8StringPointableFactory() {
         }
 
         @Override
-        public int getFixedLength() {
-            return 0;
-        }
-    };
-
-    public static final IPointableFactory FACTORY = new IPointableFactory() {
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public IPointable createPointable() {
+        public UTF8StringPointable createPointable() {
             return new UTF8StringPointable();
         }
 
@@ -82,7 +78,17 @@ public final class UTF8StringPointable extends AbstractPointable implements IHas
         public ITypeTraits getTypeTraits() {
             return TYPE_TRAITS;
         }
-    };
+
+        @Override
+        public JsonNode toJson(IPersistedResourceRegistry registry) throws HyracksDataException {
+            return registry.getClassIdentifier(getClass(), serialVersionUID);
+        }
+
+        @SuppressWarnings("squid:S1172") // unused parameter
+        public static IJsonSerializable fromJson(IPersistedResourceRegistry registry, JsonNode json) {
+            return FACTORY;
+        }
+    }
 
     public static UTF8StringPointable generateUTF8Pointable(String string) {
         byte[] bytes;
@@ -322,21 +328,25 @@ public final class UTF8StringPointable extends AbstractPointable implements IHas
         builder.finish();
     }
 
-    public void substr(int charOffset, int charLength, UTF8StringBuilder builder, GrowableArray out)
+    /**
+     * @return {@code true} if substring was successfully written into given {@code out}, or
+     *         {@code false} if substring could not be obtained ({@code charOffset} or {@code charLength}
+     *         are less than 0 or starting position is greater than the input length)
+     */
+    public boolean substr(int charOffset, int charLength, UTF8StringBuilder builder, GrowableArray out)
             throws IOException {
-        substr(this, charOffset, charLength, builder, out);
+        return substr(this, charOffset, charLength, builder, out);
     }
 
-    public static void substr(UTF8StringPointable src, int charOffset, int charLength, UTF8StringBuilder builder,
+    /**
+     * @return {@code true} if substring was successfully written into given {@code out}, or
+     *         {@code false} if substring could not be obtained ({@code charOffset} or {@code charLength}
+     *         are less than 0 or starting position is greater than the input length)
+     */
+    public static boolean substr(UTF8StringPointable src, int charOffset, int charLength, UTF8StringBuilder builder,
             GrowableArray out) throws IOException {
-        // Really don't understand why we need to support the charOffset < 0 case.
-        // At this time, usually there is mistake on user side, we'd better give him a warning.
-        // assert charOffset >= 0;
-        if (charOffset < 0) {
-            charOffset = 0;
-        }
-        if (charLength < 0) {
-            charLength = 0;
+        if (charOffset < 0 || charLength < 0) {
+            return false;
         }
 
         int utfLen = src.getUTF8Length();
@@ -347,11 +357,7 @@ public final class UTF8StringPointable extends AbstractPointable implements IHas
             chIdx++;
         }
         if (byteIdx >= utfLen) {
-            // Again, why do we tolerant this kind of mistakes?
-            // throw new StringIndexOutOfBoundsException(charOffset);
-            builder.reset(out, 0);
-            builder.finish();
-            return;
+            return false;
         }
 
         builder.reset(out, Math.min(utfLen - byteIdx, (int) (charLength * 1.0 * byteIdx / chIdx)));
@@ -362,6 +368,7 @@ public final class UTF8StringPointable extends AbstractPointable implements IHas
             byteIdx += src.charSize(src.getMetaDataLength() + byteIdx);
         }
         builder.finish();
+        return true;
     }
 
     public void substrBefore(UTF8StringPointable match, UTF8StringBuilder builder, GrowableArray out)
@@ -620,8 +627,11 @@ public final class UTF8StringPointable extends AbstractPointable implements IHas
     public static boolean findAndReplace(UTF8StringPointable srcPtr, UTF8StringPointable searchPtr,
             UTF8StringPointable replacePtr, int replaceLimit, UTF8StringBuilder builder, GrowableArray out)
             throws IOException {
-        if (replaceLimit < 1) {
+        if (replaceLimit == 0) {
             return false;
+        }
+        if (replaceLimit < 0) {
+            replaceLimit = Integer.MAX_VALUE;
         }
         int curIdx = find(srcPtr, searchPtr, false);
         if (curIdx < 0) {

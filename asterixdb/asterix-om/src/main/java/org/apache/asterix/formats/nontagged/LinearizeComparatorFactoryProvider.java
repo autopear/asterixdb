@@ -24,9 +24,7 @@ import org.apache.asterix.om.types.ATypeTag;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.data.ILinearizeComparatorFactoryProvider;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
-import org.apache.hyracks.api.dataflow.value.ILinearizeComparator;
 import org.apache.hyracks.api.dataflow.value.ILinearizeComparatorFactory;
-import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.rtree.linearize.HilbertDoubleComparatorFactory;
 import org.apache.hyracks.storage.am.rtree.linearize.ZCurveDoubleComparatorFactory;
 import org.apache.hyracks.storage.am.rtree.linearize.ZCurveIntComparatorFactory;
@@ -58,46 +56,6 @@ public class LinearizeComparatorFactoryProvider implements ILinearizeComparatorF
     }
 
     private ILinearizeComparatorFactory addOffset(final IBinaryComparatorFactory inst, final boolean ascending) {
-        return new ILinearizeComparatorFactory() {
-
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public ILinearizeComparator createBinaryComparator() {
-                final ILinearizeComparator bc = (ILinearizeComparator) inst.createBinaryComparator();
-                final int dimension = bc.getDimensions();
-                if (ascending) {
-                    return new ILinearizeComparator() {
-
-                        @Override
-                        public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2)
-                                throws HyracksDataException {
-                            return bc.compare(b1, s1 + 1, l1, b2, s2 + 1, l2);
-                        }
-
-                        @Override
-                        public int getDimensions() {
-                            // TODO Auto-generated method stub
-                            return dimension;
-                        }
-                    };
-                } else {
-                    return new ILinearizeComparator() {
-
-                        @Override
-                        public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2)
-                                throws HyracksDataException {
-                            return -bc.compare(b1, s1 + 1, l1, b2, s2 + 1, l2);
-                        }
-
-                        @Override
-                        public int getDimensions() {
-                            // TODO Auto-generated method stub
-                            return dimension;
-                        }
-                    };
-                }
-            }
-        };
+        return new OrderedLinearizeComparatorFactory(inst, ascending);
     }
 }

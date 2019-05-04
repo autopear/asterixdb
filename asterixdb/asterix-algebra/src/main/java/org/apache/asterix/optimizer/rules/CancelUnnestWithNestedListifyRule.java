@@ -36,7 +36,6 @@ import org.apache.hyracks.algebricks.core.algebra.base.LogicalExpressionTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractLogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.StatefulFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
@@ -51,6 +50,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.physical.RunningAggr
 import org.apache.hyracks.algebricks.core.algebra.properties.UnpartitionedPropertyComputer;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorManipulationUtil;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
+import org.apache.hyracks.api.exceptions.SourceLocation;
 
 import com.google.common.collect.ImmutableSet;
 
@@ -205,8 +205,7 @@ public class CancelUnnestWithNestedListifyRule implements IAlgebraicRewriteRule 
 
         LogicalVariable aggVar = agg.getVariables().get(0);
         ILogicalExpression aggFun = agg.getExpressions().get(0).getValue();
-        if (!aggVar.equals(unnestedVar)
-                || ((AbstractLogicalExpression) aggFun).getExpressionTag() != LogicalExpressionTag.FUNCTION_CALL) {
+        if (!aggVar.equals(unnestedVar) || aggFun.getExpressionTag() != LogicalExpressionTag.FUNCTION_CALL) {
             return false;
         }
         AbstractFunctionCallExpression f = (AbstractFunctionCallExpression) aggFun;
@@ -217,7 +216,7 @@ public class CancelUnnestWithNestedListifyRule implements IAlgebraicRewriteRule 
             return false;
         }
         ILogicalExpression arg0 = f.getArguments().get(0).getValue();
-        if (((AbstractLogicalExpression) arg0).getExpressionTag() != LogicalExpressionTag.VARIABLE) {
+        if (arg0.getExpressionTag() != LogicalExpressionTag.VARIABLE) {
             return false;
         }
         LogicalVariable paramVar = ((VariableReferenceExpression) arg0).getVariableReference();
@@ -225,8 +224,11 @@ public class CancelUnnestWithNestedListifyRule implements IAlgebraicRewriteRule 
         ArrayList<LogicalVariable> assgnVars = new ArrayList<LogicalVariable>(1);
         assgnVars.add(unnest1.getVariable());
         ArrayList<Mutable<ILogicalExpression>> assgnExprs = new ArrayList<Mutable<ILogicalExpression>>(1);
-        assgnExprs.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(paramVar)));
+        VariableReferenceExpression paramRef = new VariableReferenceExpression(paramVar);
+        paramRef.setSourceLocation(arg0.getSourceLocation());
+        assgnExprs.add(new MutableObject<ILogicalExpression>(paramRef));
         AssignOperator assign = new AssignOperator(assgnVars, assgnExprs);
+        assign.setSourceLocation(arg0.getSourceLocation());
 
         LogicalVariable posVar = unnest1.getPositionalVariable();
         if (posVar == null) {
@@ -252,6 +254,7 @@ public class CancelUnnestWithNestedListifyRule implements IAlgebraicRewriteRule 
             opRef.setValue(assign);
             assign.getInputs().add(aggInputOpRef);
             AssignOperator gbyKeyAssign = new AssignOperator(gbyKeyAssgnVars, gbyKeyAssgnExprs);
+            gbyKeyAssign.setSourceLocation(gby.getSourceLocation());
             gbyKeyAssign.getInputs().add(gby.getInputs().get(0));
             bottomOpRef.setValue(gbyKeyAssign);
 
@@ -266,6 +269,8 @@ public class CancelUnnestWithNestedListifyRule implements IAlgebraicRewriteRule 
             nestedAssignVars.add(unnest1.getVariable());
             nestedAssignExprs.add(new MutableObject<ILogicalExpression>(arg0));
             AssignOperator nestedAssign = new AssignOperator(nestedAssignVars, nestedAssignExprs);
+            SourceLocation sourceLoc = unnest1.getSourceLocation();
+            nestedAssign.setSourceLocation(sourceLoc);
             nestedAssign.getInputs().add(opRef2);
 
             // Then create running aggregation for the positional variable
@@ -274,8 +279,10 @@ public class CancelUnnestWithNestedListifyRule implements IAlgebraicRewriteRule 
             raggVars.add(posVar);
             StatefulFunctionCallExpression fce = new StatefulFunctionCallExpression(
                     FunctionUtil.getFunctionInfo(BuiltinFunctions.TID), UnpartitionedPropertyComputer.INSTANCE);
+            fce.setSourceLocation(sourceLoc);
             raggExprs.add(new MutableObject<ILogicalExpression>(fce));
             RunningAggregateOperator raggOp = new RunningAggregateOperator(raggVars, raggExprs);
+            raggOp.setSourceLocation(sourceLoc);
             raggOp.setExecutionMode(unnest1.getExecutionMode());
             RunningAggregatePOperator raggPOp = new RunningAggregatePOperator();
             raggOp.setPhysicalOperator(raggPOp);

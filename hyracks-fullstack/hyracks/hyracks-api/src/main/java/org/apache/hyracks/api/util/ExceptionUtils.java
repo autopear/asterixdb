@@ -94,7 +94,7 @@ public class ExceptionUtils {
      * @return the root exception, or null if both parameters are null
      */
     public static Throwable suppress(Throwable first, Throwable second) {
-        if (second != null && second instanceof InterruptedException) {
+        if (second instanceof InterruptedException) {
             Thread.currentThread().interrupt();
         }
         if (first == null) {
@@ -118,5 +118,19 @@ public class ExceptionUtils {
         final Throwable stackThrowable = new Throwable(thread.getName() + " Stack trace");
         stackThrowable.setStackTrace(thread.getStackTrace());
         return stackThrowable;
+    }
+
+    public static Throwable getRootCause(Throwable e) {
+        Throwable current = e;
+        Throwable cause = e.getCause();
+        while (cause != null && cause != current) {
+            current = cause;
+            cause = current.getCause();
+        }
+        return current;
+    }
+
+    public static boolean causedByInterrupt(Throwable th) {
+        return getRootCause(th) instanceof InterruptedException;
     }
 }

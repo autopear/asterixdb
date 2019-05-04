@@ -19,12 +19,17 @@
 
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.Map;
+
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.io.IODeviceHandle;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
+import org.apache.hyracks.storage.am.lsm.common.api.IoOperationCompleteListener;
+import org.apache.hyracks.storage.common.buffercache.ICachedPage;
 import org.apache.hyracks.util.trace.ITracer;
 import org.apache.hyracks.util.trace.ITracer.Scope;
 import org.apache.hyracks.util.trace.TraceUtils;
@@ -55,10 +60,7 @@ class TracedIOOperation implements ILSMIOOperation {
         if (tracer.isEnabled(traceCategory)) {
             tracer.instant("schedule-" + ioOpName, traceCategory, Scope.p,
                     "{\"path\": \"" + ioOp.getTarget().getRelativePath() + "\"}");
-        }
-        if (tracer.isEnabled(traceCategory)) {
-            return ioOp instanceof Comparable ? new ComparableTracedIOOperation(ioOp, tracer, traceCategory)
-                    : new TracedIOOperation(ioOp, tracer, traceCategory);
+            return new TracedIOOperation(ioOp, tracer, traceCategory);
         }
         return ioOp;
     }
@@ -88,7 +90,7 @@ class TracedIOOperation implements ILSMIOOperation {
     }
 
     @Override
-    public Boolean call() throws HyracksDataException {
+    public LSMIOOperationStatus call() throws HyracksDataException {
         final String name = getTarget().getRelativePath();
         final long tid = tracer.durationB(name, traceCategory, null);
         try {
@@ -99,7 +101,8 @@ class TracedIOOperation implements ILSMIOOperation {
         }
     }
 
-    @Override public List<FileReference> getLeveledMergeTargets() {
+    @Override
+    public List<FileReference> getLeveledMergeTargets() {
         return ioOp.getLeveledMergeTargets();
     }
 
@@ -118,36 +121,78 @@ class TracedIOOperation implements ILSMIOOperation {
         return ioOp.getComponentFiles();
     }
 
-    @Override public List<LSMComponentFileReferences> getLeveledMergeComponentFiles() {
+    @Override
+    public List<LSMComponentFileReferences> getLeveledMergeComponentFiles() {
         return null;
     }
-}
 
-class ComparableTracedIOOperation extends TracedIOOperation implements Comparable<ILSMIOOperation> {
-
-    protected ComparableTracedIOOperation(ILSMIOOperation ioOp, ITracer trace, long traceCategory) {
-        super(ioOp, trace, traceCategory);
+    @Override
+    public Throwable getFailure() {
+        return ioOp.getFailure();
     }
 
     @Override
-    public int hashCode() {
-        return this.ioOp.hashCode();
+    public void setFailure(Throwable failure) {
+        ioOp.setFailure(failure);
     }
 
     @Override
-    public boolean equals(Object other) {
-        return other instanceof ILSMIOOperation && compareTo((ILSMIOOperation) other) == 0;
+    public LSMIOOperationStatus getStatus() {
+        return ioOp.getStatus();
     }
 
     @Override
-    public int compareTo(ILSMIOOperation other) {
-        final ILSMIOOperation myIoOp = this.ioOp;
-        if (myIoOp instanceof Comparable && other instanceof ComparableTracedIOOperation) {
-            return ((Comparable) myIoOp).compareTo(((ComparableTracedIOOperation) other).getIoOp());
-        }
-        LOGGER.warn("Comparing ioOps of type " + myIoOp.getClass().getSimpleName() + " and "
-                + other.getClass().getSimpleName() + " in " + getClass().getSimpleName());
-        return Integer.signum(hashCode() - other.hashCode());
+    public void setStatus(LSMIOOperationStatus status) {
+        ioOp.setStatus(status);
     }
 
+    @Override
+    public ILSMDiskComponent getNewComponent() {
+        return ioOp.getNewComponent();
+    }
+
+    @Override
+    public void setNewComponent(ILSMDiskComponent component) {
+        ioOp.setNewComponent(component);
+    }
+
+    @Override
+    public List<ILSMDiskComponent> getNewComponents() {
+        return ioOp.getNewComponents();
+    }
+
+    @Override
+    public void setNewComponents(List<ILSMDiskComponent> components) {
+        ioOp.setNewComponents(components);
+    }
+
+    @Override
+    public void complete() {
+        ioOp.complete();
+    }
+
+    @Override
+    public void sync() throws InterruptedException {
+        ioOp.sync();
+    }
+
+    @Override
+    public void addCompleteListener(IoOperationCompleteListener listener) {
+        ioOp.addCompleteListener(listener);
+    }
+
+    @Override
+    public Map<String, Object> getParameters() {
+        return ioOp.getParameters();
+    }
+
+    @Override
+    public void writeFailed(ICachedPage page, Throwable failure) {
+        ioOp.writeFailed(page, failure);
+    }
+
+    @Override
+    public boolean hasFailed() {
+        return ioOp.hasFailed();
+    }
 }

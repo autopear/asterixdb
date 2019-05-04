@@ -59,7 +59,7 @@ public class PartitionMatchMaker {
             while (i.hasNext()) {
                 PartitionRequest req = i.next();
                 if (partitionDescriptor.getState().isAtLeast(req.getMinimumState())) {
-                    matches.add(Pair.<PartitionDescriptor, PartitionRequest> of(partitionDescriptor, req));
+                    matches.add(Pair.of(partitionDescriptor, req));
                     i.remove();
                     matched = true;
                     if (!partitionDescriptor.isReusable()) {
@@ -95,7 +95,7 @@ public class PartitionMatchMaker {
             while (i.hasNext()) {
                 PartitionDescriptor descriptor = i.next();
                 if (descriptor.getState().isAtLeast(partitionRequest.getMinimumState())) {
-                    match = Pair.<PartitionDescriptor, PartitionRequest> of(descriptor, partitionRequest);
+                    match = Pair.of(descriptor, partitionRequest);
                     if (!descriptor.isReusable()) {
                         i.remove();
                     }
@@ -174,7 +174,9 @@ public class PartitionMatchMaker {
     }
 
     public void removeUncommittedPartitions(Set<PartitionId> partitionIds, final Set<TaskAttemptId> taIds) {
-        LOGGER.info("Removing uncommitted partitions: " + partitionIds);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Removing uncommitted partitions: " + partitionIds);
+        }
         IEntryFilter<PartitionDescriptor> filter = new IEntryFilter<PartitionDescriptor>() {
             @Override
             public boolean matches(PartitionDescriptor o) {
@@ -193,7 +195,9 @@ public class PartitionMatchMaker {
     }
 
     public void removePartitionRequests(Set<PartitionId> partitionIds, final Set<TaskAttemptId> taIds) {
-        LOGGER.info("Removing partition requests: " + partitionIds);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Removing partition requests: " + partitionIds);
+        }
         IEntryFilter<PartitionRequest> filter = new IEntryFilter<PartitionRequest>() {
             @Override
             public boolean matches(PartitionRequest o) {

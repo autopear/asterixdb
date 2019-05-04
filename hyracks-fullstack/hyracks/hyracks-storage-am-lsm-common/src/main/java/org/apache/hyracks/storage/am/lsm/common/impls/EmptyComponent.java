@@ -27,9 +27,11 @@ import org.apache.hyracks.storage.am.common.api.ITreeIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
 import org.apache.hyracks.storage.am.lsm.common.api.LSMOperationType;
 import org.apache.hyracks.storage.common.IIndex;
+import org.apache.hyracks.storage.common.buffercache.IPageWriteFailureCallback;
 
 public class EmptyComponent implements ILSMDiskComponent {
     public static final EmptyComponent INSTANCE = new EmptyComponent();
@@ -85,7 +87,7 @@ public class EmptyComponent implements ILSMDiskComponent {
 
     @Override
     public ILSMComponentId getId() {
-        return LSMComponentId.MISSING_COMPONENT_ID;
+        return LSMComponentId.EMPTY_INDEX_LAST_COMPONENT_ID;
     }
 
     @Override
@@ -104,7 +106,7 @@ public class EmptyComponent implements ILSMDiskComponent {
     }
 
     @Override
-    public void markAsValid(boolean persist) throws HyracksDataException {
+    public void markAsValid(boolean persist, IPageWriteFailureCallback callback) throws HyracksDataException {
         // No Op
     }
 
@@ -145,17 +147,28 @@ public class EmptyComponent implements ILSMDiskComponent {
     }
 
     @Override
-    public ChainedLSMDiskComponentBulkLoader createBulkLoader(LSMIOOperationType opType, float fillFactor,
+    public ChainedLSMDiskComponentBulkLoader createBulkLoader(ILSMIOOperation operation, float fillFactor,
             boolean verifyInput, long numElementsHint, boolean checkIfEmptyIndex, boolean withFilter,
             boolean cleanupEmptyComponent) throws HyracksDataException {
         return null;
     }
 
-    @Override public int getLevel() {
+    @Override
+    public int getLevel() {
         return 0;
     }
 
-    @Override public void setLevel(int level) {
+    @Override
+    public void setLevel(int level) {
+    }
 
+    @Override
+    public void schedule(LSMIOOperationType ioOperationType) throws HyracksDataException {
+        // Do nothing
+    }
+
+    @Override
+    public int getReaderCount() {
+        return 0;
     }
 }

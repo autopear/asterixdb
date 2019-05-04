@@ -19,7 +19,6 @@
 
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
-import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.text.Format;
@@ -132,8 +131,8 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     }
 
     protected void cleanupAndGetValidFilesInternal(FilenameFilter filter,
-            TreeIndexFactory<? extends ITreeIndex> treeFactory, ArrayList<ComparableFileName> allFiles)
-            throws HyracksDataException {
+            TreeIndexFactory<? extends ITreeIndex> treeFactory, ArrayList<ComparableFileName> allFiles,
+            IBufferCache bufferCache) throws HyracksDataException {
         String[] files = listDirFiles(baseDir, filter);
         for (String fileName : files) {
             FileReference fileRef = baseDir.getChild(fileName);
@@ -145,7 +144,7 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
             if (idxState == TreeIndexState.VALID) {
                 allFiles.add(new ComparableFileName(fileRef));
             } else if (idxState == TreeIndexState.INVALID) {
-                fileRef.delete();
+                bufferCache.deleteFile(fileRef);
             }
         }
     }
@@ -169,17 +168,17 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     }
 
     protected void validateFiles(HashSet<String> groundTruth, ArrayList<ComparableFileName> validFiles,
-            FilenameFilter filter, TreeIndexFactory<? extends ITreeIndex> treeFactory) throws HyracksDataException {
+            FilenameFilter filter, TreeIndexFactory<? extends ITreeIndex> treeFactory, IBufferCache bufferCache)
+            throws HyracksDataException {
         ArrayList<ComparableFileName> tmpAllInvListsFiles = new ArrayList<>();
-        cleanupAndGetValidFilesInternal(filter, treeFactory, tmpAllInvListsFiles);
+        cleanupAndGetValidFilesInternal(filter, treeFactory, tmpAllInvListsFiles, bufferCache);
         for (ComparableFileName cmpFileName : tmpAllInvListsFiles) {
             int index = cmpFileName.fileName.lastIndexOf(DELIMITER);
             String file = cmpFileName.fileName.substring(0, index);
             if (groundTruth.contains(file)) {
                 validFiles.add(cmpFileName);
             } else {
-                File invalidFile = new File(cmpFileName.fullPath);
-                IoUtil.delete(invalidFile);
+                delete(bufferCache, cmpFileName.fullPath);
             }
         }
     }
@@ -209,15 +208,18 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
             throws HyracksDataException {
         String[] firstTimestampRange = firstFileName.split(DELIMITER);
         String[] lastTimestampRange = lastFileName.split(DELIMITER);
+        String start = firstTimestampRange[0];
+        String end = lastTimestampRange[1];
+        if (end.compareTo(start) <= 0) {
+            throw new IllegalArgumentException(
+                    "A Merge file must have end greater than start. Found end: " + end + " and start: " + start);
+        }
         // Get the range of timestamps by taking the earliest and the latest timestamps
-        return new LSMComponentFileReferences(
-                baseDir.getChild(firstTimestampRange[0] + DELIMITER + lastTimestampRange[1]), null, null);
+        return new LSMComponentFileReferences(baseDir.getChild(start + DELIMITER + end), null, null);
     }
 
-
     @Override
-    public LSMComponentFileReferences getRelLeveledMergeFileReference()
-            throws HyracksDataException {
+    public LSMComponentFileReferences getRelLeveledMergeFileReference() throws HyracksDataException {
         // Begin timestamp and end timestamp are identical
         Long tsL = 0L;
         String ts = getCurrentTimestamp(tsL);
@@ -225,7 +227,6 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
         child.setTimeStamp(tsL);
         return new LSMComponentFileReferences(child, null, null);
     }
-
 
     @Override
     public List<LSMComponentFileReferences> cleanupAndGetValidFiles() throws HyracksDataException {
@@ -237,7 +238,7 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
         // (1) The isValid flag is not set
         // (2) The file's interval is contained by some other file
         // Here, we only filter out (1).
-        cleanupAndGetValidFilesInternal(COMPONENT_FILES_FILTER, treeFactory, allFiles);
+        cleanupAndGetValidFilesInternal(COMPONENT_FILES_FILTER, treeFactory, allFiles, treeFactory.getBufferCache());
 
         if (allFiles.isEmpty()) {
             return validFiles;
@@ -265,7 +266,7 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
                 // The current file is completely contained in the interval of the
                 // last file. Thus the last file must contain at least as much information
                 // as the current file, so delete the current file.
-                current.fileRef.delete();
+                delete(treeFactory.getBufferCache(), current.fullPath);
             } else {
                 // This scenario should not be possible since timestamps are monotonically increasing.
                 throw HyracksDataException.create(ErrorCode.FOUND_OVERLAPPING_LSM_FILES, baseDir);
@@ -341,6 +342,12 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
             }
             return b.interval[1].compareTo(interval[1]);
         }
+
+        @Override
+        public String toString() {
+            return "{\"type\" : \"" + (interval[0].equals(interval[1]) ? "flush" : "merge") + "\", \"start\" : \""
+                    + interval[0] + "\", \"end\" : \"" + interval[1] + "\"}";
+        }
     }
 
     private class RecencyComparator implements Comparator<ComparableFileName> {
@@ -398,6 +405,11 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
         } else {
             return createTransactionFilter(files[0], inclusive);
         }
+    }
+
+    protected void delete(IBufferCache bufferCache, String fullPath) throws HyracksDataException {
+        FileReference fileRef = ioManager.resolveAbsolutePath(fullPath);
+        bufferCache.deleteFile(fileRef);
     }
 
     protected FilenameFilter getCompoundFilter(final FilenameFilter filter1, final FilenameFilter filter2) {

@@ -44,8 +44,7 @@ public interface ILSMIndexFileManager {
     LSMComponentFileReferences getRelMergeFileReference(String firstFileName, String lastFileName)
             throws HyracksDataException;
 
-    LSMComponentFileReferences getRelLeveledMergeFileReference()
-            throws HyracksDataException;
+    LSMComponentFileReferences getRelLeveledMergeFileReference() throws HyracksDataException;
 
     FileReference getBaseDir();
 

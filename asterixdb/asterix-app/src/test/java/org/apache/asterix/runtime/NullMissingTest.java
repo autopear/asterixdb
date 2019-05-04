@@ -51,6 +51,7 @@ public class NullMissingTest {
             // We test all generated functions except
             // record and cast functions, which requires type settings (we test them in runtime tests).
             if (className.contains("Gen") && !className.contains("record") && !className.contains("Cast")) {
+                System.out.println("Testing " + className);
                 testFunction(func);
                 ++testedFunctions;
             }

@@ -86,9 +86,8 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
             BTree memBTree = new BTree(virtualBufferCache, new VirtualFreePageManager(virtualBufferCache),
                     btreeInteriorFrameFactory, btreeLeafFrameFactory, btreeCmpFactories, btreeCmpFactories.length,
                     ioManager.resolveAbsolutePath(fileManager.getBaseDir() + "_virtual_b_" + i));
-            LSMRTreeMemoryComponent mutableComponent =
-                    new LSMRTreeMemoryComponent(this, memRTree, memBTree, virtualBufferCache, i == 0 ? true : false,
-                            filterHelper == null ? null : filterHelper.createFilter());
+            LSMRTreeMemoryComponent mutableComponent = new LSMRTreeMemoryComponent(this, memRTree, memBTree,
+                    virtualBufferCache, filterHelper == null ? null : filterHelper.createFilter());
             memoryComponents.add(mutableComponent);
             ++i;
         }
@@ -105,6 +104,7 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         this.isPointMBR = isPointMBR;
 
     }
+
     /*
      * For External indexes with no memory components
      */
@@ -224,13 +224,16 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
                 linearizerArray, getFilterCmpFactories(), tracer);
     }
 
-    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+    @Override
+    protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
         return null;
     }
 
-    @Override protected void computeRangesOfLevel(int level) throws HyracksDataException {
-        Rectangle mbr = ((LeveledParitioningMergePolicy)lsmHarness.getMergePolicy()).getPartitionPolicy().computeMBROfALevel(diskComponentsInLevels.get(level));
+    @Override
+    protected void computeRangesOfLevel(int level) throws HyracksDataException {
+        Rectangle mbr = ((LeveledParitioningMergePolicy) lsmHarness.getMergePolicy()).getPartitionPolicy()
+                .computeMBROfALevel(diskComponentsInLevels.get(level));
         rangesOflevelsAsMBRorLine.get(level).set(mbr);
     }
 
@@ -254,11 +257,13 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         return fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
     }
 
-    @Override protected LSMComponentFileReferences[] getLeveledMergeFileReferences(
-            List<ILSMDiskComponent> mergingComponentsFromNextLevel, List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException {
+    @Override
+    protected LSMComponentFileReferences[] getLeveledMergeFileReferences(
+            List<ILSMDiskComponent> mergingComponentsFromNextLevel,
+            List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException {
         int numberOfNewComponents = mergingComponentsFromNextLevel.size() + mergingComponentsFromprevLevel.size();
         LSMComponentFileReferences[] fileReferences = new LSMComponentFileReferences[numberOfNewComponents];
-        for(int i = 0 ;i < numberOfNewComponents; i++) {
+        for (int i = 0; i < numberOfNewComponents; i++) {
             fileReferences[i] = fileManager.getRelLeveledMergeFileReference();
         }
         return fileReferences;

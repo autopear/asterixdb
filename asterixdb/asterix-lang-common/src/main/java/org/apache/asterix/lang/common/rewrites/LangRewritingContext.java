@@ -19,25 +19,25 @@
 package org.apache.asterix.lang.common.rewrites;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.asterix.lang.common.struct.VarIdentifier;
+import org.apache.hyracks.algebricks.core.algebra.base.Counter;
 
 public final class LangRewritingContext {
-    private int mark = 0;
-    private int varCounter;
+    private Counter varCounter;
     private int systemVarCounter = 1;
-    private HashMap<Integer, VarIdentifier> oldVarIdToNewVarId = new HashMap<>();
+    private Map<Integer, VarIdentifier> oldVarIdToNewVarId = new HashMap<>();
+    private Set<VarIdentifier> excludedForFieldAccessVars = new HashSet<>();
 
     public LangRewritingContext(int varCounter) {
-        this.varCounter = varCounter;
+        this.varCounter = new Counter(varCounter);
     }
 
-    public int getVarCounter() {
+    public Counter getVarCounter() {
         return varCounter;
-    }
-
-    public void setVarCounter(int varCounter) {
-        this.varCounter = varCounter;
     }
 
     /**
@@ -50,7 +50,7 @@ public final class LangRewritingContext {
      * @return the new varible.
      */
     public VarIdentifier mapOldId(Integer oldId, String varValue) {
-        int n = newId();
+        int n = increaseAndGetCtr();
         VarIdentifier newVar = new VarIdentifier(varValue);
         newVar.setId(n);
         oldVarIdToNewVarId.put(oldId, newVar);
@@ -62,22 +62,21 @@ public final class LangRewritingContext {
     }
 
     public VarIdentifier newVariable() {
-        int id = newId();
+        int id = increaseAndGetCtr();
         // Prefixes system-generated variables with "#".
         return new VarIdentifier("#" + (systemVarCounter++), id);
     }
 
-    public void markCounter() {
-        mark = varCounter;
+    private int increaseAndGetCtr() {
+        varCounter.inc();
+        return varCounter.get();
     }
 
-    public void resetCounter() {
-        varCounter = mark;
+    public void addExcludedForFieldAccessVar(VarIdentifier varId) {
+        excludedForFieldAccessVars.add(varId);
     }
 
-    private int newId() {
-        varCounter++;
-        return varCounter;
+    public boolean isExcludedForFieldAccessVar(VarIdentifier varId) {
+        return excludedForFieldAccessVars.contains(varId);
     }
-
 }

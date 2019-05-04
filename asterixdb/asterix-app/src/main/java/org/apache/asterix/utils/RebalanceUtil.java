@@ -355,7 +355,7 @@ public class RebalanceUtil {
         List<Index> indexes = metadataProvider.getDatasetIndexes(dataset.getDataverseName(), dataset.getDatasetName());
         for (Index index : indexes) {
             jobs.add(IndexUtil.buildDropIndexJobSpec(index, metadataProvider, dataset,
-                    EnumSet.of(DropOption.IF_EXISTS, DropOption.WAIT_ON_IN_USE)));
+                    EnumSet.of(DropOption.IF_EXISTS, DropOption.WAIT_ON_IN_USE), null));
         }
         for (JobSpecification jobSpec : jobs) {
             JobUtils.runJob(hcc, jobSpec, true);
@@ -371,20 +371,20 @@ public class RebalanceUtil {
             }
             // Creates the secondary index.
             JobSpecification indexCreationJobSpec =
-                    IndexUtil.buildSecondaryIndexCreationJobSpec(target, index, metadataProvider);
+                    IndexUtil.buildSecondaryIndexCreationJobSpec(target, index, metadataProvider, null);
             JobUtils.runJob(hcc, indexCreationJobSpec, true);
 
             // Loads the secondary index.
             JobSpecification indexLoadingJobSpec =
-                    IndexUtil.buildSecondaryIndexLoadingJobSpec(target, index, metadataProvider);
+                    IndexUtil.buildSecondaryIndexLoadingJobSpec(target, index, metadataProvider, null);
             JobUtils.runJob(hcc, indexLoadingJobSpec, true);
         }
     }
 
     // Gets the primary key permutation for upserts.
     private static int[] getPrimaryKeyPermutationForUpsert(Dataset dataset) {
-        // prev record first
-        int f = 1;
+        // upsertIndicatorVar + prev record
+        int f = 2;
         // add the previous meta second
         if (dataset.hasMetaPart()) {
             f++;

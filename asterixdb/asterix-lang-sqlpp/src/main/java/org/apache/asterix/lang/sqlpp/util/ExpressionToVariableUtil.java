@@ -26,6 +26,7 @@ import org.apache.asterix.lang.common.expression.FieldAccessor;
 import org.apache.asterix.lang.common.expression.VariableExpr;
 import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.sqlpp.parser.ParseException;
+import org.apache.asterix.lang.sqlpp.parser.SqlppParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -39,18 +40,21 @@ public class ExpressionToVariableUtil {
     private static String getGeneratedIdentifier(Expression expr) throws ParseException {
         if (expr.getKind() == Kind.VARIABLE_EXPRESSION) {
             VariableExpr bindingVarExpr = (VariableExpr) expr;
-            return bindingVarExpr.getVar().getValue();
+            VarIdentifier var = bindingVarExpr.getVar();
+            return SqlppVariableUtil.isExternalVariableIdentifier(var) ? null : var.getValue();
         } else if (expr.getKind() == Kind.FIELD_ACCESSOR_EXPRESSION) {
             FieldAccessor fa = (FieldAccessor) expr;
             return SqlppVariableUtil.toInternalVariableName(fa.getIdent().getValue());
         } else {
+            String exprText;
             try {
-                throw new ParseException(
-                        "Need an alias for the enclosed expression:\n" + SqlppFormatPrintUtil.toString(expr));
+                exprText = SqlppFormatPrintUtil.toString(expr);
             } catch (CompilationException e) {
                 LOGGER.error(e.getLocalizedMessage(), e);
-                throw new ParseException(e.getLocalizedMessage());
+                throw new SqlppParseException(expr.getSourceLocation(), e.getLocalizedMessage());
             }
+            throw new SqlppParseException(expr.getSourceLocation(),
+                    "Need an alias for the enclosed expression:\n" + exprText);
         }
     }
 
@@ -93,6 +97,7 @@ public class ExpressionToVariableUtil {
             VarIdentifier var = new VarIdentifier(varName);
             VariableExpr varExpr = new VariableExpr();
             varExpr.setVar(var);
+            varExpr.setSourceLocation(expr.getSourceLocation());
             return varExpr;
         } catch (ParseException e) {
             if (raiseError) {

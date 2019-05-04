@@ -48,7 +48,7 @@ import org.apache.asterix.common.context.DatasetInfo;
 import org.apache.asterix.common.context.IndexInfo;
 import org.apache.asterix.common.dataflow.DatasetLocalResource;
 import org.apache.asterix.common.exceptions.ACIDException;
-import org.apache.asterix.common.ioopcallbacks.AbstractLSMIOOperationCallback;
+import org.apache.asterix.common.ioopcallbacks.LSMIOOperationCallback;
 import org.apache.asterix.common.storage.DatasetResourceReference;
 import org.apache.asterix.common.storage.IIndexCheckpointManager;
 import org.apache.asterix.common.storage.IIndexCheckpointManagerProvider;
@@ -77,6 +77,8 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId.IdCompareResult;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentIdGenerator;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationStatus;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
@@ -102,14 +104,14 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
     private static final String RECOVERY_FILES_DIR_NAME = "recovery_temp";
     private Map<Long, JobEntityCommits> jobId2WinnerEntitiesMap = null;
     private final long cachedEntityCommitsPerJobSize;
-    private final PersistentLocalResourceRepository localResourceRepository;
+    protected final PersistentLocalResourceRepository localResourceRepository;
     private final ICheckpointManager checkpointManager;
     private SystemState state;
-    private final INCServiceContext serviceCtx;
-    private final INcApplicationContext appCtx;
+    protected final INCServiceContext serviceCtx;
+    protected final INcApplicationContext appCtx;
     private static final TxnId recoveryTxnId = new TxnId(-1);
 
-    public RecoveryManager(ITransactionSubsystem txnSubsystem, INCServiceContext serviceCtx) {
+    public RecoveryManager(INCServiceContext serviceCtx, ITransactionSubsystem txnSubsystem) {
         this.serviceCtx = serviceCtx;
         this.txnSubsystem = txnSubsystem;
         this.appCtx = txnSubsystem.getApplicationContext();
@@ -225,6 +227,7 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
                     break;
                 case LogType.FLUSH:
                 case LogType.WAIT:
+                case LogType.WAIT_FOR_FLUSHES:
                 case LogType.MARKER:
                 case LogType.FILTER:
                     break;
@@ -293,7 +296,7 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
                 ((INcApplicationContext) (serviceCtx.getApplicationContext())).getIndexCheckpointManagerProvider();
 
         Map<Long, LocalResource> resourcesMap = localResourceRepository.loadAndGetAllResources();
-        Map<Long, Long> resourceId2MaxLSNMap = new HashMap<>();
+        final Map<Long, Long> resourceId2MaxLSNMap = new HashMap<>();
         TxnEntityId tempKeyTxnEntityId = new TxnEntityId(-1, -1, -1, null, -1, false);
 
         ILogRecord logRecord = null;
@@ -392,33 +395,29 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
                                 logRecord = logReader.next();
                                 continue;
                             }
-                            idGenerator.refresh();
                             DatasetInfo dsInfo = datasetLifecycleManager.getDatasetInfo(datasetId);
                             // we only need to flush open indexes here (opened by previous update records)
                             // if an index has no ongoing updates, then it's memory component must be empty
                             // and there is nothing to flush
-                            for (IndexInfo iInfo : dsInfo.getIndexes().values()) {
+                            for (final IndexInfo iInfo : dsInfo.getIndexes().values()) {
                                 if (iInfo.isOpen() && iInfo.getPartition() == partition) {
-                                    maxDiskLastLsn = resourceId2MaxLSNMap.get(iInfo.getResourceId());
-                                    index = iInfo.getIndex();
-                                    AbstractLSMIOOperationCallback ioCallback =
-                                            (AbstractLSMIOOperationCallback) index.getIOOperationCallback();
-                                    if (logRecord.getLSN() > maxDiskLastLsn
-                                            && !index.isCurrentMutableComponentEmpty()) {
-                                        // schedule flush
-                                        ioCallback.updateLastLSN(logRecord.getLSN());
-                                        redoFlush(index, logRecord);
-                                        redoCount++;
-                                    } else {
-                                        if (index.isMemoryComponentsAllocated()) {
-                                            // if the memory component has been allocated, we
-                                            // force it to receive the same Id
-                                            index.getCurrentMemoryComponent().resetId(idGenerator.getId(), true);
+                                    Long maxLsnBeforeFlush = resourceId2MaxLSNMap.get(iInfo.getResourceId());
+                                    if (maxLsnBeforeFlush != null) {
+                                        // If there was at least one update to the resource.
+                                        // IMPORTANT: Don't remove the check above
+                                        // This check is to support indexes without transaction logs
+                                        maxDiskLastLsn = maxLsnBeforeFlush;
+                                        index = iInfo.getIndex();
+                                        if (logRecord.getLSN() > maxDiskLastLsn
+                                                && !index.isCurrentMutableComponentEmpty()) {
+                                            // schedule flush
+                                            redoFlush(index, logRecord);
+                                            redoCount++;
                                         } else {
-                                            // otherwise, we refresh the id stored in ioCallback
-                                            // to ensure the memory component receives correct Id upon activation
-                                            ioCallback.forceRefreshNextId();
+                                            // TODO: update checkpoint file?
                                         }
+                                    } else {
+                                        // TODO: update checkpoint file?
                                     }
                                 }
                             }
@@ -428,6 +427,7 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
                     case LogType.ENTITY_COMMIT:
                     case LogType.ABORT:
                     case LogType.WAIT:
+                    case LogType.WAIT_FOR_FLUSHES:
                     case LogType.MARKER:
                         //do nothing
                         break;
@@ -473,10 +473,10 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
         long minFirstLSN = logMgr.getAppendLSN();
         if (!openIndexList.isEmpty()) {
             for (IIndex index : openIndexList) {
-                AbstractLSMIOOperationCallback ioCallback =
-                        (AbstractLSMIOOperationCallback) ((ILSMIndex) index).getIOOperationCallback();
+                LSMIOOperationCallback ioCallback =
+                        (LSMIOOperationCallback) ((ILSMIndex) index).getIOOperationCallback();
                 if (!((AbstractLSMIndex) index).isCurrentMutableComponentEmpty() || ioCallback.hasPendingFlush()) {
-                    firstLSN = ioCallback.getFirstLSN();
+                    firstLSN = ioCallback.getPersistenceLsn();
                     minFirstLSN = Math.min(minFirstLSN, firstLSN);
                 }
             }
@@ -684,6 +684,7 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
                     case LogType.FLUSH:
                     case LogType.FILTER:
                     case LogType.WAIT:
+                    case LogType.WAIT_FOR_FLUSHES:
                     case LogType.MARKER:
                         //ignore
                         break;
@@ -824,10 +825,15 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
     }
 
     private static void redoFlush(ILSMIndex index, ILogRecord logRecord) throws HyracksDataException {
+        long flushLsn = logRecord.getLSN();
+        Map<String, Object> flushMap = new HashMap<>();
+        flushMap.put(LSMIOOperationCallback.KEY_FLUSH_LOG_LSN, flushLsn);
         ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+        accessor.getOpContext().setParameters(flushMap);
         long minId = logRecord.getFlushingComponentMinId();
         long maxId = logRecord.getFlushingComponentMaxId();
         ILSMComponentId id = new LSMComponentId(minId, maxId);
+        flushMap.put(LSMIOOperationCallback.KEY_NEXT_COMPONENT_ID, index.getCurrentMemoryComponent().getId());
         if (!index.getDiskComponents().isEmpty()) {
             ILSMDiskComponent diskComponent = index.getDiskComponents().get(0);
             ILSMComponentId maxDiskComponentId = diskComponent.getId();
@@ -837,7 +843,17 @@ public class RecoveryManager implements IRecoveryManager, ILifeCycleComponent {
             }
         }
         index.getCurrentMemoryComponent().resetId(id, true);
-        accessor.scheduleFlush(index.getIOOperationCallback());
+        ILSMIOOperation flush = accessor.scheduleFlush();
+        try {
+            flush.sync();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw HyracksDataException.create(e);
+        }
+        if (flush.getStatus() == LSMIOOperationStatus.FAILURE) {
+            throw HyracksDataException.create(flush.getFailure());
+        }
+        index.resetCurrentComponentIndex();
     }
 
     private class JobEntityCommits {

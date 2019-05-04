@@ -63,8 +63,8 @@ public class PartitionedLSMInvertedIndex extends LSMInvertedIndex {
                 tokenizerFactory, ioManager.resolveAbsolutePath(fileManager.getBaseDir() + "_virtual_vocab_" + id));
     }
 
-
-    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+    @Override
+    protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
         return null;
     }

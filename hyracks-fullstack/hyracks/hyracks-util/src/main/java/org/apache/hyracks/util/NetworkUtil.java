@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.util;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
@@ -45,12 +46,12 @@ public class NetworkUtil {
         sc.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
     }
 
-    public static void closeQuietly(SocketChannel sc) {
-        if (sc.isOpen()) {
+    public static void closeQuietly(Closeable closeable) {
+        if (closeable != null) {
             try {
-                sc.close();
+                closeable.close();
             } catch (IOException e) {
-                LOGGER.warn("Failed to close socket", e);
+                LOGGER.warn("Failed to close", e);
             }
         }
     }
@@ -83,11 +84,11 @@ public class NetworkUtil {
         int lastColon = hostPortString.lastIndexOf(':');
         String host = decodeIPv6LiteralHost(lastColon < 0 ? hostPortString : hostPortString.substring(0, lastColon));
         int port = lastColon < 0 ? 0 : Integer.parseInt(hostPortString.substring(lastColon + 1));
-        return InetSocketAddress.createUnresolved(host, port);
+        return new InetSocketAddress(host, port);
     }
 
     public static InetSocketAddress toInetSocketAddress(String maybeLiteralHost, int port) {
-        return InetSocketAddress.createUnresolved(decodeIPv6LiteralHost(maybeLiteralHost), port);
+        return new InetSocketAddress(decodeIPv6LiteralHost(maybeLiteralHost), port);
     }
 
     public static List<InetSocketAddress> parseInetSocketAddresses(String... hostPortStrings) {

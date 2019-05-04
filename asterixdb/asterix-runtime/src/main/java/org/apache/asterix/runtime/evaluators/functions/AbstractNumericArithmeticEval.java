@@ -43,6 +43,7 @@ import org.apache.asterix.om.base.AMutableInt32;
 import org.apache.asterix.om.base.AMutableInt64;
 import org.apache.asterix.om.base.AMutableInt8;
 import org.apache.asterix.om.base.AMutableTime;
+import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.base.temporal.GregorianCalendarSystem;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.BuiltinType;
@@ -53,7 +54,6 @@ import org.apache.asterix.runtime.exceptions.OverflowException;
 import org.apache.asterix.runtime.exceptions.TypeMismatchException;
 import org.apache.asterix.runtime.exceptions.UnderflowException;
 import org.apache.asterix.runtime.exceptions.UnsupportedTypeException;
-import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
@@ -67,36 +67,53 @@ import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 @SuppressWarnings("serial")
 public abstract class AbstractNumericArithmeticEval extends AbstractScalarFunctionDynamicDescriptor {
 
-    abstract protected long evaluateInteger(long lhs, long rhs) throws HyracksDataException;
+    /**
+     * abstract method for arithmetic operation between two integer values
+     *
+     * @param lhs first operand
+     * @param rhs second operand
+     * @param result result holder
+     * @return {@code false} if the result is {@code NULL}, otherwise {@code true}
+     */
+    abstract protected boolean evaluateInteger(long lhs, long rhs, AMutableInt64 result) throws HyracksDataException;
 
-    abstract protected double evaluateDouble(double lhs, double rhs) throws HyracksDataException;
+    /**
+     * abstract method for arithmetic operation between two floating point values
+     *
+     * @param lhs first operand
+     * @param rhs second operand
+     * @param result result holder
+     * @return {@code false} if the result is {@code NULL}, otherwise {@code true}
+     */
+    abstract protected boolean evaluateDouble(double lhs, double rhs, AMutableDouble result)
+            throws HyracksDataException;
 
     /**
      * abstract method for arithmetic operation between a time instance (date/time/datetime)
      * and a duration (duration/year-month-duration/day-time-duration)
      *
-     * @param chronon
-     * @param yearMonth
-     * @param dayTime
-     * @return
-     * @throws HyracksDataException
+     * @param chronon first operand
+     * @param yearMonth year-month component of the second operand
+     * @param dayTime day-time component of the second operand
+     * @param result result holder
+     * @return {@code false} if the result is {@code NULL}, otherwise {@code true}
      */
-    abstract protected long evaluateTimeDurationArithmetic(long chronon, int yearMonth, long dayTime,
-            boolean isTimeOnly) throws HyracksDataException;
+    abstract protected boolean evaluateTimeDurationArithmetic(long chronon, int yearMonth, long dayTime,
+            boolean isTimeOnly, AMutableInt64 result) throws HyracksDataException;
 
     /**
      * abstract method for arithmetic operation between two time instances (date/time/datetime)
      *
-     * @param chronon0
-     * @param chronon1
-     * @return
-     * @throws HyracksDataException
+     * @param chronon0 first operand
+     * @param chronon1 second operand
+     * @param result result holder
+     * @return {@code false} if the result is {@code NULL}, otherwise {@code true}
      */
-    abstract protected long evaluateTimeInstanceArithmetic(long chronon0, long chronon1) throws HyracksDataException;
+    abstract protected boolean evaluateTimeInstanceArithmetic(long chronon0, long chronon1, AMutableInt64 result)
+            throws HyracksDataException;
 
     @Override
-    public IScalarEvaluatorFactory createEvaluatorFactory(final IScalarEvaluatorFactory[] args)
-            throws AlgebricksException {
+    public IScalarEvaluatorFactory createEvaluatorFactory(final IScalarEvaluatorFactory[] args) {
         return new IScalarEvaluatorFactory() {
             private static final long serialVersionUID = 1L;
 
@@ -104,80 +121,105 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
             public IScalarEvaluator createScalarEvaluator(IHyracksTaskContext ctx) throws HyracksDataException {
 
                 return new IScalarEvaluator() {
-                    private ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
-                    private DataOutput out = resultStorage.getDataOutput();
-                    private IPointable argPtr0 = new VoidPointable();
-                    private IPointable argPtr1 = new VoidPointable();
-                    private IScalarEvaluator evalLeft = args[0].createScalarEvaluator(ctx);
-                    private IScalarEvaluator evalRight = args[1].createScalarEvaluator(ctx);
-                    private double[] operandsFloating = new double[args.length];
-                    private long[] operandsInteger = new long[args.length];
-                    private int resultType;
-                    static protected final int typeInt8 = 1;
-                    static protected final int typeInt16 = 2;
-                    static protected final int typeInt32 = 3;
-                    static protected final int typeInt64 = 4;
-                    static protected final int typeFloat = 5;
-                    static protected final int typeDouble = 6;
+                    private final ArrayBackedValueStorage resultStorage = new ArrayBackedValueStorage();
+                    private final DataOutput out = resultStorage.getDataOutput();
+                    private final IPointable argPtr0 = new VoidPointable();
+                    private final IPointable argPtr1 = new VoidPointable();
+                    private final IScalarEvaluator evalLeft = args[0].createScalarEvaluator(ctx);
+                    private final IScalarEvaluator evalRight = args[1].createScalarEvaluator(ctx);
+                    private final double[] operandsFloating = new double[args.length];
+                    private final long[] operandsInteger = new long[args.length];
 
-                    protected AMutableFloat aFloat = new AMutableFloat(0);
-                    protected AMutableDouble aDouble = new AMutableDouble(0);
-                    protected AMutableInt64 aInt64 = new AMutableInt64(0);
-                    protected AMutableInt32 aInt32 = new AMutableInt32(0);
-                    protected AMutableInt16 aInt16 = new AMutableInt16((short) 0);
-                    protected AMutableInt8 aInt8 = new AMutableInt8((byte) 0);
+                    private final AMutableFloat aFloat = new AMutableFloat(0);
+                    private final AMutableDouble aDouble = new AMutableDouble(0);
+                    private final AMutableInt64 aInt64 = new AMutableInt64(0);
+                    private final AMutableInt32 aInt32 = new AMutableInt32(0);
+                    private final AMutableInt16 aInt16 = new AMutableInt16((short) 0);
+                    private final AMutableInt8 aInt8 = new AMutableInt8((byte) 0);
 
-                    protected AMutableDuration aDuration = new AMutableDuration(0, 0);
-                    protected AMutableDate aDate = new AMutableDate(0);
-                    protected AMutableTime aTime = new AMutableTime(0);
-                    protected AMutableDateTime aDatetime = new AMutableDateTime(0);
+                    private final AMutableDuration aDuration = new AMutableDuration(0, 0);
+                    private final AMutableDate aDate = new AMutableDate(0);
+                    private final AMutableTime aTime = new AMutableTime(0);
+                    private final AMutableDateTime aDatetime = new AMutableDateTime(0);
 
-                    private ATypeTag typeTag;
                     @SuppressWarnings("rawtypes")
-                    private ISerializerDeserializer serde;
+                    private final ISerializerDeserializer int8Serde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT8);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer int16Serde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT16);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer int32Serde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT32);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer int64Serde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AINT64);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer floatSerde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.AFLOAT);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer doubleSerde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADOUBLE);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer dateSerde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADATE);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer timeSerde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ATIME);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer dateTimeSerde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADATETIME);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer durationSerde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADURATION);
+                    @SuppressWarnings("rawtypes")
+                    private final ISerializerDeserializer nullSerde =
+                            SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ANULL);
 
-                    @SuppressWarnings("unchecked")
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
-                        resultStorage.reset();
-                        resultType = 0;
-                        int currentType;
                         evalLeft.evaluate(tuple, argPtr0);
                         evalRight.evaluate(tuple, argPtr1);
 
-                        for (int i = 0; i < args.length; i++) {
+                        resultStorage.reset();
+
+                        ATypeTag argTypeMax = null;
+
+                        for (int i = 0; i < 2; i++) {
                             IPointable argPtr = i == 0 ? argPtr0 : argPtr1;
                             byte[] bytes = argPtr.getByteArray();
                             int offset = argPtr.getStartOffset();
 
-                            typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes[offset]);
+                            ATypeTag currentType;
+                            ATypeTag typeTag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes[offset]);
                             switch (typeTag) {
                                 case TINYINT:
-                                    currentType = typeInt8;
+                                    currentType = ATypeTag.TINYINT;
                                     operandsInteger[i] = AInt8SerializerDeserializer.getByte(bytes, offset + 1);
                                     operandsFloating[i] = operandsInteger[i];
                                     break;
                                 case SMALLINT:
-                                    currentType = typeInt16;
+                                    currentType = ATypeTag.SMALLINT;
                                     operandsInteger[i] = AInt16SerializerDeserializer.getShort(bytes, offset + 1);
                                     operandsFloating[i] = operandsInteger[i];
                                     break;
                                 case INTEGER:
-                                    currentType = typeInt32;
+                                    currentType = ATypeTag.INTEGER;
                                     operandsInteger[i] = AInt32SerializerDeserializer.getInt(bytes, offset + 1);
                                     operandsFloating[i] = operandsInteger[i];
                                     break;
                                 case BIGINT:
-                                    currentType = typeInt64;
+                                    currentType = ATypeTag.BIGINT;
                                     operandsInteger[i] = AInt64SerializerDeserializer.getLong(bytes, offset + 1);
                                     operandsFloating[i] = operandsInteger[i];
                                     break;
                                 case FLOAT:
-                                    currentType = typeFloat;
+                                    currentType = ATypeTag.FLOAT;
                                     operandsFloating[i] = AFloatSerializerDeserializer.getFloat(bytes, offset + 1);
                                     break;
                                 case DOUBLE:
-                                    currentType = typeDouble;
+                                    currentType = ATypeTag.DOUBLE;
                                     operandsFloating[i] = ADoubleSerializerDeserializer.getDouble(bytes, offset + 1);
                                     break;
                                 case DATE:
@@ -186,11 +228,11 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                                 case DURATION:
                                 case YEARMONTHDURATION:
                                 case DAYTIMEDURATION:
-                                    evaluateTemporalArthmeticOperation(typeTag);
+                                    evaluateTemporalArithmeticOperation(typeTag);
                                     result.set(resultStorage);
                                     return;
                                 default:
-                                    throw new TypeMismatchException(getIdentifier(), i, bytes[offset],
+                                    throw new TypeMismatchException(sourceLoc, getIdentifier(), i, bytes[offset],
                                             ATypeTag.SERIALIZED_INT8_TYPE_TAG, ATypeTag.SERIALIZED_INT16_TYPE_TAG,
                                             ATypeTag.SERIALIZED_INT32_TYPE_TAG, ATypeTag.SERIALIZED_INT64_TYPE_TAG,
                                             ATypeTag.SERIALIZED_FLOAT_TYPE_TAG, ATypeTag.SERIALIZED_DOUBLE_TYPE_TAG,
@@ -201,85 +243,96 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                                             ATypeTag.SERIALIZED_DAY_TIME_DURATION_TYPE_TAG);
                             }
 
-                            if (resultType < currentType) {
-                                resultType = currentType;
+                            if (i == 0 || currentType.ordinal() > argTypeMax.ordinal()) {
+                                argTypeMax = currentType;
                             }
                         }
+
+                        ATypeTag resultType = getNumericResultType(argTypeMax);
 
                         long lres;
                         double dres;
                         switch (resultType) {
-                            case typeInt8:
-                                serde = SerializerDeserializerProvider.INSTANCE
-                                        .getSerializerDeserializer(BuiltinType.AINT8);
-                                lres = evaluateInteger(operandsInteger[0], operandsInteger[1]);
-                                if (lres > Byte.MAX_VALUE) {
-                                    throw new OverflowException(getIdentifier());
+                            case TINYINT:
+                                if (evaluateInteger(operandsInteger[0], operandsInteger[1], aInt64)) {
+                                    lres = aInt64.getLongValue();
+                                    if (lres > Byte.MAX_VALUE) {
+                                        throw new OverflowException(sourceLoc, getIdentifier());
+                                    }
+                                    if (lres < Byte.MIN_VALUE) {
+                                        throw new UnderflowException(sourceLoc, getIdentifier());
+                                    }
+                                    aInt8.setValue((byte) lres);
+                                    int8Serde.serialize(aInt8, out);
+                                } else {
+                                    nullSerde.serialize(ANull.NULL, out);
                                 }
-                                if (lres < Byte.MIN_VALUE) {
-                                    throw new UnderflowException(getIdentifier());
-                                }
-                                aInt8.setValue((byte) lres);
-                                serde.serialize(aInt8, out);
                                 break;
-                            case typeInt16:
-                                serde = SerializerDeserializerProvider.INSTANCE
-                                        .getSerializerDeserializer(BuiltinType.AINT16);
-                                lres = evaluateInteger(operandsInteger[0], operandsInteger[1]);
-                                if (lres > Short.MAX_VALUE) {
-                                    throw new OverflowException(getIdentifier());
+                            case SMALLINT:
+                                if (evaluateInteger(operandsInteger[0], operandsInteger[1], aInt64)) {
+                                    lres = aInt64.getLongValue();
+                                    if (lres > Short.MAX_VALUE) {
+                                        throw new OverflowException(sourceLoc, getIdentifier());
+                                    }
+                                    if (lres < Short.MIN_VALUE) {
+                                        throw new UnderflowException(sourceLoc, getIdentifier());
+                                    }
+                                    aInt16.setValue((short) lres);
+                                    int16Serde.serialize(aInt16, out);
+                                } else {
+                                    nullSerde.serialize(ANull.NULL, out);
                                 }
-                                if (lres < Short.MIN_VALUE) {
-                                    throw new UnderflowException(getIdentifier());
-                                }
-                                aInt16.setValue((short) lres);
-                                serde.serialize(aInt16, out);
                                 break;
-                            case typeInt32:
-                                serde = SerializerDeserializerProvider.INSTANCE
-                                        .getSerializerDeserializer(BuiltinType.AINT32);
-                                lres = evaluateInteger(operandsInteger[0], operandsInteger[1]);
-                                if (lres > Integer.MAX_VALUE) {
-                                    throw new OverflowException(getIdentifier());
+                            case INTEGER:
+                                if (evaluateInteger(operandsInteger[0], operandsInteger[1], aInt64)) {
+                                    lres = aInt64.getLongValue();
+                                    if (lres > Integer.MAX_VALUE) {
+                                        throw new OverflowException(sourceLoc, getIdentifier());
+                                    }
+                                    if (lres < Integer.MIN_VALUE) {
+                                        throw new UnderflowException(sourceLoc, getIdentifier());
+                                    }
+                                    aInt32.setValue((int) lres);
+                                    int32Serde.serialize(aInt32, out);
+                                } else {
+                                    nullSerde.serialize(ANull.NULL, out);
                                 }
-                                if (lres < Integer.MIN_VALUE) {
-                                    throw new UnderflowException(getIdentifier());
-                                }
-                                aInt32.setValue((int) lres);
-                                serde.serialize(aInt32, out);
                                 break;
-                            case typeInt64:
-                                serde = SerializerDeserializerProvider.INSTANCE
-                                        .getSerializerDeserializer(BuiltinType.AINT64);
-                                lres = evaluateInteger(operandsInteger[0], operandsInteger[1]);
-                                aInt64.setValue(lres);
-                                serde.serialize(aInt64, out);
-                                break;
-                            case typeFloat:
-                                serde = SerializerDeserializerProvider.INSTANCE
-                                        .getSerializerDeserializer(BuiltinType.AFLOAT);
-                                dres = evaluateDouble(operandsFloating[0], operandsFloating[1]);
-                                if (dres > Float.MAX_VALUE) {
-                                    throw new OverflowException(getIdentifier());
+                            case BIGINT:
+                                if (evaluateInteger(operandsInteger[0], operandsInteger[1], aInt64)) {
+                                    int64Serde.serialize(aInt64, out);
+                                } else {
+                                    nullSerde.serialize(ANull.NULL, out);
                                 }
-                                if (dres < -Float.MAX_VALUE) {
-                                    throw new UnderflowException(getIdentifier());
-                                }
-                                aFloat.setValue((float) dres);
-                                serde.serialize(aFloat, out);
                                 break;
-                            case typeDouble:
-                                serde = SerializerDeserializerProvider.INSTANCE
-                                        .getSerializerDeserializer(BuiltinType.ADOUBLE);
-                                aDouble.setValue(evaluateDouble(operandsFloating[0], operandsFloating[1]));
-                                serde.serialize(aDouble, out);
+                            case FLOAT:
+                                if (evaluateDouble(operandsFloating[0], operandsFloating[1], aDouble)) {
+                                    dres = aDouble.getDoubleValue();
+                                    if (dres > Float.MAX_VALUE) {
+                                        throw new OverflowException(sourceLoc, getIdentifier());
+                                    }
+                                    if (dres < -Float.MAX_VALUE) {
+                                        throw new UnderflowException(sourceLoc, getIdentifier());
+                                    }
+                                    aFloat.setValue((float) dres);
+                                    floatSerde.serialize(aFloat, out);
+                                } else {
+                                    nullSerde.serialize(ANull.NULL, out);
+                                }
+                                break;
+                            case DOUBLE:
+                                if (evaluateDouble(operandsFloating[0], operandsFloating[1], aDouble)) {
+                                    doubleSerde.serialize(aDouble, out);
+                                } else {
+                                    nullSerde.serialize(ANull.NULL, out);
+                                }
                                 break;
                         }
                         result.set(resultStorage);
                     }
 
                     @SuppressWarnings("unchecked")
-                    private void evaluateTemporalArthmeticOperation(ATypeTag leftType) throws HyracksDataException {
+                    private void evaluateTemporalArithmeticOperation(ATypeTag leftType) throws HyracksDataException {
                         byte[] bytes1 = argPtr1.getByteArray();
                         int offset1 = argPtr1.getStartOffset();
                         ATypeTag rightType = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes1[offset1]);
@@ -287,13 +340,9 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                         int offset0 = argPtr0.getStartOffset();
 
                         if (rightType == leftType) {
-
-                            serde = SerializerDeserializerProvider.INSTANCE
-                                    .getSerializerDeserializer(BuiltinType.ADURATION);
-
                             long leftChronon = 0, rightChronon = 0, dayTime = 0;
-
                             int yearMonth = 0;
+                            boolean yearMonthIsNull = false, dayTimeIsNull = false;
 
                             switch (leftType) {
                                 case DATE:
@@ -301,7 +350,6 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                                             * GregorianCalendarSystem.CHRONON_OF_DAY;
                                     rightChronon = ADateSerializerDeserializer.getChronon(bytes1, offset1 + 1)
                                             * GregorianCalendarSystem.CHRONON_OF_DAY;
-
                                     break;
                                 case TIME:
                                     leftChronon = ATimeSerializerDeserializer.getChronon(bytes0, offset0 + 1);
@@ -312,9 +360,14 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                                     rightChronon = ADateTimeSerializerDeserializer.getChronon(bytes1, offset1 + 1);
                                     break;
                                 case YEARMONTHDURATION:
-                                    yearMonth = (int) evaluateTimeInstanceArithmetic(
+                                    if (evaluateTimeInstanceArithmetic(
                                             AYearMonthDurationSerializerDeserializer.getYearMonth(bytes0, offset0 + 1),
-                                            AYearMonthDurationSerializerDeserializer.getYearMonth(bytes1, offset1 + 1));
+                                            AYearMonthDurationSerializerDeserializer.getYearMonth(bytes1, offset1 + 1),
+                                            aInt64)) {
+                                        yearMonth = (int) aInt64.getLongValue();
+                                    } else {
+                                        yearMonthIsNull = true;
+                                    }
                                     break;
                                 case DAYTIMEDURATION:
                                     leftChronon =
@@ -323,26 +376,33 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                                             ADayTimeDurationSerializerDeserializer.getDayTime(bytes1, offset1 + 1);
                                     break;
                                 default:
-                                    throw new UnsupportedTypeException(getIdentifier(), bytes1[offset1]);
+                                    throw new UnsupportedTypeException(sourceLoc, getIdentifier(), bytes1[offset1]);
                             }
 
-                            dayTime = evaluateTimeInstanceArithmetic(leftChronon, rightChronon);
+                            if (evaluateTimeInstanceArithmetic(leftChronon, rightChronon, aInt64)) {
+                                dayTime = aInt64.getLongValue();
+                            } else {
+                                dayTimeIsNull = true;
+                            }
 
-                            aDuration.setValue(yearMonth, dayTime);
-
-                            serde.serialize(aDuration, out);
+                            if (yearMonthIsNull || dayTimeIsNull) {
+                                nullSerde.serialize(ANull.NULL, out);
+                            } else {
+                                aDuration.setValue(yearMonth, dayTime);
+                                durationSerde.serialize(aDuration, out);
+                            }
 
                         } else {
                             long chronon = 0, dayTime = 0;
                             int yearMonth = 0;
                             ATypeTag resultType = null;
+                            ISerializerDeserializer serde = null;
 
                             boolean isTimeOnly = false;
 
                             switch (leftType) {
                                 case TIME:
-                                    serde = SerializerDeserializerProvider.INSTANCE
-                                            .getSerializerDeserializer(BuiltinType.ATIME);
+                                    serde = timeSerde;
                                     chronon = ATimeSerializerDeserializer.getChronon(bytes0, offset0 + 1);
                                     isTimeOnly = true;
                                     resultType = ATypeTag.TIME;
@@ -357,20 +417,18 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                                                     ADurationSerializerDeserializer.getYearMonth(bytes1, offset1 + 1);
                                             break;
                                         default:
-                                            throw new IncompatibleTypeException(getIdentifier(), bytes0[offset0],
-                                                    bytes1[offset1]);
+                                            throw new IncompatibleTypeException(sourceLoc, getIdentifier(),
+                                                    bytes0[offset0], bytes1[offset1]);
                                     }
                                     break;
                                 case DATE:
-                                    serde = SerializerDeserializerProvider.INSTANCE
-                                            .getSerializerDeserializer(BuiltinType.ADATE);
+                                    serde = dateSerde;
                                     resultType = ATypeTag.DATE;
                                     chronon = ADateSerializerDeserializer.getChronon(bytes0, offset0 + 1)
                                             * GregorianCalendarSystem.CHRONON_OF_DAY;
                                 case DATETIME:
                                     if (leftType == ATypeTag.DATETIME) {
-                                        serde = SerializerDeserializerProvider.INSTANCE
-                                                .getSerializerDeserializer(BuiltinType.ADATETIME);
+                                        serde = dateTimeSerde;
                                         resultType = ATypeTag.DATETIME;
                                         chronon = ADateTimeSerializerDeserializer.getChronon(bytes0, offset0 + 1);
                                     }
@@ -389,8 +447,8 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                                                     offset1 + 1);
                                             break;
                                         default:
-                                            throw new IncompatibleTypeException(getIdentifier(), bytes0[offset0],
-                                                    bytes1[offset1]);
+                                            throw new IncompatibleTypeException(sourceLoc, getIdentifier(),
+                                                    bytes0[offset0], bytes1[offset1]);
                                     }
                                     break;
                                 case YEARMONTHDURATION:
@@ -398,21 +456,19 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                                             AYearMonthDurationSerializerDeserializer.getYearMonth(bytes0, offset0 + 1);
                                     switch (rightType) {
                                         case DATETIME:
-                                            serde = SerializerDeserializerProvider.INSTANCE
-                                                    .getSerializerDeserializer(BuiltinType.ADATETIME);
+                                            serde = dateTimeSerde;
                                             resultType = ATypeTag.DATETIME;
                                             chronon = ADateTimeSerializerDeserializer.getChronon(bytes1, offset1 + 1);
                                             break;
                                         case DATE:
-                                            serde = SerializerDeserializerProvider.INSTANCE
-                                                    .getSerializerDeserializer(BuiltinType.ADATE);
+                                            serde = dateSerde;
                                             resultType = ATypeTag.DATE;
                                             chronon = ADateSerializerDeserializer.getChronon(bytes1, offset1 + 1)
                                                     * GregorianCalendarSystem.CHRONON_OF_DAY;
                                             break;
                                         default:
-                                            throw new IncompatibleTypeException(getIdentifier(), bytes0[offset0],
-                                                    bytes1[offset1]);
+                                            throw new IncompatibleTypeException(sourceLoc, getIdentifier(),
+                                                    bytes0[offset0], bytes1[offset1]);
                                     }
                                     break;
                                 case DURATION:
@@ -425,65 +481,69 @@ public abstract class AbstractNumericArithmeticEval extends AbstractScalarFuncti
                                     }
                                     switch (rightType) {
                                         case DATETIME:
-                                            serde = SerializerDeserializerProvider.INSTANCE
-                                                    .getSerializerDeserializer(BuiltinType.ADATETIME);
+                                            serde = dateTimeSerde;
                                             resultType = ATypeTag.DATETIME;
                                             chronon = ADateTimeSerializerDeserializer.getChronon(bytes1, offset1 + 1);
                                             break;
                                         case DATE:
-                                            serde = SerializerDeserializerProvider.INSTANCE
-                                                    .getSerializerDeserializer(BuiltinType.ADATE);
+                                            serde = dateSerde;
                                             resultType = ATypeTag.DATE;
                                             chronon = ADateSerializerDeserializer.getChronon(bytes1, offset1 + 1)
                                                     * GregorianCalendarSystem.CHRONON_OF_DAY;
                                             break;
                                         case TIME:
                                             if (yearMonth == 0) {
-                                                serde = SerializerDeserializerProvider.INSTANCE
-                                                        .getSerializerDeserializer(BuiltinType.ATIME);
+                                                serde = timeSerde;
                                                 resultType = ATypeTag.TIME;
                                                 chronon = ATimeSerializerDeserializer.getChronon(bytes1, offset1 + 1);
                                                 isTimeOnly = true;
                                                 break;
                                             }
                                         default:
-                                            throw new IncompatibleTypeException(getIdentifier(), bytes0[offset0],
-                                                    bytes1[offset1]);
+                                            throw new IncompatibleTypeException(sourceLoc, getIdentifier(),
+                                                    bytes0[offset0], bytes1[offset1]);
                                     }
                                     break;
                                 default:
-                                    throw new IncompatibleTypeException(getIdentifier(), bytes0[offset0],
+                                    throw new IncompatibleTypeException(sourceLoc, getIdentifier(), bytes0[offset0],
                                             bytes1[offset1]);
                             }
 
-                            chronon = evaluateTimeDurationArithmetic(chronon, yearMonth, dayTime, isTimeOnly);
-
-                            switch (resultType) {
-                                case DATE:
-                                    if (chronon < 0 && chronon % GregorianCalendarSystem.CHRONON_OF_DAY != 0) {
-                                        chronon = chronon / GregorianCalendarSystem.CHRONON_OF_DAY - 1;
-                                    } else {
-                                        chronon = chronon / GregorianCalendarSystem.CHRONON_OF_DAY;
-                                    }
-                                    aDate.setValue((int) chronon);
-                                    serde.serialize(aDate, out);
-                                    break;
-                                case TIME:
-                                    aTime.setValue((int) chronon);
-                                    serde.serialize(aTime, out);
-                                    break;
-                                case DATETIME:
-                                    aDatetime.setValue(chronon);
-                                    serde.serialize(aDatetime, out);
-                                    break;
-                                default:
-                                    throw new IncompatibleTypeException(getIdentifier(), bytes0[offset0],
-                                            bytes1[offset1]);
+                            if (evaluateTimeDurationArithmetic(chronon, yearMonth, dayTime, isTimeOnly, aInt64)) {
+                                chronon = aInt64.getLongValue();
+                                switch (resultType) {
+                                    case DATE:
+                                        if (chronon < 0 && chronon % GregorianCalendarSystem.CHRONON_OF_DAY != 0) {
+                                            chronon = chronon / GregorianCalendarSystem.CHRONON_OF_DAY - 1;
+                                        } else {
+                                            chronon = chronon / GregorianCalendarSystem.CHRONON_OF_DAY;
+                                        }
+                                        aDate.setValue((int) chronon);
+                                        serde.serialize(aDate, out);
+                                        break;
+                                    case TIME:
+                                        aTime.setValue((int) chronon);
+                                        serde.serialize(aTime, out);
+                                        break;
+                                    case DATETIME:
+                                        aDatetime.setValue(chronon);
+                                        serde.serialize(aDatetime, out);
+                                        break;
+                                    default:
+                                        throw new IncompatibleTypeException(sourceLoc, getIdentifier(), bytes0[offset0],
+                                                bytes1[offset1]);
+                                }
+                            } else {
+                                nullSerde.serialize(ANull.NULL, out);
                             }
                         }
                     }
                 };
             }
         };
+    }
+
+    protected ATypeTag getNumericResultType(ATypeTag argTypeMax) {
+        return argTypeMax;
     }
 }

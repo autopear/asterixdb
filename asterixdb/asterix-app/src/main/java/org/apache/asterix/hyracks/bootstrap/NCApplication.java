@@ -26,7 +26,9 @@ import java.util.Set;
 
 import org.apache.asterix.api.http.server.ServletConstants;
 import org.apache.asterix.api.http.server.StorageApiServlet;
+import org.apache.asterix.app.io.PersistedResourceRegistry;
 import org.apache.asterix.app.nc.NCAppRuntimeContext;
+import org.apache.asterix.app.nc.RecoveryManager;
 import org.apache.asterix.app.replication.message.RegistrationTasksRequestMessage;
 import org.apache.asterix.common.api.AsterixThreadFactory;
 import org.apache.asterix.common.api.INcApplicationContext;
@@ -44,6 +46,7 @@ import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.common.transactions.Checkpoint;
 import org.apache.asterix.common.transactions.IRecoveryManager;
 import org.apache.asterix.common.transactions.IRecoveryManager.SystemState;
+import org.apache.asterix.common.transactions.IRecoveryManagerFactory;
 import org.apache.asterix.common.utils.PrintUtil;
 import org.apache.asterix.common.utils.Servlets;
 import org.apache.asterix.common.utils.StorageConstants;
@@ -65,6 +68,8 @@ import org.apache.hyracks.control.common.controllers.NCConfig;
 import org.apache.hyracks.control.nc.BaseNCApplication;
 import org.apache.hyracks.control.nc.NodeControllerService;
 import org.apache.hyracks.http.server.HttpServer;
+import org.apache.hyracks.http.server.HttpServerConfig;
+import org.apache.hyracks.http.server.HttpServerConfigBuilder;
 import org.apache.hyracks.http.server.WebManager;
 import org.apache.hyracks.util.LoggingConfigUtil;
 import org.apache.logging.log4j.Level;
@@ -78,6 +83,7 @@ public class NCApplication extends BaseNCApplication {
     private INcApplicationContext runtimeContext;
     private String nodeId;
     private boolean stopInitiated;
+    private boolean startupCompleted;
     protected WebManager webManager;
 
     @Override
@@ -93,6 +99,8 @@ public class NCApplication extends BaseNCApplication {
         ((NodeControllerService) serviceCtx.getControllerService()).setNodeStatus(NodeStatus.IDLE);
         ncServiceCtx.setThreadFactory(
                 new AsterixThreadFactory(ncServiceCtx.getThreadFactory(), ncServiceCtx.getLifeCycleComponentManager()));
+        validateEnvironment();
+        configurePersistedResourceRegistry();
     }
 
     @Override
@@ -121,7 +129,7 @@ public class NCApplication extends BaseNCApplication {
             }
             updateOnNodeJoin();
         }
-        runtimeContext.initialize(runtimeContext.getNodeProperties().isInitialRun());
+        runtimeContext.initialize(getRecoveryManagerFactory(), runtimeContext.getNodeProperties().isInitialRun());
         MessagingProperties messagingProperties = runtimeContext.getMessagingProperties();
         IMessageBroker messageBroker = new NCMessageBroker(controllerService, messagingProperties);
         this.ncServiceCtx.setMessageBroker(messageBroker);
@@ -144,6 +152,10 @@ public class NCApplication extends BaseNCApplication {
         performLocalCleanUp();
     }
 
+    protected IRecoveryManagerFactory getRecoveryManagerFactory() {
+        return RecoveryManager::new;
+    }
+
     @Override
     protected void configureLoggingLevel(Level level) {
         super.configureLoggingLevel(level);
@@ -151,8 +163,11 @@ public class NCApplication extends BaseNCApplication {
     }
 
     protected void configureServers() throws Exception {
+        final ExternalProperties externalProperties = getApplicationContext().getExternalProperties();
+        final HttpServerConfig config =
+                HttpServerConfigBuilder.custom().setMaxRequestSize(externalProperties.getMaxWebRequestSize()).build();
         HttpServer apiServer = new HttpServer(webManager.getBosses(), webManager.getWorkers(),
-                getApplicationContext().getExternalProperties().getNcApiPort());
+                externalProperties.getNcApiPort(), config);
         apiServer.setAttribute(ServletConstants.SERVICE_CONTEXT_ATTR, ncServiceCtx);
         apiServer.addServlet(new StorageApiServlet(apiServer.ctx(), getApplicationContext(), Servlets.STORAGE));
         webManager.add(apiServer);
@@ -197,14 +212,19 @@ public class NCApplication extends BaseNCApplication {
     }
 
     @Override
-    public void startupCompleted() throws Exception {
+    public synchronized void startupCompleted() throws Exception {
         // configure servlets after joining the cluster, so we can create HyracksClientConnection
         configureServers();
         webManager.start();
+        startupCompleted = true;
+        notifyAll();
     }
 
     @Override
-    public synchronized void onRegisterNode(CcId ccId) throws Exception {
+    public synchronized void tasksCompleted(CcId ccId) throws Exception {
+        while (!startupCompleted) {
+            this.wait();
+        }
         final NodeControllerService ncs = (NodeControllerService) ncServiceCtx.getControllerService();
         final NodeStatus currentStatus = ncs.getNodeStatus();
         final SystemState systemState = isPendingStartupTasks(currentStatus, ncs.getPrimaryCcId(), ccId)
@@ -228,6 +248,7 @@ public class NCApplication extends BaseNCApplication {
         final Set<Integer> nodePartitions = runtimeContext.getReplicaManager().getPartitions();
         final PersistentLocalResourceRepository localResourceRepository =
                 (PersistentLocalResourceRepository) runtimeContext.getLocalResourceRepository();
+        localResourceRepository.deleteCorruptedResources();
         for (Integer partition : nodePartitions) {
             localResourceRepository.cleanup(partition);
         }
@@ -268,5 +289,17 @@ public class NCApplication extends BaseNCApplication {
             state = SystemState.BOOTSTRAPPING;
         }
         return state;
+    }
+
+    protected void validateEnvironment() throws HyracksDataException {
+        validateJavaRuntime();
+    }
+
+    protected void validateJavaRuntime() throws HyracksDataException {
+        ApplicationConfigurator.validateJavaRuntime();
+    }
+
+    protected void configurePersistedResourceRegistry() {
+        ncServiceCtx.setPersistedResourceRegistry(new PersistedResourceRegistry());
     }
 }

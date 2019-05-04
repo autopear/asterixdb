@@ -79,6 +79,22 @@ public final class FunctionTypeInferers {
         }
     };
 
+    /** Sets the types of the function arguments */
+    public static final IFunctionTypeInferer SET_ARGUMENTS_TYPE = new IFunctionTypeInferer() {
+        @Override
+        public void infer(ILogicalExpression expr, IFunctionDescriptor fd, IVariableTypeEnvironment context,
+                CompilerProperties compilerProps) throws AlgebricksException {
+            AbstractFunctionCallExpression fce = (AbstractFunctionCallExpression) expr;
+            IAType[] argsTypes = new IAType[fce.getArguments().size()];
+            int i = 0;
+            for (Mutable<ILogicalExpression> arg : fce.getArguments()) {
+                argsTypes[i] = TypeComputeUtils.getActualType((IAType) context.getType(arg.getValue()));
+                i++;
+            }
+            fd.setImmutableStates((Object[]) argsTypes);
+        }
+    };
+
     public static final class CastTypeInferer implements IFunctionTypeInferer {
         @Override
         public void infer(ILogicalExpression expr, IFunctionDescriptor fd, IVariableTypeEnvironment context,

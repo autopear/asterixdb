@@ -18,13 +18,16 @@
  */
 package org.apache.hyracks.storage.common.file;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
+import org.apache.hyracks.util.annotations.NotThreadSafe;
 
+@NotThreadSafe
 public class FileMapManager implements IFileMapManager {
     private static final long serialVersionUID = 1L;
 
@@ -67,15 +70,20 @@ public class FileMapManager implements IFileMapManager {
             throw HyracksDataException.create(ErrorCode.NO_MAPPING_FOR_FILE_ID, fileId);
         }
         name2IdMap.remove(fileRef);
+        fileRef.unregister();
         return fileRef;
     }
 
     @Override
     public int registerFile(FileReference fileRef) throws HyracksDataException {
-        if (isMapped(fileRef)) {
-            throw HyracksDataException.create(ErrorCode.FILE_ALREADY_MAPPED, fileRef);
+        Integer existingKey = name2IdMap.get(fileRef);
+        if (existingKey != null) {
+            FileReference prevFile = id2nameMap.get(existingKey);
+            throw HyracksDataException.create(ErrorCode.FILE_ALREADY_MAPPED, fileRef, prevFile,
+                    new Date(prevFile.registrationTime()).toString());
         }
         int fileId = idCounter++;
+        fileRef.register();
         id2nameMap.put(fileId, fileRef);
         name2IdMap.put(fileRef, fileId);
         return fileId;

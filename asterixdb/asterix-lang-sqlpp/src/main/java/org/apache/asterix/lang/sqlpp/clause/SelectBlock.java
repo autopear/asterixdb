@@ -24,14 +24,14 @@ import java.util.List;
 import java.util.Objects;
 
 import org.apache.asterix.common.exceptions.CompilationException;
-import org.apache.asterix.lang.common.base.Clause;
+import org.apache.asterix.lang.common.base.AbstractClause;
 import org.apache.asterix.lang.common.clause.GroupbyClause;
 import org.apache.asterix.lang.common.clause.LetClause;
 import org.apache.asterix.lang.common.clause.WhereClause;
 import org.apache.asterix.lang.common.visitor.base.ILangVisitor;
 import org.apache.asterix.lang.sqlpp.visitor.base.ISqlppVisitor;
 
-public class SelectBlock implements Clause {
+public class SelectBlock extends AbstractClause {
 
     private SelectClause selectClause;
     private FromClause fromClause;
@@ -96,7 +96,7 @@ public class SelectBlock implements Clause {
     }
 
     public boolean hasLetClauses() {
-        return letClauses != null && !letClauses.isEmpty();
+        return !letClauses.isEmpty();
     }
 
     public boolean hasWhereClause() {
@@ -108,7 +108,7 @@ public class SelectBlock implements Clause {
     }
 
     public boolean hasLetClausesAfterGroupby() {
-        return letClausesAfterGby != null && !letClausesAfterGby.isEmpty();
+        return !letClausesAfterGby.isEmpty();
     }
 
     public List<LetClause> getLetListAfterGroupby() {

@@ -29,8 +29,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.asterix.app.bootstrap.TestNodeController;
 import org.apache.asterix.app.bootstrap.TestNodeController.PrimaryIndexInfo;
 import org.apache.asterix.app.bootstrap.TestNodeController.SecondaryIndexInfo;
-import org.apache.asterix.app.data.gen.TupleGenerator;
-import org.apache.asterix.app.data.gen.TupleGenerator.GenerationFunction;
+import org.apache.asterix.app.data.gen.RecordTupleGenerator;
+import org.apache.asterix.app.data.gen.RecordTupleGenerator.GenerationFunction;
 import org.apache.asterix.app.nc.NCAppRuntimeContext;
 import org.apache.asterix.common.api.IDatasetLifecycleManager;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
@@ -302,7 +302,7 @@ public class MultiPartitionLSMIndexTest {
                 }
 
                 @Override
-                public void after() {
+                public void after(Void t) {
                     synchronized (allocated) {
                         allocated.setValue(true);
                         allocated.notifyAll();
@@ -339,7 +339,7 @@ public class MultiPartitionLSMIndexTest {
                 }
 
                 @Override
-                public void after() {
+                public void after(Semaphore t) {
                 }
             });
             synchronized (proceedToScheduleFlush) {
@@ -421,7 +421,7 @@ public class MultiPartitionLSMIndexTest {
                 }
 
                 @Override
-                public void after() {
+                public void after(Void t) {
                     synchronized (finishedSchduleFlush) {
                         finishedSchduleFlush.set(true);
                         finishedSchduleFlush.notifyAll();
@@ -478,7 +478,7 @@ public class MultiPartitionLSMIndexTest {
                 }
 
                 @Override
-                public void after() {
+                public void after(ILSMMemoryComponent t) {
                     synchronized (recycledPrimary) {
                         recycledPrimary.setValue(true);
                         recycledPrimary.notifyAll();
@@ -519,7 +519,7 @@ public class MultiPartitionLSMIndexTest {
                 }
 
                 @Override
-                public void after() {
+                public void after(ILSMMemoryComponent t) {
                 }
             };
             secondaryLsmBtrees[0].addIoRecycleCallback(secondaryRecycleCallback);
@@ -619,14 +619,14 @@ public class MultiPartitionLSMIndexTest {
 
     public class Actor extends SingleThreadEventProcessor<Request> {
         private final int partition;
-        private final TupleGenerator tupleGenerator;
+        private final RecordTupleGenerator tupleGenerator;
         private final VSizeFrame frame;
         private final FrameTupleAppender tupleAppender;
 
         public Actor(String name, int partition) throws HyracksDataException {
             super(name);
             this.partition = partition;
-            tupleGenerator = new TupleGenerator(RECORD_TYPE, META_TYPE, KEY_INDEXES, KEY_INDICATORS,
+            tupleGenerator = new RecordTupleGenerator(RECORD_TYPE, META_TYPE, KEY_INDEXES, KEY_INDICATORS,
                     RECORD_GEN_FUNCTION, UNIQUE_RECORD_FIELDS, META_GEN_FUNCTION, UNIQUE_META_FIELDS);
             frame = new VSizeFrame(taskCtxs[partition]);
             tupleAppender = new FrameTupleAppender(frame);

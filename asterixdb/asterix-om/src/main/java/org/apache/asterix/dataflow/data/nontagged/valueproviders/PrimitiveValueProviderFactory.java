@@ -21,11 +21,16 @@ package org.apache.asterix.dataflow.data.nontagged.valueproviders;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.EnumDeserializer;
 import org.apache.hyracks.algebricks.common.exceptions.NotImplementedException;
+import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.IJsonSerializable;
+import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.storage.am.common.api.IPrimitiveValueProvider;
 import org.apache.hyracks.storage.am.common.api.IPrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.rtree.impls.DoublePrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.rtree.impls.FloatPrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.rtree.impls.IntegerPrimitiveValueProviderFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 public class PrimitiveValueProviderFactory implements IPrimitiveValueProviderFactory {
 
@@ -49,7 +54,7 @@ public class PrimitiveValueProviderFactory implements IPrimitiveValueProviderFac
             @Override
             public double getValue(byte[] bytes, int offset) {
                 ATypeTag tag = EnumDeserializer.ATYPETAGDESERIALIZER.deserialize(bytes[offset]);
-                if(tag==null)
+                if (tag == null)
                     return doubleProvider.getValue(bytes, offset + 1);
                 switch (tag) {
                     case INTEGER:
@@ -62,9 +67,19 @@ public class PrimitiveValueProviderFactory implements IPrimitiveValueProviderFac
                     default:
                         return doubleProvider.getValue(bytes, offset + 1);
 
-//                                   throw new NotImplementedException("Value provider for type " + tag + " is not implemented");
+                    //                                   throw new NotImplementedException("Value provider for type " + tag + " is not implemented");
                 }
             }
         };
+    }
+
+    @Override
+    public JsonNode toJson(IPersistedResourceRegistry registry) throws HyracksDataException {
+        return registry.getClassIdentifier(getClass(), serialVersionUID);
+    }
+
+    @SuppressWarnings("squid:S1172") // unused parameter
+    public static IJsonSerializable fromJson(IPersistedResourceRegistry registry, JsonNode json) {
+        return INSTANCE;
     }
 }

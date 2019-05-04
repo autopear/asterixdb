@@ -51,8 +51,8 @@ public class LSMRTreeMergeOperation extends MergeOperation {
     }
 
     public LSMRTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, List<FileReference> targets,
-            List<FileReference> btreeMergeTargets,  List<FileReference> bloomFilterMergeTargets, ILSMIOOperationCallback callback,
-            String indexIdentifier) {
+            List<FileReference> btreeMergeTargets, List<FileReference> bloomFilterMergeTargets,
+            ILSMIOOperationCallback callback, String indexIdentifier) {
         super(accessor, targets, callback, indexIdentifier, cursor);
         this.btreeMergeTargets = btreeMergeTargets;
         this.bloomFilterMergeTargets = bloomFilterMergeTargets;
@@ -62,7 +62,6 @@ public class LSMRTreeMergeOperation extends MergeOperation {
         //this.newMBR = newMBR;
     }
 
-
     public FileReference getBTreeTarget() {
         return btreeMergeTarget;
     }
@@ -70,7 +69,6 @@ public class LSMRTreeMergeOperation extends MergeOperation {
     public FileReference getBloomFilterTarget() {
         return bloomFilterMergeTarget;
     }
-
 
     public List<FileReference> getBTreeTargets() {
         return btreeMergeTargets;
@@ -80,16 +78,15 @@ public class LSMRTreeMergeOperation extends MergeOperation {
         return bloomFilterMergeTargets;
     }
 
-
     @Override
     public LSMComponentFileReferences getComponentFiles() {
         return new LSMComponentFileReferences(btreeMergeTarget, null, bloomFilterMergeTarget);
     }
 
-    @Override public List<LSMComponentFileReferences> getLeveledMergeComponentFiles() {
+    @Override
+    public List<LSMComponentFileReferences> getLeveledMergeComponentFiles() {
         List<LSMComponentFileReferences> refs = new ArrayList<>();
-        for (int i=0;i <btreeMergeTargets.size();i++)
-        {
+        for (int i = 0; i < btreeMergeTargets.size(); i++) {
             refs.add(new LSMComponentFileReferences(btreeMergeTargets.get(i), null, bloomFilterMergeTargets.get(i)));
         }
         return refs;

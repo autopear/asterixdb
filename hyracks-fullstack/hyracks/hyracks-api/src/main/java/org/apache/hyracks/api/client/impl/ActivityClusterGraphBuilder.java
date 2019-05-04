@@ -50,7 +50,7 @@ public class ActivityClusterGraphBuilder {
                     for (IConnectorDescriptor conn : inputList) {
                         ActivityId inTask = jag.getProducerActivity(conn.getConnectorId());
                         if (!eqSet.contains(inTask)) {
-                            return Pair.<ActivityId, ActivityId> of(t, inTask);
+                            return Pair.of(t, inTask);
                         }
                     }
                 }
@@ -59,7 +59,7 @@ public class ActivityClusterGraphBuilder {
                     for (IConnectorDescriptor conn : outputList) {
                         ActivityId outTask = jag.getConsumerActivity(conn.getConnectorId());
                         if (!eqSet.contains(outTask)) {
-                            return Pair.<ActivityId, ActivityId> of(t, outTask);
+                            return Pair.of(t, outTask);
                         }
                     }
                 }
@@ -146,8 +146,8 @@ public class ActivityClusterGraphBuilder {
         }
         acg.addActivityClusters(acList);
 
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(acg.toJSON().asText());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace(acg.toJSON().asText());
         }
         return acg;
     }

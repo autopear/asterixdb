@@ -41,13 +41,12 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.ConstantExpression
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.functions.AlgebricksBuiltinFunctions;
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.SelectOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.VariableUtilities;
 import org.apache.hyracks.algebricks.core.algebra.visitors.ILogicalExpressionReferenceTransform;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
+import org.apache.hyracks.api.exceptions.SourceLocation;
 
 /**
  * Factors out common sub-expressions by assigning them to a variables, and replacing the common sub-expressions with references to those variables.
@@ -74,15 +73,6 @@ import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
  * distinct ([$$5])
  * assign [$$5] <- [field-access($$0, 1)]
  * unnest $$0 <- [scan-dataset]
- * Example 3 - Pulling Common Expressions Above Joins (simplified)
- * Before plan:
- * assign [$$9] <- funcZ(funcY($$8))
- * join (funcX(funcY($$8)))
- * After plan:
- * assign [$$9] <- funcZ($$10))
- * select (funcX($$10))
- * assign [$$10] <- [funcY($$8)]
- * join (TRUE)
  */
 public class ExtractCommonExpressionsRule implements IAlgebraicRewriteRule {
 
@@ -255,7 +245,10 @@ public class ExtractCommonExpressionsRule implements IAlgebraicRewriteRule {
                         // Also just replace the expr if we are replacing common exprs from within the same operator.
                         if (liveVars.contains(exprEqClass.getVariable()) || !liveVars.containsAll(usedVars)
                                 || op == exprEqClass.getFirstOperator()) {
-                            exprRef.setValue(new VariableReferenceExpression(exprEqClass.getVariable()));
+                            VariableReferenceExpression varRef =
+                                    new VariableReferenceExpression(exprEqClass.getVariable());
+                            varRef.setSourceLocation(expr.getSourceLocation());
+                            exprRef.setValue(varRef);
                             // Do not descend into children since this expr has been completely replaced.
                             return true;
                         }
@@ -267,7 +260,10 @@ public class ExtractCommonExpressionsRule implements IAlgebraicRewriteRule {
                         VariableUtilities.getLiveVariables(op, liveVars);
                         //rewrite only when the variable is live
                         if (liveVars.contains(exprEqClass.getVariable())) {
-                            exprRef.setValue(new VariableReferenceExpression(exprEqClass.getVariable()));
+                            VariableReferenceExpression varRef =
+                                    new VariableReferenceExpression(exprEqClass.getVariable());
+                            varRef.setSourceLocation(expr.getSourceLocation());
+                            exprRef.setValue(varRef);
                             // Do not descend into children since this expr has been completely replaced.
                             return true;
                         }
@@ -295,41 +291,27 @@ public class ExtractCommonExpressionsRule implements IAlgebraicRewriteRule {
 
         private boolean assignCommonExpression(ExprEquivalenceClass exprEqClass, ILogicalExpression expr)
                 throws AlgebricksException {
+            SourceLocation sourceLoc = expr.getSourceLocation();
             AbstractLogicalOperator firstOp = (AbstractLogicalOperator) exprEqClass.getFirstOperator();
             Mutable<ILogicalExpression> firstExprRef = exprEqClass.getFirstExpression();
-            if (firstOp.getOperatorTag() == LogicalOperatorTag.INNERJOIN
-                    || firstOp.getOperatorTag() == LogicalOperatorTag.LEFTOUTERJOIN) {
-                // Do not extract common expressions from within the same join operator.
-                if (firstOp == op) {
-                    return false;
-                }
-                AbstractBinaryJoinOperator joinOp = (AbstractBinaryJoinOperator) firstOp;
-                Mutable<ILogicalExpression> joinCond = joinOp.getCondition();
-                ILogicalExpression enclosingExpr = getEnclosingExpression(joinCond, firstExprRef.getValue());
-                if (enclosingExpr == null) {
-                    // No viable enclosing expression that we can pull out from the join.
-                    return false;
-                }
-                // Place a Select operator beneath op that contains the enclosing expression.
-                SelectOperator selectOp =
-                        new SelectOperator(new MutableObject<ILogicalExpression>(enclosingExpr), false, null);
-                selectOp.getInputs().add(new MutableObject<ILogicalOperator>(op.getInputs().get(0).getValue()));
-                op.getInputs().get(0).setValue(selectOp);
-                // Set firstOp to be the select below op, since we want to assign the common subexpr there.
-                firstOp = selectOp;
-            } else if (firstOp.getInputs().size() > 1) {
+            // We don't consider to eliminate common exprs in join operators by doing a cartesian production
+            // and pulling the condition in to a select. This will negatively impact the performance.
+            if (firstOp.getInputs().size() > 1) {
                 // Bail for any non-join operator with multiple inputs.
                 return false;
             }
             LogicalVariable newVar = context.newVar();
             AssignOperator newAssign = new AssignOperator(newVar,
                     new MutableObject<ILogicalExpression>(firstExprRef.getValue().cloneExpression()));
+            newAssign.setSourceLocation(sourceLoc);
             // Place assign below firstOp.
             newAssign.getInputs().add(new MutableObject<ILogicalOperator>(firstOp.getInputs().get(0).getValue()));
             newAssign.setExecutionMode(firstOp.getExecutionMode());
             firstOp.getInputs().get(0).setValue(newAssign);
             // Replace original expr with variable reference, and set var in expression equivalence class.
-            firstExprRef.setValue(new VariableReferenceExpression(newVar));
+            VariableReferenceExpression newVarRef = new VariableReferenceExpression(newVar);
+            newVarRef.setSourceLocation(sourceLoc);
+            firstExprRef.setValue(newVarRef);
             exprEqClass.setVariable(newVar);
             context.computeAndSetTypeEnvironmentForOperator(newAssign);
             context.computeAndSetTypeEnvironmentForOperator(firstOp);

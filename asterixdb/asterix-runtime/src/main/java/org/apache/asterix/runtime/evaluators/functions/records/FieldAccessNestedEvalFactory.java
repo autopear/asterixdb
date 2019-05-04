@@ -27,7 +27,6 @@ import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.om.base.AMissing;
 import org.apache.asterix.om.base.ANull;
 import org.apache.asterix.om.base.AString;
-import org.apache.asterix.om.functions.BuiltinFunctions;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.AUnionType;
@@ -38,12 +37,12 @@ import org.apache.asterix.om.types.runtime.RuntimeRecordTypeInfo;
 import org.apache.asterix.om.utils.NonTaggedFormatUtil;
 import org.apache.asterix.om.utils.RecordUtil;
 import org.apache.asterix.runtime.exceptions.TypeMismatchException;
-import org.apache.asterix.runtime.exceptions.UnsupportedTypeException;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
@@ -54,16 +53,17 @@ public class FieldAccessNestedEvalFactory implements IScalarEvaluatorFactory {
 
     private static final long serialVersionUID = 1L;
 
-    private IScalarEvaluatorFactory recordEvalFactory;
-    private ARecordType recordType;
-    private List<String> fieldPath;
+    private final IScalarEvaluatorFactory recordEvalFactory;
+    private final ARecordType recordType;
+    private final List<String> fieldPath;
+    private final SourceLocation sourceLoc;
 
     public FieldAccessNestedEvalFactory(IScalarEvaluatorFactory recordEvalFactory, ARecordType recordType,
-            List<String> fldName) {
+            List<String> fldName, SourceLocation sourceLoc) {
         this.recordEvalFactory = recordEvalFactory;
         this.recordType = recordType;
         this.fieldPath = fldName;
-
+        this.sourceLoc = sourceLoc;
     }
 
     @Override
@@ -116,7 +116,7 @@ public class FieldAccessNestedEvalFactory implements IScalarEvaluatorFactory {
                     int len = inputArg0.getLength();
 
                     if (serRecord[start] != ATypeTag.SERIALIZED_RECORD_TYPE_TAG) {
-                        throw new TypeMismatchException(BuiltinFunctions.FIELD_ACCESS_NESTED, 0, serRecord[start],
+                        throw new TypeMismatchException(sourceLoc, serRecord[start],
                                 ATypeTag.SERIALIZED_RECORD_TYPE_TAG);
                     }
 
@@ -139,8 +139,8 @@ public class FieldAccessNestedEvalFactory implements IScalarEvaluatorFactory {
                             subType = ((AUnionType) subType).getActualType();
                             byte serializedTypeTag = subType.getTypeTag().serialize();
                             if (serializedTypeTag != ATypeTag.SERIALIZED_RECORD_TYPE_TAG) {
-                                throw new UnsupportedTypeException(BuiltinFunctions.FIELD_ACCESS_NESTED.getName(),
-                                        serializedTypeTag);
+                                throw new TypeMismatchException(sourceLoc, serializedTypeTag,
+                                        ATypeTag.SERIALIZED_RECORD_TYPE_TAG);
                             }
                             if (subType.getTypeTag() == ATypeTag.OBJECT) {
                                 recTypeInfos[pathIndex].reset((ARecordType) subType);
@@ -195,7 +195,8 @@ public class FieldAccessNestedEvalFactory implements IScalarEvaluatorFactory {
                         // type check
                         if (pathIndex < fieldPointables.length - 1
                                 && serRecord[start] != ATypeTag.SERIALIZED_RECORD_TYPE_TAG) {
-                            throw new UnsupportedTypeException(BuiltinFunctions.FIELD_ACCESS_NESTED, serRecord[start]);
+                            throw new TypeMismatchException(sourceLoc, serRecord[start],
+                                    ATypeTag.SERIALIZED_RECORD_TYPE_TAG);
                         }
                     }
 
@@ -229,8 +230,8 @@ public class FieldAccessNestedEvalFactory implements IScalarEvaluatorFactory {
                             return;
                         }
                         if (serRecord[start] != ATypeTag.SERIALIZED_RECORD_TYPE_TAG) {
-                            throw new UnsupportedTypeException(BuiltinFunctions.FIELD_ACCESS_NESTED.getName(),
-                                    serRecord[start]);
+                            throw new TypeMismatchException(sourceLoc, serRecord[start],
+                                    ATypeTag.SERIALIZED_RECORD_TYPE_TAG);
                         }
                     }
                     // emit the final result.

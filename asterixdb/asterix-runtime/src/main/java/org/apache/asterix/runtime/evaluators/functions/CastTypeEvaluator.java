@@ -33,24 +33,31 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-class CastTypeEvaluator implements IScalarEvaluator {
+public class CastTypeEvaluator implements IScalarEvaluator {
 
-    private final IScalarEvaluator argEvaluator;
+    private IScalarEvaluator argEvaluator;
     private final IPointable argPointable = new VoidPointable();
-
     private final PointableAllocator allocator = new PointableAllocator();
-    private final IVisitablePointable inputPointable;
-    private final IVisitablePointable resultPointable;
+    private IVisitablePointable inputPointable;
+    private IVisitablePointable resultPointable;
+    private final ACastVisitor castVisitor = createCastVisitor();
+    private final Triple<IVisitablePointable, IAType, Boolean> arg = new Triple<>(null, null, null);
 
-    private final ACastVisitor castVisitor;
-    private final Triple<IVisitablePointable, IAType, Boolean> arg;
+    public CastTypeEvaluator() {
+        // reset() should be called after using this constructor before calling any method
+    }
 
     public CastTypeEvaluator(IAType reqType, IAType inputType, IScalarEvaluator argEvaluator) {
+        reset(reqType, inputType, argEvaluator);
+    }
+
+    public void reset(IAType reqType, IAType inputType, IScalarEvaluator argEvaluator) {
         this.argEvaluator = argEvaluator;
         this.inputPointable = allocatePointable(inputType, reqType);
         this.resultPointable = allocatePointable(reqType, inputType);
-        this.arg = new Triple<>(resultPointable, reqType, Boolean.FALSE);
-        this.castVisitor = createCastVisitor();
+        this.arg.first = resultPointable;
+        this.arg.second = reqType;
+        this.arg.third = Boolean.FALSE;
     }
 
     protected ACastVisitor createCastVisitor() {
@@ -70,7 +77,7 @@ class CastTypeEvaluator implements IScalarEvaluator {
     }
 
     // Allocates the result pointable.
-    private final IVisitablePointable allocatePointable(IAType typeForPointable, IAType typeForOtherSide) {
+    private IVisitablePointable allocatePointable(IAType typeForPointable, IAType typeForOtherSide) {
         if (!typeForPointable.equals(BuiltinType.ANY)) {
             return allocator.allocateFieldValue(typeForPointable);
         }

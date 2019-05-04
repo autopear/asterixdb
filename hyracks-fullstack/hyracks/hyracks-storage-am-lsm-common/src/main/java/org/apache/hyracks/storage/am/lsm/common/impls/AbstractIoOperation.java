@@ -18,11 +18,19 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.io.IODeviceHandle;
+import org.apache.hyracks.api.util.ExceptionUtils;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
+import org.apache.hyracks.storage.am.lsm.common.api.IoOperationCompleteListener;
+import org.apache.hyracks.storage.common.buffercache.ICachedPage;
 
 import java.util.List;
 
@@ -33,6 +41,12 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
     protected final ILSMIOOperationCallback callback;
     protected final String indexIdentifier;
     protected final List<FileReference> leveledMergeTargets;
+    private volatile Throwable failure;
+    private LSMIOOperationStatus status = LSMIOOperationStatus.SUCCESS;
+    private ILSMDiskComponent newComponent;
+    private List<ILSMDiskComponent> newComponents;
+    private boolean completed = false;
+    private List<IoOperationCompleteListener> completeListeners;
 
     public AbstractIoOperation(ILSMIndexAccessor accessor, FileReference target, ILSMIOOperationCallback callback,
             String indexIdentifier) {
@@ -43,8 +57,8 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
         this.leveledMergeTargets = null;
     }
 
-    public AbstractIoOperation(ILSMIndexAccessor accessor, List<FileReference> leveledMergeTargets, ILSMIOOperationCallback callback,
-            String indexIdentifier) {
+    public AbstractIoOperation(ILSMIndexAccessor accessor, List<FileReference> leveledMergeTargets,
+            ILSMIOOperationCallback callback, String indexIdentifier) {
         this.accessor = accessor;
         this.target = null;
         this.callback = callback;
@@ -67,7 +81,8 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
         return target;
     }
 
-    @Override public List<FileReference> getLeveledMergeTargets() {
+    @Override
+    public List<FileReference> getLeveledMergeTargets() {
         return leveledMergeTargets;
     }
 
@@ -76,12 +91,104 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
         return accessor;
     }
 
-    @Override public List<LSMComponentFileReferences> getLeveledMergeComponentFiles() {
+    @Override
+    public List<LSMComponentFileReferences> getLeveledMergeComponentFiles() {
         return null;
     }
 
     @Override
     public String getIndexIdentifier() {
         return indexIdentifier;
+    }
+
+    @Override
+    public Throwable getFailure() {
+        return failure;
+    }
+
+    @Override
+    public void setFailure(Throwable failure) {
+        status = LSMIOOperationStatus.FAILURE;
+        this.failure = ExceptionUtils.suppress(this.failure, failure);
+    }
+
+    @Override
+    public LSMIOOperationStatus getStatus() {
+        return status;
+    }
+
+    @Override
+    public void setStatus(LSMIOOperationStatus status) {
+        this.status = status;
+    }
+
+    @Override
+    public ILSMDiskComponent getNewComponent() {
+        return newComponent;
+    }
+
+    @Override
+    public void setNewComponent(ILSMDiskComponent component) {
+        this.newComponent = component;
+    }
+
+    @Override
+    public List<ILSMDiskComponent> getNewComponents() {
+        return newComponents;
+    }
+
+    @Override
+    public void setNewComponents(List<ILSMDiskComponent> components) {
+        this.newComponents = components;
+    }
+
+    @Override
+    public synchronized void complete() {
+        if (completed) {
+            throw new IllegalStateException("Multiple destroy calls");
+        }
+        callback.completed(this);
+        completed = true;
+        if (completeListeners != null) {
+            for (IoOperationCompleteListener listener : completeListeners) {
+                listener.completed(this);
+            }
+            completeListeners = null;
+        }
+        notifyAll();
+    }
+
+    @Override
+    public synchronized void sync() throws InterruptedException {
+        while (!completed) {
+            wait();
+        }
+    }
+
+    @Override
+    public Map<String, Object> getParameters() {
+        return accessor.getOpContext().getParameters();
+    }
+
+    @Override
+    public synchronized void addCompleteListener(IoOperationCompleteListener listener) {
+        if (completed) {
+            listener.completed(this);
+        } else {
+            if (completeListeners == null) {
+                completeListeners = new LinkedList<>();
+            }
+            completeListeners.add(listener);
+        }
+    }
+
+    @Override
+    public void writeFailed(ICachedPage page, Throwable failure) {
+        setFailure(failure);
+    }
+
+    @Override
+    public boolean hasFailed() {
+        return status == LSMIOOperationStatus.FAILURE;
     }
 }

@@ -44,10 +44,14 @@ public interface ICachedPage {
 
     void setDiskPageId(long dpid);
 
+    void setFailureCallback(IPageWriteFailureCallback callback);
+
     /**
      * Check if a page is a large page
      *
      * @return true if the page is large, false otherwise
      */
     boolean isLargePage();
+
+    void writeFailed(Exception e);
 }

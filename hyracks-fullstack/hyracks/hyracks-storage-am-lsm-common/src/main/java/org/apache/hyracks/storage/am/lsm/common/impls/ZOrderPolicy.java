@@ -21,7 +21,6 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentOrderPolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 
-
 import java.util.List;
 
 /**
@@ -32,37 +31,39 @@ public class ZOrderPolicy implements IComponentOrderPolicy {
     protected static final int Resolution = Integer.MAX_VALUE;
     private long currentCursorOnZorder;
 
-    public ZOrderPolicy()
-    {
+    public ZOrderPolicy() {
         currentCursorOnZorder = 0;
     }
+
     @Override
-    public int pickComponentToMerge(List<ILSMDiskComponent> immutableDiskComponents, List<ILSMDiskComponent> immutableDiskComponentsForNextLevel, Rectangle mbrOfThisLevel) throws Exception {
-        long minZvalueGreaterThanCurrentCursor= Long.MAX_VALUE;
-        long minZValue = Long.MAX_VALUE ;
-        int minZValueIndex = 0 ;
+    public int pickComponentToMerge(List<ILSMDiskComponent> immutableDiskComponents,
+            List<ILSMDiskComponent> immutableDiskComponentsForNextLevel, Rectangle mbrOfThisLevel) throws Exception {
+        long minZvalueGreaterThanCurrentCursor = Long.MAX_VALUE;
+        long minZValue = Long.MAX_VALUE;
+        int minZValueIndex = 0;
         int pickedComponentIndex = -1;
-        int i =0 ;
+        int i = 0;
         for (ILSMDiskComponent c : immutableDiskComponents) {
 
-//            List<Double> mbr = ((AbstractLSMDiskComponent) c).GetMBR();
-//            if (mbr == null || mbr.size() != 4)
-//                continue;
-//
-//            Rectangle rMbr;
-//            rMbr = new Rectangle(mbr.get(0), mbr.get(1), mbr.get(2), mbr.get(3));
+            //            List<Double> mbr = ((AbstractLSMDiskComponent) c).GetMBR();
+            //            if (mbr == null || mbr.size() != 4)
+            //                continue;
+            //
+            //            Rectangle rMbr;
+            //            rMbr = new Rectangle(mbr.get(0), mbr.get(1), mbr.get(2), mbr.get(3));
             Rectangle rMbr = ((AbstractLSMDiskComponent) c).getRangeOrMBR();
             if (rMbr == null || rMbr.isEmpty())
                 continue;
 
             Point centerPoint = rMbr.getCenterPoint();
             long zValueOfCenterPoint = computeZ(mbrOfThisLevel, centerPoint.x, centerPoint.y);
-            if(zValueOfCenterPoint > currentCursorOnZorder && minZvalueGreaterThanCurrentCursor > zValueOfCenterPoint) {
+            if (zValueOfCenterPoint > currentCursorOnZorder
+                    && minZvalueGreaterThanCurrentCursor > zValueOfCenterPoint) {
                 minZvalueGreaterThanCurrentCursor = zValueOfCenterPoint;
                 pickedComponentIndex = i;
 
             }
-            if(minZValue>zValueOfCenterPoint) {
+            if (minZValue > zValueOfCenterPoint) {
                 minZValue = zValueOfCenterPoint;
                 minZValueIndex = i;
             }
@@ -70,19 +71,15 @@ public class ZOrderPolicy implements IComponentOrderPolicy {
             i++;
         }
 
-        if(pickedComponentIndex >=0)
-        {
+        if (pickedComponentIndex >= 0) {
             currentCursorOnZorder = minZvalueGreaterThanCurrentCursor;
             return pickedComponentIndex;
-        }
-        else //No ZValue Found Greater than currentCursor, then rotate to the min Zvalue
+        } else //No ZValue Found Greater than currentCursor, then rotate to the min Zvalue
         {
             currentCursorOnZorder = minZValue;
             return minZValueIndex;
         }
     }
-
-
 
     public static long computeZ(Rectangle mbr, double x, double y) {
         int ix = (int) ((x - mbr.x1) * Resolution / mbr.getWidth());

@@ -19,15 +19,15 @@
 package org.apache.hyracks.algebricks.runtime.operators.std;
 
 import org.apache.hyracks.algebricks.runtime.base.IPushRuntime;
-import org.apache.hyracks.algebricks.runtime.base.IPushRuntimeFactory;
 import org.apache.hyracks.algebricks.runtime.operators.base.AbstractOneInputSourcePushRuntime;
+import org.apache.hyracks.algebricks.runtime.operators.base.AbstractPushRuntimeFactory;
 import org.apache.hyracks.api.comm.VSizeFrame;
 import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 
-public class EmptyTupleSourceRuntimeFactory implements IPushRuntimeFactory {
+public class EmptyTupleSourceRuntimeFactory extends AbstractPushRuntimeFactory {
 
     private static final long serialVersionUID = 1L;
 
@@ -48,7 +48,7 @@ public class EmptyTupleSourceRuntimeFactory implements IPushRuntimeFactory {
 
             @Override
             public void open() throws HyracksDataException {
-                writer.open();
+                super.open();
                 if (!appender.append(tb.getFieldEndOffsets(), tb.getByteArray(), 0, tb.getSize())) {
                     throw new IllegalStateException();
                 }
@@ -56,13 +56,10 @@ public class EmptyTupleSourceRuntimeFactory implements IPushRuntimeFactory {
             }
 
             @Override
-            public void fail() throws HyracksDataException {
-                writer.fail();
-            }
-
-            @Override
             public void close() throws HyracksDataException {
-                writer.close();
+                if (isOpen) {
+                    writer.close();
+                }
             }
 
             @Override

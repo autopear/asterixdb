@@ -21,31 +21,32 @@ package org.apache.hyracks.net.protocols.muxdemux;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.hyracks.api.comm.IBufferFactory;
 import org.apache.hyracks.api.comm.IChannelControlBlock;
 import org.apache.hyracks.api.exceptions.NetException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class FullFrameChannelReadInterface extends AbstractChannelReadInterface {
 
-    private final Deque<ByteBuffer> riEmptyStack;
+    private static final Logger LOGGER = LogManager.getLogger();
+    private final BlockingDeque<ByteBuffer> riEmptyStack;
     private final IChannelControlBlock ccb;
 
     FullFrameChannelReadInterface(IChannelControlBlock ccb) {
         this.ccb = ccb;
-        riEmptyStack = new ArrayDeque<>();
+        riEmptyStack = new LinkedBlockingDeque<>();
         credits = 0;
 
         emptyBufferAcceptor = buffer -> {
-            int delta = buffer.remaining();
-            synchronized (ccb) {
-                if (ccb.isRemotelyClosed()) {
-                    return;
-                }
-                riEmptyStack.push(buffer);
+            if (ccb.isRemotelyClosed()) {
+                return;
             }
+            riEmptyStack.push(buffer);
+            final int delta = buffer.remaining();
             ccb.addPendingCredits(delta);
         };
     }
@@ -63,6 +64,12 @@ public class FullFrameChannelReadInterface extends AbstractChannelReadInterface 
                 if (currentReadBuffer == null) {
                     currentReadBuffer = bufferFactory.createBuffer();
                 }
+            }
+            if (currentReadBuffer == null) {
+                if (LOGGER.isWarnEnabled()) {
+                    LOGGER.warn("{} read buffers exceeded. Current empty buffers: {}", ccb, riEmptyStack.size());
+                }
+                throw new IllegalStateException(ccb + " read buffers exceeded");
             }
             int rSize = Math.min(size, currentReadBuffer.remaining());
             if (rSize > 0) {

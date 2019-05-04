@@ -18,6 +18,9 @@
  */
 package org.apache.asterix.active;
 
+import org.apache.hyracks.util.CountRetryPolicy;
+import org.apache.hyracks.util.IRetryPolicy;
+
 public class CountRetryPolicyFactory implements IRetryPolicyFactory {
 
     private final int count;

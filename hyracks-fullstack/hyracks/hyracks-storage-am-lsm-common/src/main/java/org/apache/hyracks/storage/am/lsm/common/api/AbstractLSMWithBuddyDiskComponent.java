@@ -26,6 +26,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.IChainedComponentBulkLoade
 import org.apache.hyracks.storage.am.lsm.common.impls.IndexWithBuddyBulkLoader;
 import org.apache.hyracks.storage.am.lsm.common.util.ComponentUtils;
 import org.apache.hyracks.storage.common.IIndexBulkLoader;
+import org.apache.hyracks.storage.common.buffercache.IPageWriteFailureCallback;
 
 import java.util.List;
 
@@ -35,20 +36,23 @@ public abstract class AbstractLSMWithBuddyDiskComponent extends AbstractLSMWithB
             ILSMComponentFilter filter) {
         super(lsmIndex, mdPageManager, filter);
     }
+
     public AbstractLSMWithBuddyDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
             ILSMComponentFilter filter, int level) {
         super(lsmIndex, mdPageManager, filter, level);
     }
-    @Override public List<Double> GetMBR() {
+
+    @Override
+    public List<Double> GetMBR() {
         return null;
     }
 
     public abstract AbstractTreeIndex getBuddyIndex();
 
     @Override
-    public void markAsValid(boolean persist) throws HyracksDataException {
-        super.markAsValid(persist);
-        ComponentUtils.markAsValid(getBuddyIndex(), persist);
+    public void markAsValid(boolean persist, IPageWriteFailureCallback callback) throws HyracksDataException {
+        super.markAsValid(persist, callback);
+        ComponentUtils.markAsValid(getBuddyIndex(), persist, callback);
     }
 
     @Override
@@ -58,13 +62,6 @@ public abstract class AbstractLSMWithBuddyDiskComponent extends AbstractLSMWithB
             getBuddyIndex().create();
         }
         getBuddyIndex().activate();
-    }
-
-    @Override
-    public void deactivateAndDestroy() throws HyracksDataException {
-        super.deactivateAndDestroy();
-        getBuddyIndex().deactivate();
-        getBuddyIndex().destroy();
     }
 
     @Override
@@ -80,9 +77,8 @@ public abstract class AbstractLSMWithBuddyDiskComponent extends AbstractLSMWithB
     }
 
     @Override
-    public void deactivateAndPurge() throws HyracksDataException {
-        super.deactivateAndPurge();
-        getBuddyIndex().deactivate();
+    protected void purge() throws HyracksDataException {
+        super.purge();
         getBuddyIndex().purge();
     }
 

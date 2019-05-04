@@ -38,16 +38,17 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.Var
 import org.apache.hyracks.algebricks.core.algebra.operators.physical.StreamLimitPOperator;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorPropertiesUtil;
 import org.apache.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
+import org.apache.hyracks.api.exceptions.SourceLocation;
 
 public class CopyLimitDownRule implements IAlgebraicRewriteRule {
 
     @Override
-    public boolean rewritePost(Mutable<ILogicalOperator> opRef, IOptimizationContext context) {
+    public boolean rewritePre(Mutable<ILogicalOperator> opRef, IOptimizationContext context) {
         return false;
     }
 
     @Override
-    public boolean rewritePre(Mutable<ILogicalOperator> opRef, IOptimizationContext context)
+    public boolean rewritePost(Mutable<ILogicalOperator> opRef, IOptimizationContext context)
             throws AlgebricksException {
         AbstractLogicalOperator op = (AbstractLogicalOperator) opRef.getValue();
         if (op.getOperatorTag() != LogicalOperatorTag.LIMIT) {
@@ -66,13 +67,17 @@ public class CopyLimitDownRule implements IAlgebraicRewriteRule {
 
         List<LogicalVariable> candidateProducedVars = new ArrayList<>();
         while (true) {
-            candidateProducedVars.clear();
             ILogicalOperator candidateOp = candidateOpRef.getValue();
             LogicalOperatorTag candidateOpTag = candidateOp.getOperatorTag();
             if (candidateOp.getInputs().size() > 1 || !candidateOp.isMap()
                     || candidateOpTag == LogicalOperatorTag.SELECT || candidateOpTag == LogicalOperatorTag.LIMIT
-                    || candidateOpTag == LogicalOperatorTag.UNNEST_MAP
-                    || !OperatorPropertiesUtil.disjoint(limitUsedVars, candidateProducedVars)) {
+                    || candidateOpTag == LogicalOperatorTag.UNNEST_MAP) {
+                break;
+            }
+
+            candidateProducedVars.clear();
+            VariableUtilities.getProducedVariables(candidateOp, candidateProducedVars);
+            if (!OperatorPropertiesUtil.disjoint(limitUsedVars, candidateProducedVars)) {
                 break;
             }
 
@@ -84,9 +89,11 @@ public class CopyLimitDownRule implements IAlgebraicRewriteRule {
             ILogicalOperator safeOp = safeOpRef.getValue();
             Mutable<ILogicalOperator> unsafeOpRef = safeOp.getInputs().get(0);
             ILogicalOperator unsafeOp = unsafeOpRef.getValue();
+            SourceLocation sourceLoc = limitOp.getSourceLocation();
             LimitOperator limitCloneOp = null;
             if (limitOp.getOffset().getValue() == null) {
                 limitCloneOp = new LimitOperator(limitOp.getMaxObjects().getValue(), false);
+                limitCloneOp.setSourceLocation(sourceLoc);
             } else {
                 // Need to add an offset to the given limit value
                 // since the original topmost limit will use the offset value.
@@ -98,7 +105,9 @@ public class CopyLimitDownRule implements IAlgebraicRewriteRule {
                         new MutableObject<ILogicalExpression>(limitOp.getMaxObjects().getValue().cloneExpression()));
                 addArgs.add(new MutableObject<ILogicalExpression>(limitOp.getOffset().getValue().cloneExpression()));
                 ScalarFunctionCallExpression maxPlusOffset = new ScalarFunctionCallExpression(finfoAdd, addArgs);
+                maxPlusOffset.setSourceLocation(sourceLoc);
                 limitCloneOp = new LimitOperator(maxPlusOffset, false);
+                limitCloneOp.setSourceLocation(sourceLoc);
             }
             limitCloneOp.setPhysicalOperator(new StreamLimitPOperator());
             limitCloneOp.getInputs().add(new MutableObject<ILogicalOperator>(unsafeOp));

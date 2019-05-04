@@ -18,6 +18,8 @@
  */
 package org.apache.asterix.active;
 
+import org.apache.hyracks.util.IRetryPolicy;
+
 public class InfiniteRetryPolicy implements IRetryPolicy {
 
     private final IActiveEntityEventsListener listener;
@@ -27,7 +29,7 @@ public class InfiniteRetryPolicy implements IRetryPolicy {
     }
 
     @Override
-    public boolean retry() {
+    public boolean retry(Throwable failure) {
         synchronized (listener) {
             try {
                 listener.wait(5000); //NOSONAR this method is being called in a while loop

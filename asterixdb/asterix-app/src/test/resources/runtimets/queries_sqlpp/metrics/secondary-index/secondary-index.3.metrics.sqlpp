@@ -24,5 +24,7 @@
 
 use test;
 
+set noindexonly 'true';
+
 select count(*) from Customers
 where name = "Marvella Loud";

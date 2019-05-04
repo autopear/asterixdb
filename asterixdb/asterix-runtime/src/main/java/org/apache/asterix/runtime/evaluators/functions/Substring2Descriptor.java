@@ -86,31 +86,30 @@ public class Substring2Descriptor extends AbstractStringOffsetConfigurableDescri
 
                         byte[] bytes = argStart.getByteArray();
                         int offset = argStart.getStartOffset();
-                        int start = ATypeHierarchy.getIntegerValue(getIdentifier().getName(), 1, bytes, offset)
-                                - baseOffset;
+                        int start = ATypeHierarchy.getIntegerValue(getIdentifier().getName(), 1, bytes, offset);
                         bytes = argString.getByteArray();
                         offset = argString.getStartOffset();
                         int len = argString.getLength();
                         if (bytes[offset] != ATypeTag.SERIALIZED_STRING_TYPE_TAG) {
-                            throw new TypeMismatchException(getIdentifier(), 0, bytes[offset],
+                            throw new TypeMismatchException(sourceLoc, getIdentifier(), 0, bytes[offset],
                                     ATypeTag.SERIALIZED_STRING_TYPE_TAG);
                         }
                         string.set(bytes, offset + 1, len - 1);
                         array.reset();
                         try {
-                            UTF8StringPointable.substr(string, start, Integer.MAX_VALUE, builder, array);
-                        } catch (StringIndexOutOfBoundsException e) {
-                            throw new RuntimeDataException(ErrorCode.OUT_OF_BOUND, getIdentifier(), 1, start);
+                            int actualStart = start >= 0 ? start - baseOffset : string.getStringLength() + start;
+                            boolean success =
+                                    UTF8StringPointable.substr(string, actualStart, Integer.MAX_VALUE, builder, array);
+                            if (success) {
+                                out.writeByte(ATypeTag.SERIALIZED_STRING_TYPE_TAG);
+                                out.write(array.getByteArray(), 0, array.getLength());
+                                result.set(resultStorage);
+                            } else {
+                                PointableHelper.setNull(result);
+                            }
                         } catch (IOException e) {
                             throw HyracksDataException.create(e);
                         }
-                        try {
-                            out.writeByte(ATypeTag.SERIALIZED_STRING_TYPE_TAG);
-                            out.write(array.getByteArray(), 0, array.getLength());
-                        } catch (IOException e) {
-                            throw HyracksDataException.create(e);
-                        }
-                        result.set(resultStorage);
                     }
                 };
             }

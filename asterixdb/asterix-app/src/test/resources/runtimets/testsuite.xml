@@ -2508,7 +2508,7 @@
     <test-case FilePath="fuzzyjoin">
       <compilation-unit name="dblp-aqlplus_2">
         <output-dir compare="Text">dblp-aqlplus_2</output-dir>
-        <expected-error>Type mismatch: function similarity-jaccard expects its 1st input parameter to be type array or multiset, but the actual input type is string</expected-error>
+        <expected-error>Type mismatch: function similarity-jaccard expects its 1st input parameter to be of type array or multiset, but the actual input type is string</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="fuzzyjoin">
@@ -6575,7 +6575,7 @@
     <test-case FilePath="load">
       <compilation-unit name="issue650_query">
         <output-dir compare="Text">none</output-dir>
-        <expected-error>Unable to load dataset Users since it does not exist</expected-error>
+        <expected-error>Cannot find dataset with name Users in dataverse fuzzyjoin</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="load">

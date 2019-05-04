@@ -34,7 +34,9 @@ public class LSMRTreeWithAntimatterDiskComponent extends AbstractLSMDiskComponen
         super(lsmIndex, LSMRTreeDiskComponent.getMetadataPageManager(rtree), filter);
         this.rtree = rtree;
     }
-    public LSMRTreeWithAntimatterDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, ILSMComponentFilter filter, int level) {
+
+    public LSMRTreeWithAntimatterDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, ILSMComponentFilter filter,
+            int level) {
         super(lsmIndex, LSMRTreeDiskComponent.getMetadataPageManager(rtree), filter, level);
         this.rtree = rtree;
     }
@@ -69,7 +71,8 @@ public class LSMRTreeWithAntimatterDiskComponent extends AbstractLSMDiskComponen
         return getClass().getSimpleName() + ":" + rtree.getFileReference().getRelativePath();
     }
 
-    @Override public List<Double> GetMBR(){
+    @Override
+    public List<Double> GetMBR() {
         try {
             return this.rtree.getRootMBR();
         } catch (Exception e) {

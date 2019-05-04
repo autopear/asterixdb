@@ -99,13 +99,24 @@ public interface IHyracksClientConnection extends IClusterInfoCollector {
     DeployedJobSpecId deployJobSpec(JobSpecification jobSpec) throws Exception;
 
     /**
+     * Update the JobSpec for a deployed job.
+     *
+     * @param deployedJobSpecId
+     *            The id of the deployed job spec
+     * @param jobSpec
+     *            Job Specification
+     * @throws Exception
+     */
+    void redeployJobSpec(DeployedJobSpecId deployedJobSpecId, JobSpecification jobSpec) throws Exception;
+
+    /**
      * Remove the deployed Job Spec
      *
      * @param deployedJobSpecId
      *            The id of the deployed job spec
      * @throws Exception
      */
-    DeployedJobSpecId undeployJobSpec(DeployedJobSpecId deployedJobSpecId) throws Exception;
+    void undeployJobSpec(DeployedJobSpecId deployedJobSpecId) throws Exception;
 
     /**
      * Used to run a deployed Job Spec by id
@@ -130,12 +141,12 @@ public interface IHyracksClientConnection extends IClusterInfoCollector {
     JobId startJob(IActivityClusterGraphGeneratorFactory acggf, EnumSet<JobFlag> jobFlags) throws Exception;
 
     /**
-     * Gets the IP Address and port for the DatasetDirectoryService wrapped in NetworkAddress
+     * Gets the IP Address and port for the ResultDirectoryService wrapped in NetworkAddress
      *
      * @return {@link NetworkAddress}
      * @throws Exception
      */
-    NetworkAddress getDatasetDirectoryServiceInfo() throws Exception;
+    NetworkAddress getResultDirectoryAddress() throws Exception;
 
     /**
      * Waits until the specified job has completed, either successfully or has

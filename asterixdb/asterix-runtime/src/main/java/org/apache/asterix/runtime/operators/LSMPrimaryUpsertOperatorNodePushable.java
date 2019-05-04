@@ -30,6 +30,7 @@ import org.apache.asterix.common.dataflow.LSMIndexUtil;
 import org.apache.asterix.common.exceptions.ACIDException;
 import org.apache.asterix.common.transactions.ILogMarkerCallback;
 import org.apache.asterix.common.transactions.PrimaryIndexLogMarkerCallback;
+import org.apache.asterix.om.base.ABoolean;
 import org.apache.asterix.om.pointables.nonvisitor.ARecordPointable;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
@@ -158,11 +159,13 @@ public class LSMPrimaryUpsertOperatorNodePushable extends LSMIndexInsertUpdateDe
                             if (cursor.hasNext()) {
                                 cursor.next();
                                 prevTuple = cursor.getTuple();
+                                appendUpsertIndicator(!isDelete);
                                 appendFilterToPrevTuple();
                                 appendPrevRecord();
                                 appendPreviousMeta();
                                 appendFilterToOutput();
                             } else {
+                                appendUpsertIndicator(!isDelete);
                                 appendPreviousTupleAsMissing();
                             }
                         } finally {
@@ -170,6 +173,7 @@ public class LSMPrimaryUpsertOperatorNodePushable extends LSMIndexInsertUpdateDe
                         }
                     } else {
                         searchCallback.before(key); // lock
+                        appendUpsertIndicator(!isDelete);
                         appendPreviousTupleAsMissing();
                     }
                     if (isDelete && prevTuple != null) {
@@ -256,13 +260,18 @@ public class LSMPrimaryUpsertOperatorNodePushable extends LSMIndexInsertUpdateDe
 
                 @Override
                 public void frameCompleted() throws HyracksDataException {
-                    callback.frameCompleted();
                     appender.write(writer, true);
+                    callback.frameCompleted();
                 }
 
                 @Override
                 public void close() throws IOException {
                     callback.close();
+                }
+
+                @Override
+                public void fail(Throwable th) {
+                    callback.fail(th);
                 }
             };
         } catch (Throwable e) { // NOSONAR: Re-thrown
@@ -305,7 +314,12 @@ public class LSMPrimaryUpsertOperatorNodePushable extends LSMIndexInsertUpdateDe
     public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
         accessor.reset(buffer);
         int itemCount = accessor.getTupleCount();
-        lsmAccessor.batchOperate(accessor, tuple, processor, frameOpCallback);
+        try {
+            lsmAccessor.batchOperate(accessor, tuple, processor, frameOpCallback);
+        } catch (Throwable th) {// NOSONAR: Must notify of all failures
+            frameOpCallback.fail(th);
+            throw th;
+        }
         if (itemCount > 0) {
             lastRecordInTimeStamp = System.currentTimeMillis();
         }
@@ -318,6 +332,11 @@ public class LSMPrimaryUpsertOperatorNodePushable extends LSMIndexInsertUpdateDe
                     prevTuple.getFieldLength(filterFieldIndex));
             tb.addFieldEndOffset();
         }
+    }
+
+    private void appendUpsertIndicator(boolean isUpsert) throws IOException {
+        recordDesc.getFields()[0].serialize(isUpsert ? ABoolean.TRUE : ABoolean.FALSE, dos);
+        tb.addFieldEndOffset();
     }
 
     private void appendPrevRecord() throws IOException {

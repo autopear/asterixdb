@@ -21,7 +21,6 @@ package org.apache.asterix.app.active;
 import java.util.concurrent.Callable;
 
 import org.apache.asterix.active.ActivityState;
-import org.apache.asterix.active.IRetryPolicy;
 import org.apache.asterix.active.IRetryPolicyFactory;
 import org.apache.asterix.active.NoRetryPolicyFactory;
 import org.apache.asterix.common.api.IClusterManagementWork.ClusterState;
@@ -34,6 +33,7 @@ import org.apache.asterix.metadata.utils.DatasetUtil;
 import org.apache.asterix.metadata.utils.MetadataLockUtil;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.util.IRetryPolicy;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -92,7 +92,8 @@ public class RecoveryTask {
             if (retryPolicyFactory == NoRetryPolicyFactory.INSTANCE) {
                 synchronized (listener) {
                     if (!cancelRecovery) {
-                        listener.setState(ActivityState.PERMANENTLY_FAILED);
+                        listener.setState(ActivityState.STOPPED);
+                        listener.setRunning(metadataProvider, false);
                     }
                 }
             } else {
@@ -112,7 +113,7 @@ public class RecoveryTask {
             return null;
         }
         LOGGER.log(level, "calling the policy");
-        while (policy.retry()) {
+        while (policy.retry(failure)) {
             synchronized (listener) {
                 if (cancelRecovery) {
                     return null;
@@ -153,7 +154,12 @@ public class RecoveryTask {
         // Recovery task is essntially over now either through failure or through cancellation(stop)
         synchronized (listener) {
             listener.notifyAll();
-            if (listener.getState() != ActivityState.TEMPORARILY_FAILED) {
+            if (listener.getState() != ActivityState.TEMPORARILY_FAILED
+                    // Suspend can happen at the same time, the recovery policy decides to stop... in that case, we
+                    // must still do two things:
+                    // 1. set the state to permanent failure.
+                    // 2. set the entity to not running to avoid auto recovery attempt
+                    && listener.getState() != ActivityState.SUSPENDED) {
                 return null;
             }
         }
@@ -170,7 +176,9 @@ public class RecoveryTask {
                     return null;
                 }
                 if (listener.getState() == ActivityState.TEMPORARILY_FAILED) {
-                    listener.setState(ActivityState.PERMANENTLY_FAILED);
+                    LOGGER.warn("Recovery for {} permanently failed", listener.getEntityId());
+                    listener.setState(ActivityState.STOPPED);
+                    listener.setRunning(metadataProvider, false);
                 }
                 listener.notifyAll();
             }

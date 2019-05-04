@@ -32,14 +32,16 @@ import java.util.List;
  */
 public interface IComponentPartitionPolicy {
     List<List<ITupleReference>> mergeByPartition(HashMap<Point, ITupleReference> mergingTuples, int numberOfPartitions);
+
     List<List<ITupleReference>> mergeByPartition(ArrayList<PointWithTuple> mergingTuples, int numberOfPartitions);
 
     List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
             List<ILSMDiskComponent> immutableComponents);
 
-//    List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
-//            List<ILSMDiskComponent> immutableComponents, Rectangle newMBR);
+    //    List<ILSMDiskComponent> findOverlappingComponents(ILSMDiskComponent mergingComponent,
+    //            List<ILSMDiskComponent> immutableComponents, Rectangle newMBR);
 
-    Rectangle computeMBROfALevel(List<ILSMDiskComponent> immutableComponents );
+    Rectangle computeMBROfALevel(List<ILSMDiskComponent> immutableComponents);
+
     void adjustMBROfALevel(Rectangle mbr, Rectangle newMBR);
 }

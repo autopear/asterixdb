@@ -85,7 +85,8 @@ public class LSMBTreeWithBloomFilterDiskComponent extends AbstractLSMWithBloomFi
         return bloomFilter.getFileReference().getFile().length();
     }
 
-    @Override public List<Double> GetMBR() {
+    @Override
+    public List<Double> GetMBR() {
         return null;
     }
 }

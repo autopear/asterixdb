@@ -62,7 +62,8 @@ public class LSMBTreeDiskComponent extends AbstractLSMDiskComponent {
         return getFiles(btree);
     }
 
-    @Override public List<Double> GetMBR() {
+    @Override
+    public List<Double> GetMBR() {
         return null;
     }
 

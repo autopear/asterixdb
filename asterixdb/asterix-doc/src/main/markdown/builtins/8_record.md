@@ -287,3 +287,319 @@
 
         [ "id", "project", "address" ]
 
+### object_remove ###
+ * Syntax:
+
+        object_remove(input_object, field_name)
+
+ * Returns a new object that has the same fields as the input object except the field to be removed
+ * Arguments:
+    * `input_object` : an object value.
+    * `field_name` : a string field name.
+ * Return Value:
+    * A new object that has the same fields as `input_object` except the field `field_name`,
+    * `missing` if the argument `input_object` or `field_name` is missing,
+    * `null` if the argument `input_object` is `null` or any other non-object value, or the argument `field_name`
+       is `null` or any other non-string value.
+
+ * Example:
+
+        object_remove(
+                       {
+                         "id": 1,
+                         "project": "AsterixDB",
+                         "address": {"city": "Irvine", "state": "CA"}
+                       }
+                       , "address"
+                     );
+
+ * The expected result is:
+
+        {
+          "id": 1,
+          "project": "AsterixDB",
+        }
+
+### object_rename ###
+ * Syntax:
+
+        object_rename(input_object, old_field, new_field)
+
+ * Returns a new object that has the same fields as `input_object` with field `old_field` replaced by `new_field`
+ * Arguments:
+    * `input_object` : an object value.
+    * `old_field` : a string representing the old (original) field name inside the object `input_object`.
+    * `new_field` : a string representing the new field name to replace `old_field` inside the object `input_object`.
+ * Return Value:
+    * A new object that has the same fields as `input_object` with field `old_field` replaced by `new_field`,
+    * `missing` if any argument is a `missing` value,
+    * `null` if any argument is `null` or `input_object` is non-object value, or `old_field` is non-string value, or
+      `new_field` is any non-string value.
+
+ * Example:
+
+        object_rename(
+                       {
+                         "id": 1,
+                         "project": "AsterixDB",
+                         "address": {"city": "Irvine", "state": "CA"}
+                       }
+                       , "address"
+                       , "location"
+                     );
+
+ * The expected result is:
+
+        {
+          "id": 1,
+          "project": "AsterixDB",
+          "location": {"city": "Irvine", "state": "CA"}
+        }
+
+### object_wrap ###
+ * Syntax:
+
+        object_wrap(input_object)
+
+ * Returns the value of the single name-value pair that appears in `input_object`.
+ * Arguments:
+    * `input_object` : an object value that consists of exactly one name-value pair.
+ * Return Value:
+    * The value of the single name-value pair that appears in `input_object`,
+    * `missing` if `input_object` is `missing`,
+    * `null` if `input_object` is null, or an empty object, or there is more than one name-value pair in `input_object`,
+      or any non-object value.
+
+ * Example:
+
+        object_wrap(
+                     {
+                       "id": 1
+                     }
+                   );
+
+ * The expected result is:
+
+        {
+          1
+        }
+
+### object_replace ###
+ * Syntax:
+
+        object_replace(input_object, old_value, new_value)
+
+ * Returns a new object that has the same fields as `input_object` with all occurrences of value `old_value` replaced by
+   `new_value`
+ * Arguments:
+    * `input_object` : an object value.
+    * `old_value` : a primitive type value to be replaced by `new_value`.
+    * `new_value` : a value to replace `old_value`.
+ * Return Value:
+    * A new object that has the same fields as `input_object` with all occurrences of value `old_value` replaced by
+      `new_value`,
+    * `missing` if any argument is a `missing` value,
+    * `null` if `input_object`  or `old_value` is null,
+    * a type error will be raised if:
+        * `old_value` is not a primitive type value.
+
+ * Example:
+
+        object_replace(
+                       {
+                         "id": 1,
+                         "project": "AsterixDB",
+                         "address": {"city": "Irvine", "state": "CA"}
+                       }
+                       , "AsterixDB"
+                       , "Apache AsterixDB"
+                     );
+
+ * The expected result is:
+
+        {
+          "id": 1,
+          "project": "Apache AsterixDB",
+          "location": {"city": "Irvine", "state": "CA"}
+        }
+
+### object_add ###
+ * Syntax:
+
+        object_add(input_object, field_name, field_value)
+
+ * Returns a new object that has the same fields as `input_object` as well as the new field `field_name`.
+ * Arguments:
+    * `input_object` : an object value.
+    * `field_name` : a string representing a field name to be added.
+    * `field_value` : a value to be assigned to the new field `field_name`.
+ * Return Value:
+    * A new object that has the same fields as `input_object` as well as the new field `field_name`,
+    * `missing` if `input_object` or `field_name` is `missing`,
+    * `null` if `input_object` or `field_name` is `null`, or `input_object` is not an object, or `field_name` is not
+      a string,
+    * `input_object` if `field_name`already exists in `input_object` or `field_value` is missing.
+
+ * Example:
+
+        object_add(
+                       {
+                         "id": 1,
+                         "project": "AsterixDB",
+                         "address": {"city": "Irvine", "state": "CA"}
+                       }
+                       , "company"
+                       , "Apache"
+                     );
+
+ * The expected result is:
+
+        {
+          "id": 1,
+          "project": "AsterixDB",
+          "location": {"city": "Irvine", "state": "CA"},
+          "company": "Apache"
+        }
+
+### object_put ###
+ * Syntax:
+
+        object_put(input_object, field_name, field_value)
+
+ * Adds, modifies, or removes a field of an object.
+ * Arguments:
+    * `input_object` : an object value.
+    * `field_name` : a string representing a field name to be added.
+    * `field_value` : a value to be assigned to the new field `field_name`.
+ * Return Value:
+    * a new object that has the same fields as `input_object` as well as the new field `field_name`, or with updated
+      `field_name` value to `field_value` if `field_name` already exists in `input_object`, or with `field_name`removed
+      if `field_name` already exists in `input_object` and `field_value` is `missing`,
+    * `missing` if `input_object` or `field_name` is `missing`,
+    * `null` if `input_object` or `field_name` is `null`, or `input_object` is not an object, or `field_name` is not
+      not a string.
+
+ * Example:
+
+        object_put(
+                       {
+                         "id": 1,
+                         "project": "AsterixDB",
+                         "address": {"city": "Irvine", "state": "CA"}
+                       }
+                       , "project"
+                       , "Apache AsterixDB"
+                     );
+
+ * The expected result is:
+
+        {
+          "id": 1,
+          "project": "Apache AsterixDB",
+          "location": {"city": "Irvine", "state": "CA"}
+        }
+
+### object_values ###
+ * Syntax:
+
+        object_values(input_object)
+
+ * Returns an array of the values of the fields in `input_object`.
+ * Arguments:
+    * `input_object` : an object value.
+ * Return Value:
+    * An array of the values of the fields in `input_object`,
+    * `missing` if `input_object` is `missing`,
+    * `null` if `input_object` is null or any non-object value.
+
+ * Example:
+
+        object_values(
+                       {
+                         "id": 1,
+                         "project": "AsterixDB",
+                         "address": {"city": "Irvine", "state": "CA"}
+                       }
+                     );
+
+ * The expected result is:
+
+        [
+          1,
+          "AsterixDB",
+          {"city": "Irvine", "state": "CA"}
+        ]
+
+### object_pairs ###
+ * Syntax:
+
+        object_pairs(input_object)
+
+ * Returns an array of objects describing fields of `input_object`.
+   For each field of the `input_object` the returned array contains an object with two fields `name` and `value`
+   which are set to the `input_object`'s field name and value.
+
+ * Arguments:
+    * `input_object` : an object value.
+ * Return Value:
+    * An array of the `name`/`value` pairs of the fields in `input_object`,
+    * `missing` if `input_object` is `missing`,
+    * `null` if `input_object` is null or any non-object value.
+
+ * Example:
+
+        object_pairs(
+                      {
+                        "id": 1,
+                        "project": "AsterixDB",
+                        "address": {"city": "Irvine", "state": "CA"}
+                      }
+                    );
+
+ * The expected result is:
+
+        [
+          { "name": "id", "value": 1 },
+          { "name": "project", "value": "AsterixDB" },
+          { "name": "address", "value": {"city": "Irvine", "state": "CA"} }
+        ]
+
+### pairs ###
+ * Syntax:
+
+        pairs(input_object)
+
+ * Returns an array of arrays describing fields of `input_object`, including nested fields.
+   For each field of the `input_object` the returned array contains an array with two elements.
+   The first element is the name and the second one is the value of the `input_object`'s field.
+   The input object is introspected recursively, so all fields of its nested objects are returned.
+   Nested objects contained in arrays and multisets are also processed by this function.
+
+ * Arguments:
+    * `input_object` : an object value (or an array or a multiset)
+ * Return Value:
+    * An array of arrays with name, value pairs of the fields in `input_object`, including nested fields.
+      Each inner array has exactly two items: name and value of the `input_object`'s field.
+    * `missing` if `input_object` is `missing`,
+    * `null` if `input_object` is null or a value of a primitive data type.
+
+ * Example:
+
+        pairs(
+               {
+                 "id": 1,
+                 "project": "AsterixDB",
+                 "address": {"city": "Irvine", "state": "CA"}
+               }
+             );
+
+ * The expected result is:
+
+        [
+          [ "id", 1 ],
+          [ "project", "AsterixDB" ],
+          [ "address", { "city": "Irvine", "state": "CA" } ],
+          [ "city", "Irvine" ],
+          [ "state", "CA" ]
+        ]
+

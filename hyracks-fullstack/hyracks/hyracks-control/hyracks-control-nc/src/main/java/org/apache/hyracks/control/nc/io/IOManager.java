@@ -55,8 +55,8 @@ public class IOManager implements IIOManager {
     /*
      * Constants
      */
+    public static final int IO_REQUEST_QUEUE_SIZE = 100; // TODO: Make configurable
     private static final Logger LOGGER = LogManager.getLogger();
-    private static final int IO_REQUEST_QUEUE_SIZE = 100; // TODO: Make configurable
     private static final String WORKSPACE_FILE_SUFFIX = ".waf";
     private static final FilenameFilter WORKSPACE_FILES_FILTER = (dir, name) -> name.endsWith(WORKSPACE_FILE_SUFFIX);
     /*
@@ -71,7 +71,7 @@ public class IOManager implements IIOManager {
      * Mutables
      */
     private int workspaceIndex;
-    private IFileDeviceResolver deviceComputer;
+    private final IFileDeviceResolver deviceComputer;
 
     public IOManager(List<IODeviceHandle> devices, IFileDeviceResolver deviceComputer) throws HyracksDataException {
         this.ioDevices = Collections.unmodifiableList(devices);

@@ -23,8 +23,10 @@ import java.util.BitSet;
 
 import org.apache.hyracks.api.channels.IInputChannel;
 import org.apache.hyracks.api.channels.IInputChannelMonitor;
+import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.partitions.PartitionId;
+import org.apache.hyracks.net.protocols.muxdemux.AbstractChannelWriteInterface;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -46,6 +48,8 @@ public class NonDeterministicChannelReader implements IInputChannelMonitor, IPar
     private final BitSet closedSenders;
 
     private int lastReadSender;
+
+    private boolean localFailure;
 
     public NonDeterministicChannelReader(int nSenderPartitions, BitSet expectedPartitions) {
         this.nSenderPartitions = nSenderPartitions;
@@ -106,6 +110,10 @@ public class NonDeterministicChannelReader implements IInputChannelMonitor, IPar
                 return lastReadSender;
             }
             if (!failSenders.isEmpty()) {
+                LOGGER.warn("Sender failed.. returning silently");
+                if (localFailure) {
+                    throw HyracksDataException.create(ErrorCode.LOCAL_NETWORK_ERROR);
+                }
                 // Do not throw exception here to allow the root cause exception gets propagated to the master first.
                 // Return a negative value to allow the nextFrame(...) call to be a non-op.
                 return -1;
@@ -140,13 +148,17 @@ public class NonDeterministicChannelReader implements IInputChannelMonitor, IPar
     }
 
     @Override
-    public synchronized void notifyFailure(IInputChannel channel) {
+    public synchronized void notifyFailure(IInputChannel channel, int errorCode) {
         PartitionId pid = (PartitionId) channel.getAttachment();
         int senderIndex = pid.getSenderIndex();
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Failure: " + pid.getConnectorDescriptorId() + " sender: " + senderIndex + " receiver: "
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Failure: " + pid.getConnectorDescriptorId() + " sender: " + senderIndex + " receiver: "
                     + pid.getReceiverIndex());
         }
+        // Note: if a remote failure overwrites the value of localFailure, then we rely on
+        // the fact that the remote task will notify the cc of the failure.
+        // Otherwise, the local task must fail
+        localFailure = errorCode == AbstractChannelWriteInterface.CONNECTION_LOST_ERROR_CODE;
         failSenders.set(senderIndex);
         eosSenders.set(senderIndex);
         notifyAll();
@@ -156,8 +168,8 @@ public class NonDeterministicChannelReader implements IInputChannelMonitor, IPar
     public synchronized void notifyDataAvailability(IInputChannel channel, int nFrames) {
         PartitionId pid = (PartitionId) channel.getAttachment();
         int senderIndex = pid.getSenderIndex();
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Data available: " + pid.getConnectorDescriptorId() + " sender: " + senderIndex + " receiver: "
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Data available: " + pid.getConnectorDescriptorId() + " sender: " + senderIndex + " receiver: "
                     + pid.getReceiverIndex());
         }
         availableFrameCounts[senderIndex] += nFrames;
@@ -169,8 +181,8 @@ public class NonDeterministicChannelReader implements IInputChannelMonitor, IPar
     public synchronized void notifyEndOfStream(IInputChannel channel) {
         PartitionId pid = (PartitionId) channel.getAttachment();
         int senderIndex = pid.getSenderIndex();
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("EOS: " + pid);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("EOS: " + pid);
         }
         eosSenders.set(senderIndex);
         notifyAll();

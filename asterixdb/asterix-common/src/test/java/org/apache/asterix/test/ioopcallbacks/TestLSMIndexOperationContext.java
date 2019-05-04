@@ -20,15 +20,21 @@ package org.apache.asterix.test.ioopcallbacks;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.common.api.IExtendedModificationOperationCallback;
 import org.apache.hyracks.storage.am.common.impls.NoOpOperationCallback;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.common.tuples.PermutingTupleReference;
-import org.apache.hyracks.storage.am.lsm.common.api.*;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
 import org.apache.hyracks.storage.common.IModificationOperationCallback;
+import org.apache.hyracks.storage.am.lsm.common.api.IComponentPartitionPolicy;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.common.ISearchOperationCallback;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
@@ -41,8 +47,8 @@ public class TestLSMIndexOperationContext implements ILSMIndexOperationContext {
     private final List<ILSMDiskComponent> componentsToBeReplicated = new ArrayList<>();
     private boolean isAccessingComponents;
     private IndexOperation op;
-    private LSMIOOperationType ioOperationType;
-    private ILSMDiskComponent newComponent;
+    private ILSMIOOperation ioOperation;
+    private Map<String, Object> map;
     private boolean filterSkip = false;
     private boolean isRecovery = false;
 
@@ -83,7 +89,8 @@ public class TestLSMIndexOperationContext implements ILSMIndexOperationContext {
         return componentsToBeMerged;
     }
 
-    @Override public List<ILSMDiskComponent> getComponentPickedToBeMergedFromPrevLevel() {
+    @Override
+    public List<ILSMDiskComponent> getComponentPickedToBeMergedFromPrevLevel() {
         return null;
     }
 
@@ -181,38 +188,22 @@ public class TestLSMIndexOperationContext implements ILSMIndexOperationContext {
     }
 
     @Override
-    public LSMIOOperationType getIoOperationType() {
-        return ioOperationType;
+    public ILSMIOOperation getIoOperation() {
+        return ioOperation;
     }
 
     @Override
-    public void setIoOperationType(LSMIOOperationType ioOpType) {
-        this.ioOperationType = ioOpType;
+    public void setIoOperation(ILSMIOOperation ioOperation) {
+        this.ioOperation = ioOperation;
     }
 
     @Override
-    public ILSMDiskComponent getNewComponent() {
-        return newComponent;
+    public void setParameters(Map<String, Object> map) {
+        this.map = map;
     }
 
     @Override
-    public void setNewComponent(ILSMDiskComponent component) {
-        this.newComponent = component;
-    }
-
-    @Override public List<ILSMDiskComponent> getNewDiskComponentsForNextLevel() {
-        return null;
-    }
-
-    @Override public void setNewDiskComponentsForNextLevel(List<ILSMDiskComponent> components) {
-
-    }
-
-    @Override public void setPartitionPolicy(IComponentPartitionPolicy partitionPolicy) {
-
-    }
-
-    @Override public IComponentPartitionPolicy getPartitionPolicy() {
-        return null;
+    public Map<String, Object> getParameters() {
+        return map;
     }
 }

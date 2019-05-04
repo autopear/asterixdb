@@ -18,16 +18,15 @@
  */
 package org.apache.hyracks.control.common;
 
+import static org.apache.hyracks.control.common.utils.ConfigurationUtil.toPathElements;
 import static org.apache.hyracks.util.JSONUtil.put;
 
-import java.io.File;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hyracks.api.comm.NetworkAddress;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.resource.NodeCapacity;
@@ -47,7 +46,7 @@ public class NodeControllerData {
 
     private final NetworkAddress dataPort;
 
-    private final NetworkAddress datasetPort;
+    private final NetworkAddress resultPort;
 
     private final NetworkAddress messagingPort;
 
@@ -119,13 +118,13 @@ public class NodeControllerData {
 
     private final long[] netSignalingBytesWritten;
 
-    private final long[] datasetNetPayloadBytesRead;
+    private final long[] resultNetPayloadBytesRead;
 
-    private final long[] datasetNetPayloadBytesWritten;
+    private final long[] resultNetPayloadBytesWritten;
 
-    private final long[] datasetNetSignalingBytesRead;
+    private final long[] resultNetSignalingBytesRead;
 
-    private final long[] datasetNetSignalingBytesWritten;
+    private final long[] resultNetSignalingBytesWritten;
 
     private final long[] ipcMessagesSent;
 
@@ -148,7 +147,7 @@ public class NodeControllerData {
     public NodeControllerData(NodeRegistration reg) {
         ncConfig = reg.getNCConfig();
         dataPort = reg.getDataPort();
-        datasetPort = reg.getDatasetPort();
+        resultPort = reg.getResultPort();
         messagingPort = reg.getMessagingPort();
         activeJobIds = new HashSet<>();
 
@@ -192,10 +191,10 @@ public class NodeControllerData {
         netPayloadBytesWritten = new long[RRD_SIZE];
         netSignalingBytesRead = new long[RRD_SIZE];
         netSignalingBytesWritten = new long[RRD_SIZE];
-        datasetNetPayloadBytesRead = new long[RRD_SIZE];
-        datasetNetPayloadBytesWritten = new long[RRD_SIZE];
-        datasetNetSignalingBytesRead = new long[RRD_SIZE];
-        datasetNetSignalingBytesWritten = new long[RRD_SIZE];
+        resultNetPayloadBytesRead = new long[RRD_SIZE];
+        resultNetPayloadBytesWritten = new long[RRD_SIZE];
+        resultNetSignalingBytesRead = new long[RRD_SIZE];
+        resultNetSignalingBytesWritten = new long[RRD_SIZE];
         ipcMessagesSent = new long[RRD_SIZE];
         ipcMessageBytesSent = new long[RRD_SIZE];
         ipcMessagesReceived = new long[RRD_SIZE];
@@ -232,10 +231,10 @@ public class NodeControllerData {
         netPayloadBytesWritten[rrdPtr] = hbData.netPayloadBytesWritten;
         netSignalingBytesRead[rrdPtr] = hbData.netSignalingBytesRead;
         netSignalingBytesWritten[rrdPtr] = hbData.netSignalingBytesWritten;
-        datasetNetPayloadBytesRead[rrdPtr] = hbData.datasetNetPayloadBytesRead;
-        datasetNetPayloadBytesWritten[rrdPtr] = hbData.datasetNetPayloadBytesWritten;
-        datasetNetSignalingBytesRead[rrdPtr] = hbData.datasetNetSignalingBytesRead;
-        datasetNetSignalingBytesWritten[rrdPtr] = hbData.datasetNetSignalingBytesWritten;
+        resultNetPayloadBytesRead[rrdPtr] = hbData.resultNetPayloadBytesRead;
+        resultNetPayloadBytesWritten[rrdPtr] = hbData.resultNetPayloadBytesWritten;
+        resultNetSignalingBytesRead[rrdPtr] = hbData.resultNetSignalingBytesRead;
+        resultNetSignalingBytesWritten[rrdPtr] = hbData.resultNetSignalingBytesWritten;
         ipcMessagesSent[rrdPtr] = hbData.ipcMessagesSent;
         ipcMessageBytesSent[rrdPtr] = hbData.ipcMessageBytesSent;
         ipcMessagesReceived[rrdPtr] = hbData.ipcMessagesReceived;
@@ -265,8 +264,8 @@ public class NodeControllerData {
         return dataPort;
     }
 
-    public NetworkAddress getDatasetPort() {
-        return datasetPort;
+    public NetworkAddress getResultPort() {
+        return resultPort;
     }
 
     public NetworkAddress getMessagingPort() {
@@ -301,9 +300,9 @@ public class NodeControllerData {
             put(o, "vm-name", vmName);
             put(o, "vm-version", vmVersion);
             put(o, "vm-vendor", vmVendor);
-            put(o, "classpath", StringUtils.split(classpath, File.pathSeparatorChar));
-            put(o, "library-path", StringUtils.split(libraryPath, File.pathSeparatorChar));
-            put(o, "boot-classpath", StringUtils.split(bootClasspath, File.pathSeparatorChar));
+            put(o, "classpath", toPathElements(classpath));
+            put(o, "library-path", toPathElements(libraryPath));
+            put(o, "boot-classpath", toPathElements(bootClasspath));
             put(o, "input-arguments", inputArguments);
             put(o, "input-arguments", inputArguments);
             put(o, "system-properties", systemProperties);
@@ -333,10 +332,10 @@ public class NodeControllerData {
             put(o, "net-payload-bytes-written", netPayloadBytesWritten);
             put(o, "net-signaling-bytes-read", netSignalingBytesRead);
             put(o, "net-signaling-bytes-written", netSignalingBytesWritten);
-            put(o, "dataset-net-payload-bytes-read", datasetNetPayloadBytesRead);
-            put(o, "dataset-net-payload-bytes-written", datasetNetPayloadBytesWritten);
-            put(o, "dataset-net-signaling-bytes-read", datasetNetSignalingBytesRead);
-            put(o, "dataset-net-signaling-bytes-written", datasetNetSignalingBytesWritten);
+            put(o, "result-net-payload-bytes-read", resultNetPayloadBytesRead);
+            put(o, "result-net-payload-bytes-written", resultNetPayloadBytesWritten);
+            put(o, "result-net-signaling-bytes-read", resultNetSignalingBytesRead);
+            put(o, "result-net-signaling-bytes-written", resultNetSignalingBytesWritten);
             put(o, "ipc-messages-sent", ipcMessagesSent);
             put(o, "ipc-message-bytes-sent", ipcMessageBytesSent);
             put(o, "ipc-messages-received", ipcMessagesReceived);

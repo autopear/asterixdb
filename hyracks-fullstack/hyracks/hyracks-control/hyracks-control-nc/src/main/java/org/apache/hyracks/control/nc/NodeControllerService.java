@@ -20,8 +20,6 @@ package org.apache.hyracks.control.nc;
 
 import static org.apache.hyracks.util.MXHelper.gcMXBeans;
 import static org.apache.hyracks.util.MXHelper.memoryMXBean;
-import static org.apache.hyracks.util.MXHelper.osMXBean;
-import static org.apache.hyracks.util.MXHelper.runtimeMXBean;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,7 +46,6 @@ import org.apache.hyracks.api.client.NodeControllerInfo;
 import org.apache.hyracks.api.client.NodeStatus;
 import org.apache.hyracks.api.comm.NetworkAddress;
 import org.apache.hyracks.api.control.CcId;
-import org.apache.hyracks.api.dataset.IDatasetPartitionManager;
 import org.apache.hyracks.api.deployment.DeploymentId;
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksException;
@@ -59,9 +56,9 @@ import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.JobParameterByteStore;
 import org.apache.hyracks.api.lifecycle.ILifeCycleComponentManager;
 import org.apache.hyracks.api.lifecycle.LifeCycleComponentManager;
+import org.apache.hyracks.api.result.IResultPartitionManager;
 import org.apache.hyracks.api.service.IControllerService;
 import org.apache.hyracks.api.util.CleanupUtils;
-import org.apache.hyracks.api.util.InvokeUtil;
 import org.apache.hyracks.control.common.NodeControllerData;
 import org.apache.hyracks.control.common.base.IClusterController;
 import org.apache.hyracks.control.common.config.ConfigManager;
@@ -76,15 +73,15 @@ import org.apache.hyracks.control.common.job.profiling.om.JobProfile;
 import org.apache.hyracks.control.common.work.FutureValue;
 import org.apache.hyracks.control.common.work.WorkQueue;
 import org.apache.hyracks.control.nc.application.NCServiceContext;
-import org.apache.hyracks.control.nc.dataset.DatasetPartitionManager;
 import org.apache.hyracks.control.nc.heartbeat.HeartbeatComputeTask;
-import org.apache.hyracks.control.nc.heartbeat.HeartbeatTask;
+import org.apache.hyracks.control.nc.heartbeat.HeartbeatManager;
 import org.apache.hyracks.control.nc.io.IOManager;
-import org.apache.hyracks.control.nc.net.DatasetNetworkManager;
 import org.apache.hyracks.control.nc.net.MessagingNetworkManager;
 import org.apache.hyracks.control.nc.net.NetworkManager;
+import org.apache.hyracks.control.nc.net.ResultNetworkManager;
 import org.apache.hyracks.control.nc.partitions.PartitionManager;
 import org.apache.hyracks.control.nc.resources.memory.MemoryManager;
+import org.apache.hyracks.control.nc.result.ResultPartitionManager;
 import org.apache.hyracks.control.nc.work.AbortAllJobsWork;
 import org.apache.hyracks.control.nc.work.BuildJobProfilesWork;
 import org.apache.hyracks.ipc.api.IIPCEventListener;
@@ -94,7 +91,6 @@ import org.apache.hyracks.ipc.impl.IPCSystem;
 import org.apache.hyracks.net.protocols.muxdemux.FullFrameChannelInterfaceFactory;
 import org.apache.hyracks.util.ExitUtil;
 import org.apache.hyracks.util.MaintainedThreadNameExecutorService;
-import org.apache.hyracks.util.PidHelper;
 import org.apache.hyracks.util.trace.ITracer;
 import org.apache.hyracks.util.trace.TraceUtils;
 import org.apache.hyracks.util.trace.Tracer;
@@ -121,9 +117,9 @@ public class NodeControllerService implements IControllerService {
 
     private NetworkManager netManager;
 
-    private IDatasetPartitionManager datasetPartitionManager;
+    private IResultPartitionManager resultPartitionManager;
 
-    private DatasetNetworkManager datasetNetworkManager;
+    private ResultNetworkManager resultNetworkManager;
 
     private final WorkQueue workQueue;
 
@@ -147,7 +143,7 @@ public class NodeControllerService implements IControllerService {
 
     private ExecutorService executor;
 
-    private Map<CcId, Thread> heartbeatThreads = new ConcurrentHashMap<>();
+    private Map<CcId, HeartbeatManager> heartbeatManagers = new ConcurrentHashMap<>();
 
     private Map<CcId, Timer> ccTimers = new ConcurrentHashMap<>();
 
@@ -265,10 +261,10 @@ public class NodeControllerService implements IControllerService {
     }
 
     private void init() {
-        datasetPartitionManager = new DatasetPartitionManager(this, executor, ncConfig.getResultManagerMemory(),
+        resultPartitionManager = new ResultPartitionManager(this, executor, ncConfig.getResultManagerMemory(),
                 ncConfig.getResultTTL(), ncConfig.getResultSweepThreshold());
-        datasetNetworkManager = new DatasetNetworkManager(ncConfig.getResultListenAddress(),
-                ncConfig.getResultListenPort(), datasetPartitionManager, ncConfig.getNetThreadCount(),
+        resultNetworkManager = new ResultNetworkManager(ncConfig.getResultListenAddress(),
+                ncConfig.getResultListenPort(), resultPartitionManager, ncConfig.getNetThreadCount(),
                 ncConfig.getNetBufferCount(), ncConfig.getResultPublicAddress(), ncConfig.getResultPublicPort(),
                 FullFrameChannelInterfaceFactory.INSTANCE);
         if (ncConfig.getMessagingListenAddress() != null && serviceCtx.getMessagingChannelInterfaceFactory() != null) {
@@ -292,7 +288,7 @@ public class NodeControllerService implements IControllerService {
         netManager.start();
         startApplication();
         init();
-        datasetNetworkManager.start();
+        resultNetworkManager.start();
         if (messagingNetManager != null) {
             messagingNetManager.start();
         }
@@ -326,16 +322,12 @@ public class NodeControllerService implements IControllerService {
         }
         HeartbeatSchema hbSchema = new HeartbeatSchema(gcInfos);
 
-        NetworkAddress datasetAddress = datasetNetworkManager.getPublicNetworkAddress();
+        NetworkAddress resultAddress = resultNetworkManager.getPublicNetworkAddress();
         NetworkAddress netAddress = netManager.getPublicNetworkAddress();
         NetworkAddress messagingAddress =
                 messagingNetManager != null ? messagingNetManager.getPublicNetworkAddress() : null;
-        nodeRegistration = new NodeRegistration(ncAddress, id, ncConfig, netAddress, datasetAddress, osMXBean.getName(),
-                osMXBean.getArch(), osMXBean.getVersion(), osMXBean.getAvailableProcessors(), runtimeMXBean.getVmName(),
-                runtimeMXBean.getVmVersion(), runtimeMXBean.getVmVendor(), runtimeMXBean.getClassPath(),
-                runtimeMXBean.getLibraryPath(), runtimeMXBean.getBootClassPath(), runtimeMXBean.getInputArguments(),
-                runtimeMXBean.getSystemProperties(), hbSchema, messagingAddress, application.getCapacity(),
-                PidHelper.getPid());
+        nodeRegistration = new NodeRegistration(ncAddress, id, ncConfig, netAddress, resultAddress, hbSchema,
+                messagingAddress, application.getCapacity());
 
         ncData = new NodeControllerData(nodeRegistration);
     }
@@ -355,7 +347,7 @@ public class NodeControllerService implements IControllerService {
                     // we need to re-register in case of NC -> CC connection reset
                     final CcConnection ccConnection = getCcConnection(ccAddressMap.get(ccAddress));
                     try {
-                        ccConnection.notifyConnectionRestored(NodeControllerService.this, ccAddress);
+                        ccConnection.forceReregister(NodeControllerService.this);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         throw new IPCException(e);
@@ -364,7 +356,7 @@ public class NodeControllerService implements IControllerService {
             };
             ClusterControllerRemoteProxy ccProxy = new ClusterControllerRemoteProxy(
                     ipc.getHandle(ccAddress, ncConfig.getClusterConnectRetries(), 1, ipcEventListener));
-            return registerNode(new CcConnection(ccProxy), ccAddress);
+            return registerNode(new CcConnection(ccProxy, ccAddress));
         }
     }
 
@@ -402,8 +394,10 @@ public class NodeControllerService implements IControllerService {
                         () -> String.valueOf(e));
             }
             getWorkQueue().scheduleAndSync(new AbortAllJobsWork(this, ccId));
-            Thread hbThread = heartbeatThreads.remove(ccId);
-            hbThread.interrupt();
+            HeartbeatManager hbMgr = heartbeatManagers.remove(ccId);
+            if (hbMgr != null) {
+                hbMgr.shutdown();
+            }
             Timer ccTimer = ccTimers.remove(ccId);
             if (ccTimer != null) {
                 ccTimer.cancel();
@@ -413,13 +407,13 @@ public class NodeControllerService implements IControllerService {
         }
     }
 
-    public CcId registerNode(CcConnection ccc, InetSocketAddress ccAddress) throws Exception {
+    public CcId registerNode(CcConnection ccc) throws Exception {
         LOGGER.info("Registering with Cluster Controller {}", ccc);
         int registrationId = nextRegistrationId.incrementAndGet();
         pendingRegistrations.put(registrationId, ccc);
         CcId ccId = ccc.registerNode(nodeRegistration, registrationId);
         ccMap.put(ccId, ccc);
-        ccAddressMap.put(ccAddress, ccId);
+        ccAddressMap.put(ccc.getCcAddress(), ccId);
         Serializable distributedState = ccc.getNodeParameters().getDistributedState();
         if (distributedState != null) {
             getDistributedState().put(ccId, distributedState);
@@ -427,15 +421,8 @@ public class NodeControllerService implements IControllerService {
         IClusterController ccs = ccc.getClusterControllerService();
         NodeParameters nodeParameters = ccc.getNodeParameters();
         // Start heartbeat generator.
-        if (!heartbeatThreads.containsKey(ccId)) {
-            Thread heartbeatThread = new Thread(
-                    new HeartbeatTask(getId(), hbTask.getHeartbeatData(), ccs, nodeParameters.getHeartbeatPeriod()),
-                    id + "-Heartbeat");
-            heartbeatThread.setPriority(Thread.MAX_PRIORITY);
-            heartbeatThread.setDaemon(true);
-            heartbeatThread.start();
-            heartbeatThreads.put(ccId, heartbeatThread);
-        }
+        heartbeatManagers.computeIfAbsent(ccId, newCcId -> HeartbeatManager.init(this, ccc, hbTask.getHeartbeatData(),
+                nodeRegistration.getNodeControllerAddress()));
         if (!ccTimers.containsKey(ccId) && nodeParameters.getProfileDumpPeriod() > 0) {
             Timer ccTimer = new Timer("Timer-" + ccId, true);
             // Schedule profile dump generator.
@@ -470,7 +457,6 @@ public class NodeControllerService implements IControllerService {
     }
 
     private ConcurrentHashMap<CcId, Serializable> getDistributedState() {
-        //noinspection unchecked
         return (ConcurrentHashMap<CcId, Serializable>) serviceCtx.getDistributedState();
     }
 
@@ -502,9 +488,9 @@ public class NodeControllerService implements IControllerService {
                 LOGGER.log(Level.ERROR, "Some jobs failed to exit, continuing with abnormal shutdown");
             }
             partitionManager.close();
-            datasetPartitionManager.close();
+            resultPartitionManager.close();
             netManager.stop();
-            datasetNetworkManager.stop();
+            resultNetworkManager.stop();
             if (messagingNetManager != null) {
                 messagingNetManager.stop();
             }
@@ -514,10 +500,7 @@ public class NodeControllerService implements IControllerService {
              * Stop heartbeats only after NC has stopped to avoid false node failure detection
              * on CC if an NC takes a long time to stop.
              */
-            heartbeatThreads.values().parallelStream().forEach(t -> {
-                t.interrupt();
-                InvokeUtil.doUninterruptibly(() -> t.join(1000));
-            });
+            heartbeatManagers.values().parallelStream().forEach(HeartbeatManager::shutdown);
             synchronized (ccLock) {
                 ccMap.values().parallelStream().forEach(cc -> {
                     try {
@@ -566,9 +549,6 @@ public class NodeControllerService implements IControllerService {
 
     public void storeActivityClusterGraph(DeployedJobSpecId deployedJobSpecId, ActivityClusterGraph acg)
             throws HyracksException {
-        if (deployedJobSpecActivityClusterGraphMap.get(deployedJobSpecId.getId()) != null) {
-            throw HyracksException.create(ErrorCode.DUPLICATE_DEPLOYED_JOB, deployedJobSpecId);
-        }
         deployedJobSpecActivityClusterGraphMap.put(deployedJobSpecId.getId(), acg);
     }
 
@@ -593,8 +573,8 @@ public class NodeControllerService implements IControllerService {
         return netManager;
     }
 
-    public DatasetNetworkManager getDatasetNetworkManager() {
-        return datasetNetworkManager;
+    public ResultNetworkManager getResultNetworkManager() {
+        return resultNetworkManager;
     }
 
     public PartitionManager getPartitionManager() {
@@ -656,8 +636,8 @@ public class NodeControllerService implements IControllerService {
         getClusterController(ccId).sendApplicationMessageToCC(data, deploymentId, id);
     }
 
-    public IDatasetPartitionManager getDatasetPartitionManager() {
-        return datasetPartitionManager;
+    public IResultPartitionManager getResultPartitionManager() {
+        return resultPartitionManager;
     }
 
     public MessagingNetworkManager getMessagingNetworkManager() {
@@ -665,7 +645,8 @@ public class NodeControllerService implements IControllerService {
     }
 
     public void notifyTasksCompleted(CcId ccId) throws Exception {
-        application.onRegisterNode(ccId);
+        partitionManager.jobsCompleted(ccId);
+        application.tasksCompleted(ccId);
     }
 
     private static INCApplication getApplication(NCConfig config)
@@ -681,6 +662,14 @@ public class NodeControllerService implements IControllerService {
     @Override
     public Object getApplicationContext() {
         return application.getApplicationContext();
+    }
+
+    public HeartbeatManager getHeartbeatManager(CcId ccId) {
+        return heartbeatManagers.get(ccId);
+    }
+
+    public NodeRegistration getNodeRegistration() {
+        return nodeRegistration;
     }
 
     private class ProfileDumpTask extends TimerTask {

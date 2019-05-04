@@ -46,7 +46,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <file.encoding>UTF-8</file.encoding>
     <jvm.extraargs />
-    <jdk.version>1.8</jdk.version>
+    <source.jdk.version>1.8</source.jdk.version>
     <javac.xlint.value>all</javac.xlint.value>
     <source-format.goal>format</source-format.goal>
     <source-format.skip>false</source-format.skip>
@@ -197,8 +197,8 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>${jdk.version}</source>
-          <target>${jdk.version}</target>
+          <source>${source.jdk.version}</source>
+          <target>${target.jdk.version}</target>
           <compilerArgument>-Xlint:${javac.xlint.value}</compilerArgument>
         </configuration>
       </plugin>
@@ -245,6 +245,7 @@
           </checkstyleRules>
           <includes>**/*.java,**/*.jj</includes>
           <resourceIncludes>**/*.properties,**/*.xml,**/*.xsd,**/*.aql,**/*.sqlpp,**/*.sh</resourceIncludes>
+          <resourceExcludes>**/node_modules/**/*</resourceExcludes>
           <sourceDirectories>${project.build.sourceDirectory},${project.build.testSourceDirectory}</sourceDirectories>
         </configuration>
       </plugin>
@@ -474,12 +475,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.20.1</version>
+          <version>2.21.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>2.20.1</version>
+          <version>2.21.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.hyracks</groupId>
@@ -522,27 +523,27 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.0.2</version>
+          <version>3.1.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>3.0.0-M1</version>
+          <version>3.0.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-plugin-plugin</artifactId>
-          <version>3.5.1</version>
+          <version>3.5.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-site-plugin</artifactId>
-          <version>3.4</version>
+          <version>3.7.1</version>
         </plugin>
         <plugin>
           <groupId>org.jvnet.jaxb2.maven2</groupId>
           <artifactId>maven-jaxb2-plugin</artifactId>
-          <version>0.13.2</version>
+          <version>0.14.0</version>
         </plugin>
         <plugin>
           <groupId>pl.project13.maven</groupId>
@@ -689,15 +690,6 @@
       </build>
     </profile>
     <profile>
-      <id>java8</id>
-      <activation>
-        <jdk>1.8</jdk>
-      </activation>
-      <properties>
-        <jdk.version>1.8</jdk.version>
-      </properties>
-    </profile>
-    <profile>
       <id>coverage</id>
       <activation>
         <property>
@@ -772,6 +764,67 @@
         <test.includes/>
         <failIfNoTests>false</failIfNoTests>
       </properties>
+    </profile>
+    <profile>
+      <id>java8</id>
+      <activation>
+        <jdk>1.8</jdk>
+      </activation>
+      <properties>
+        <target.jdk.version>8</target.jdk.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>java9</id>
+      <activation>
+        <jdk>9</jdk>
+      </activation>
+      <properties>
+        <target.jdk.version>9</target.jdk.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>java10</id>
+      <activation>
+        <jdk>10</jdk>
+      </activation>
+      <properties>
+        <target.jdk.version>10</target.jdk.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>java11</id>
+      <activation>
+        <jdk>11</jdk>
+      </activation>
+      <properties>
+        <target.jdk.version>11</target.jdk.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>java8-bootclasspath</id>
+      <activation>
+        <property>
+          <name>java8-bootclasspath</name>
+        </property>
+      </activation>
+      <properties>
+        <target.jdk.version>8</target.jdk.version>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <compilerArgs combine.children="append">
+                <arg>-bootclasspath</arg>
+                <arg>${java8-bootclasspath}</arg>
+              </compilerArgs>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 
@@ -871,6 +924,14 @@
             <groupId>javax.xml.bind</groupId>
             <artifactId>jaxb-api</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>jdk.tools</groupId>
+            <artifactId>jdk.tools</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>jdk.tools</groupId>
+            <artifactId>jdk.tools</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -883,6 +944,12 @@
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-mapreduce-client-core</artifactId>
         <version>${hadoop.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>jdk.tools</groupId>
+            <artifactId>jdk.tools</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
@@ -1112,7 +1179,7 @@
       </dependency>
       <dependency>
         <groupId>org.apache.hyracks</groupId>
-        <artifactId>hyracks-hdfs-core</artifactId>
+        <artifactId>hyracks-hdfs</artifactId>
         <version>${hyracks.version}</version>
       </dependency>
       <dependency>
@@ -1128,7 +1195,7 @@
       </dependency>
       <dependency>
         <groupId>org.apache.hyracks</groupId>
-        <artifactId>hyracks-hdfs-2.x</artifactId>
+        <artifactId>hyracks-hdfs</artifactId>
         <version>${hyracks.version}</version>
         <type>test-jar</type>
       </dependency>
@@ -1189,7 +1256,7 @@
       <dependency>
         <groupId>javax.xml.bind</groupId>
         <artifactId>jaxb-api</artifactId>
-        <version>2.2.12</version>
+        <version>2.3.0</version>
       </dependency>
       <dependency>
         <groupId>org.codehaus.mojo.appassembler</groupId>
@@ -1211,6 +1278,31 @@
         <groupId>it.unimi.dsi</groupId>
         <artifactId>fastutil</artifactId>
         <version>8.1.1</version>
+      </dependency>
+      <dependency>
+        <groupId>com.sun.xml.bind</groupId>
+        <artifactId>jaxb-core</artifactId>
+        <version>2.3.0</version>
+      </dependency>
+      <dependency>
+        <groupId>com.sun.xml.bind</groupId>
+        <artifactId>jaxb-impl</artifactId>
+        <version>2.3.0</version>
+      </dependency>
+      <dependency>
+        <groupId>javax.activation</groupId>
+        <artifactId>javax.activation-api</artifactId>
+        <version>1.2.0</version>
+      </dependency>
+      <dependency>
+        <groupId>com.sun.activation</groupId>
+        <artifactId>javax.activation</artifactId>
+        <version>1.2.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.maven</groupId>
+        <artifactId>maven-core</artifactId>
+        <version>3.3.9</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -98,16 +98,23 @@ public class HyracksClientInterfaceRemoteProxy implements IHyracksClientInterfac
     }
 
     @Override
-    public DeployedJobSpecId undeployJobSpec(DeployedJobSpecId deployedJobSpecId) throws Exception {
-        HyracksClientInterfaceFunctions.UndeployJobSpecFunction sjf =
-                new HyracksClientInterfaceFunctions.UndeployJobSpecFunction(deployedJobSpecId);
-        return (DeployedJobSpecId) rpci.call(ipcHandle, sjf);
+    public void redeployJobSpec(DeployedJobSpecId deployedJobSpecId, byte[] acggfBytes) throws Exception {
+        HyracksClientInterfaceFunctions.redeployJobSpecFunction udjsf =
+                new HyracksClientInterfaceFunctions.redeployJobSpecFunction(deployedJobSpecId, acggfBytes);
+        rpci.call(ipcHandle, udjsf);
     }
 
     @Override
-    public NetworkAddress getDatasetDirectoryServiceInfo() throws Exception {
-        HyracksClientInterfaceFunctions.GetDatasetDirectoryServiceInfoFunction gddsf =
-                new HyracksClientInterfaceFunctions.GetDatasetDirectoryServiceInfoFunction();
+    public void undeployJobSpec(DeployedJobSpecId deployedJobSpecId) throws Exception {
+        HyracksClientInterfaceFunctions.UndeployJobSpecFunction sjf =
+                new HyracksClientInterfaceFunctions.UndeployJobSpecFunction(deployedJobSpecId);
+        rpci.call(ipcHandle, sjf);
+    }
+
+    @Override
+    public NetworkAddress getResultDirectoryAddress() throws Exception {
+        HyracksClientInterfaceFunctions.GetResultDirectoryAddressFunction gddsf =
+                new HyracksClientInterfaceFunctions.GetResultDirectoryAddressFunction();
         return (NetworkAddress) rpci.call(ipcHandle, gddsf);
     }
 

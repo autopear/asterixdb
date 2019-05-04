@@ -18,10 +18,11 @@
  */
 package org.apache.asterix.algebra.extension;
 
-import org.apache.asterix.lang.common.base.Statement;
+import org.apache.asterix.lang.common.base.AbstractStatement;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.translator.IRequestParameters;
 import org.apache.asterix.translator.IStatementExecutor;
+import org.apache.asterix.translator.IStatementExecutorContext;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -29,7 +30,7 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 /**
  * An interface that provides an extension mechanism to extend a language with additional statements
  */
-public abstract class ExtensionStatement implements Statement {
+public abstract class ExtensionStatement extends AbstractStatement {
 
     @Override
     public final Kind getKind() {
@@ -45,10 +46,11 @@ public abstract class ExtensionStatement implements Statement {
      * @param requestParameters
      * @param metadataProvider
      * @param resultSetId
+     * @param executorCtx
      * @throws HyracksDataException
      * @throws AlgebricksException
      */
     public abstract void handle(IHyracksClientConnection hcc, IStatementExecutor statementExecutor,
-            IRequestParameters requestParameters, MetadataProvider metadataProvider, int resultSetId)
-            throws HyracksDataException, AlgebricksException;
+            IRequestParameters requestParameters, MetadataProvider metadataProvider, int resultSetId,
+            IStatementExecutorContext executorCtx) throws HyracksDataException, AlgebricksException;
 }

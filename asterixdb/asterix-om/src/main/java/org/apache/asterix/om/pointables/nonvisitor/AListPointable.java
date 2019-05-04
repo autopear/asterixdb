@@ -22,7 +22,6 @@ package org.apache.asterix.om.pointables.nonvisitor;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.om.types.AOrderedListType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.AbstractCollectionType;
@@ -30,16 +29,22 @@ import org.apache.asterix.om.util.container.IObjectFactory;
 import org.apache.asterix.om.utils.NonTaggedFormatUtil;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.IJsonSerializable;
+import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.data.std.api.AbstractPointable;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.api.IPointableFactory;
 import org.apache.hyracks.data.std.primitive.BytePointable;
 import org.apache.hyracks.data.std.primitive.IntegerPointable;
+import org.apache.hyracks.data.std.primitive.VarLengthTypeTrait;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 /*
  * This class interprets the binary data representation of a list.
  *
  * List {
+ *   byte tag;
  *   byte type;
  *   int length;
  *   int numberOfItems;
@@ -48,33 +53,34 @@ import org.apache.hyracks.data.std.primitive.IntegerPointable;
  */
 public class AListPointable extends AbstractPointable {
 
-    public static final ITypeTraits TYPE_TRAITS = new ITypeTraits() {
+    public static final AListPointableFactory FACTORY = new AListPointableFactory();
+
+    public static final class AListPointableFactory implements IPointableFactory {
         private static final long serialVersionUID = 1L;
 
-        @Override
-        public boolean isFixedLength() {
-            return false;
+        private AListPointableFactory() {
         }
 
         @Override
-        public int getFixedLength() {
-            return 0;
-        }
-    };
-
-    public static final IPointableFactory FACTORY = new IPointableFactory() {
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public IPointable createPointable() {
+        public AListPointable createPointable() {
             return new AListPointable();
         }
 
         @Override
         public ITypeTraits getTypeTraits() {
-            return TYPE_TRAITS;
+            return VarLengthTypeTrait.INSTANCE;
         }
-    };
+
+        @Override
+        public JsonNode toJson(IPersistedResourceRegistry registry) throws HyracksDataException {
+            return registry.getClassIdentifier(getClass(), serialVersionUID);
+        }
+
+        @SuppressWarnings("squid:S1172") // unused parameter
+        public static IJsonSerializable fromJson(IPersistedResourceRegistry registry, JsonNode json) {
+            return FACTORY;
+        }
+    }
 
     public static final IObjectFactory<IPointable, ATypeTag> ALLOCATOR = new IObjectFactory<IPointable, ATypeTag>() {
         @Override
@@ -169,7 +175,7 @@ public class AListPointable extends AbstractPointable {
             return getItemCountOffset() + getItemCountSize() + index * getFixedLength(inputType);
         } else {
             int offset = getItemCountOffset() + getItemCountSize() + index * ITEM_OFFSET_SIZE;
-            return IntegerPointable.getInteger(bytes, offset);
+            return start + IntegerPointable.getInteger(bytes, offset);
         }
     }
 
@@ -195,5 +201,4 @@ public class AListPointable extends AbstractPointable {
         }
         dOut.write(bytes, getItemOffset(inputType, index), getItemSize(inputType, index));
     }
-
 }

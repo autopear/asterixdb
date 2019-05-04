@@ -131,24 +131,24 @@ public abstract class RTreeNSMFrame extends TreeIndexNSMFrame implements IRTreeF
             for (int j = 0; j < maxFieldPos; j++) {
                 int k = maxFieldPos + j;
 
-//                try {
-                    double valA = keyValueProviders[j].getValue(frameTuple.getFieldData(j), frameTuple.getFieldStart(j));
-                    double valB = keyValueProviders[j].getValue(tuples[j].getFieldData(j), tuples[j].getFieldStart(j));
-                    if (valA < valB) {
-                        tuples[j].resetByTupleIndex(this, i);
-                    }
-                    valA = keyValueProviders[k].getValue(frameTuple.getFieldData(k), frameTuple.getFieldStart(k));
-                    valB = keyValueProviders[k].getValue(tuples[k].getFieldData(k), tuples[k].getFieldStart(k));
-                    if (valA > valB) {
-                        tuples[k].resetByTupleIndex(this, i);
-                    }
+                //                try {
+                double valA = keyValueProviders[j].getValue(frameTuple.getFieldData(j), frameTuple.getFieldStart(j));
+                double valB = keyValueProviders[j].getValue(tuples[j].getFieldData(j), tuples[j].getFieldStart(j));
+                if (valA < valB) {
+                    tuples[j].resetByTupleIndex(this, i);
+                }
+                valA = keyValueProviders[k].getValue(frameTuple.getFieldData(k), frameTuple.getFieldStart(k));
+                valB = keyValueProviders[k].getValue(tuples[k].getFieldData(k), tuples[k].getFieldStart(k));
+                if (valA > valB) {
+                    tuples[k].resetByTupleIndex(this, i);
+                }
 
-//                }
-//                catch(Exception e)
-//                {
-//                    e.printStackTrace();
-//                    continue;
-//                }
+                //                }
+                //                catch(Exception e)
+                //                {
+                //                    e.printStackTrace();
+                //                    continue;
+                //                }
             }
         }
     }
@@ -163,6 +163,7 @@ public abstract class RTreeNSMFrame extends TreeIndexNSMFrame implements IRTreeF
 
         return mbrOrPoints;
     }
+
     public List<Double> getPointsFromTuple(ITupleReference tuple) {
         List<Double> mbrOrPoints = new ArrayList<>();
         int size = Math.min(tuple.getFieldCount(), keyValueProviders.length);
@@ -173,6 +174,7 @@ public abstract class RTreeNSMFrame extends TreeIndexNSMFrame implements IRTreeF
 
         return mbrOrPoints;
     }
+
     public List<Double> getMBRinDoubles() {
         List<Double> mbr = new ArrayList<>();
         for (int i = 0; i < keyValueProviders.length; i++) {
@@ -180,25 +182,24 @@ public abstract class RTreeNSMFrame extends TreeIndexNSMFrame implements IRTreeF
             mbr.add(valA);
         }
         return mbr;
-//        int maxFieldPos = keyValueProviders.length / 2;
-//        for (int i = 1; i < getTupleCount(); i++) {
-//            frameTuple.resetByTupleIndex(this, i);
-//            for (int j = 0; j < maxFieldPos; j++) {
-//                int k = maxFieldPos + j;
-//                double valA = keyValueProviders[j].getValue(frameTuple.getFieldData(j), frameTuple.getFieldStart(j));
-//                double valB = keyValueProviders[j].getValue(tuples[j].getFieldData(j), tuples[j].getFieldStart(j));
-//                if (valA < valB) {
-//                    tuples[j].resetByTupleIndex(this, i);
-//                }
-//                valA = keyValueProviders[k].getValue(frameTuple.getFieldData(k), frameTuple.getFieldStart(k));
-//                valB = keyValueProviders[k].getValue(tuples[k].getFieldData(k), tuples[k].getFieldStart(k));
-//                if (valA > valB) {
-//                    tuples[k].resetByTupleIndex(this, i);
-//                }
-//            }
-//        }
+        //        int maxFieldPos = keyValueProviders.length / 2;
+        //        for (int i = 1; i < getTupleCount(); i++) {
+        //            frameTuple.resetByTupleIndex(this, i);
+        //            for (int j = 0; j < maxFieldPos; j++) {
+        //                int k = maxFieldPos + j;
+        //                double valA = keyValueProviders[j].getValue(frameTuple.getFieldData(j), frameTuple.getFieldStart(j));
+        //                double valB = keyValueProviders[j].getValue(tuples[j].getFieldData(j), tuples[j].getFieldStart(j));
+        //                if (valA < valB) {
+        //                    tuples[j].resetByTupleIndex(this, i);
+        //                }
+        //                valA = keyValueProviders[k].getValue(frameTuple.getFieldData(k), frameTuple.getFieldStart(k));
+        //                valB = keyValueProviders[k].getValue(tuples[k].getFieldData(k), tuples[k].getFieldStart(k));
+        //                if (valA > valB) {
+        //                    tuples[k].resetByTupleIndex(this, i);
+        //                }
+        //            }
+        //        }
     }
-
 
     @Override
     public void adjustMBR() {

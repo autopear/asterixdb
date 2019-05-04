@@ -62,7 +62,8 @@ public class LSMBTreeWithBuddyDiskComponent extends AbstractLSMWithBuddyDiskComp
         return files;
     }
 
-    @Override public List<Double> GetMBR() {
+    @Override
+    public List<Double> GetMBR() {
         return null;
     }
 

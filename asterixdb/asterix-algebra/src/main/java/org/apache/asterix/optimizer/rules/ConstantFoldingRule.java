@@ -22,6 +22,7 @@ package org.apache.asterix.optimizer.rules;
 import java.io.DataInputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.asterix.common.config.GlobalConfig;
 import org.apache.asterix.common.dataflow.ICcApplicationContext;
@@ -37,6 +38,7 @@ import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.formats.nontagged.TypeTraitProvider;
 import org.apache.asterix.jobgen.QueryLogicalExpressionJobGen;
 import org.apache.asterix.metadata.declared.MetadataProvider;
+import org.apache.asterix.om.base.ADouble;
 import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.om.constants.AsterixConstantValue;
 import org.apache.asterix.om.functions.BuiltinFunctions;
@@ -78,6 +80,7 @@ import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.primitive.VoidPointable;
 import org.apache.hyracks.dataflow.common.comm.util.ByteBufferInputStream;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 public class ConstantFoldingRule implements IAlgebraicRewriteRule {
@@ -93,7 +96,11 @@ public class ConstantFoldingRule implements IAlgebraicRewriteRule {
             BuiltinFunctions.FIELD_ACCESS_NESTED, BuiltinFunctions.GET_ITEM, BuiltinFunctions.OPEN_RECORD_CONSTRUCTOR,
             BuiltinFunctions.FIELD_ACCESS_BY_INDEX, BuiltinFunctions.CAST_TYPE, BuiltinFunctions.META,
             BuiltinFunctions.META_KEY, BuiltinFunctions.RECORD_CONCAT, BuiltinFunctions.RECORD_CONCAT_STRICT,
-            BuiltinFunctions.TO_ATOMIC, BuiltinFunctions.TO_ARRAY);
+            BuiltinFunctions.RECORD_PAIRS, BuiltinFunctions.PAIRS, BuiltinFunctions.TO_ATOMIC,
+            BuiltinFunctions.TO_ARRAY);
+
+    private static final Map<FunctionIdentifier, IAObject> FUNC_ID_TO_CONSTANT = ImmutableMap
+            .of(BuiltinFunctions.NUMERIC_E, new ADouble(Math.E), BuiltinFunctions.NUMERIC_PI, new ADouble(Math.PI));
 
     /**
      * Throws exceptions in substituiteProducedVariable, setVarType, and one getVarType method.
@@ -220,6 +227,10 @@ public class ConstantFoldingRule implements IAlgebraicRewriteRule {
                         return new Pair<>(changed, expr);
                     }
                 }
+                IAObject c = FUNC_ID_TO_CONSTANT.get(expr.getFunctionIdentifier());
+                if (c != null) {
+                    return new Pair<>(true, new ConstantExpression(new AsterixConstantValue(c)));
+                }
 
                 IScalarEvaluatorFactory fact = jobGenCtx.getExpressionRuntimeProvider().createEvaluatorFactory(expr,
                         _emptyTypeEnv, _emptySchemas, jobGenCtx);
@@ -235,8 +246,8 @@ public class ConstantFoldingRule implements IAlgebraicRewriteRule {
                 IAObject o = (IAObject) serde.deserialize(dis);
                 return new Pair<>(true, new ConstantExpression(new AsterixConstantValue(o)));
             } catch (HyracksDataException | AlgebricksException e) {
-                if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
-                    AlgebricksConfig.ALGEBRICKS_LOGGER.debug("Exception caught at constant folding: " + e, e);
+                if (AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled()) {
+                    AlgebricksConfig.ALGEBRICKS_LOGGER.trace("Exception caught at constant folding: " + e, e);
                 }
                 return new Pair<>(false, null);
             }

@@ -70,15 +70,20 @@ public class JoinUtils {
                         setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideLeft, sideRight, context);
                         break;
                     case LEFT:
-                        Mutable<ILogicalOperator> opRef0 = op.getInputs().get(0);
-                        Mutable<ILogicalOperator> opRef1 = op.getInputs().get(1);
-                        ILogicalOperator tmp = opRef0.getValue();
-                        opRef0.setValue(opRef1.getValue());
-                        opRef1.setValue(tmp);
-                        setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideRight, sideLeft, context);
+                        if (op.getJoinKind() == AbstractBinaryJoinOperator.JoinKind.INNER) {
+                            Mutable<ILogicalOperator> opRef0 = op.getInputs().get(0);
+                            Mutable<ILogicalOperator> opRef1 = op.getInputs().get(1);
+                            ILogicalOperator tmp = opRef0.getValue();
+                            opRef0.setValue(opRef1.getValue());
+                            opRef1.setValue(tmp);
+                            setHashJoinOp(op, JoinPartitioningType.BROADCAST, sideRight, sideLeft, context);
+                        } else {
+                            setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context);
+                        }
                         break;
                     default:
-                        setHashJoinOp(op, JoinPartitioningType.PAIRWISE, sideLeft, sideRight, context);
+                        // This should never happen
+                        throw new IllegalStateException(side.toString());
                 }
             }
         } else {
@@ -109,18 +114,18 @@ public class JoinUtils {
         ILogicalOperator opBuild = op.getInputs().get(1).getValue();
         LogicalPropertiesVisitor.computeLogicalPropertiesDFS(opBuild, context);
         ILogicalPropertiesVector v = context.getLogicalPropertiesVector(opBuild);
-        boolean loggerDebugEnabled = AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled();
-        if (loggerDebugEnabled) {
+        boolean loggerTraceEnabled = AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled();
+        if (loggerTraceEnabled) {
             AlgebricksConfig.ALGEBRICKS_LOGGER
-                    .debug("// HybridHashJoin inner branch -- Logical properties for " + opBuild + ": " + v + "\n");
+                    .trace("// HybridHashJoin inner branch -- Logical properties for " + opBuild + ": " + v + "\n");
         }
         if (v != null) {
             int size2 = v.getMaxOutputFrames();
             HybridHashJoinPOperator hhj = (HybridHashJoinPOperator) op.getPhysicalOperator();
             if (size2 > 0 && size2 * hhj.getFudgeFactor() <= hhj.getMemSizeInFrames()) {
-                if (loggerDebugEnabled) {
+                if (loggerTraceEnabled) {
                     AlgebricksConfig.ALGEBRICKS_LOGGER
-                            .debug("// HybridHashJoin inner branch " + opBuild + " fits in memory\n");
+                            .trace("// HybridHashJoin inner branch " + opBuild + " fits in memory\n");
                 }
                 // maintains the local properties on the probe side
                 op.setPhysicalOperator(

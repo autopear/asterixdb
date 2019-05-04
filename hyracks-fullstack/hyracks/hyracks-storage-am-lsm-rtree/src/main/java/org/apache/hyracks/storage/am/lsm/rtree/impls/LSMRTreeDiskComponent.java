@@ -43,6 +43,7 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
         this.btree = btree;
         this.bloomFilter = bloomFilter;
     }
+
     public LSMRTreeDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, BTree btree, BloomFilter bloomFilter,
             ILSMComponentFilter filter, int level) {
         super(lsmIndex, getMetadataPageManager(rtree), filter, level);
@@ -115,7 +116,8 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
         return files;
     }
 
-    @Override public List<Double> GetMBR() {
+    @Override
+    public List<Double> GetMBR() {
         try {
             return this.rtree.getRootMBR();
         } catch (Exception e) {

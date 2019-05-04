@@ -37,7 +37,7 @@ RecordConstructor [
     :
     FunctionCall null.substring@2[
       LiteralExpr [STRING] [This is a test string]
-      - LiteralExpr [LONG] [1]
+      - LiteralExpr [LONG] [6]
     ]
   )
   (
@@ -63,7 +63,7 @@ RecordConstructor [
           FunctionCall null.string-length@1[
             LiteralExpr [STRING] [UC Irvine]
           ]
-          /
+          div
           LiteralExpr [LONG] [2]
         ]
         -

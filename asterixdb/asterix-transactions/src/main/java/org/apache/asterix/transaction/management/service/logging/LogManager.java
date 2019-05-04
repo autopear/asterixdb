@@ -18,8 +18,6 @@
  */
 package org.apache.asterix.transaction.management.service.logging;
 
-import static org.apache.hyracks.util.ExitUtil.EC_IMMEDIATE_HALT;
-
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -32,7 +30,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -134,13 +131,33 @@ public class LogManager implements ILogManager, ILifeCycleComponent {
 
     @Override
     public void log(ILogRecord logRecord) {
-        if (logRecord.getLogType() == LogType.FLUSH) {
-            flushLogsQ.add(logRecord);
-            return;
+        if (!logToFlushQueue(logRecord)) {
+            appendToLogTail(logRecord);
         }
-        appendToLogTail(logRecord);
     }
 
+    @SuppressWarnings("squid:S2445")
+    protected boolean logToFlushQueue(ILogRecord logRecord) {
+        //Remote flush logs do not need to be flushed separately since they may not trigger local flush
+        if ((logRecord.getLogType() == LogType.FLUSH && logRecord.getLogSource() == LogSource.LOCAL)
+                || logRecord.getLogType() == LogType.WAIT_FOR_FLUSHES) {
+            logRecord.isFlushed(false);
+            flushLogsQ.add(logRecord);
+            if (logRecord.getLogType() == LogType.WAIT_FOR_FLUSHES) {
+                InvokeUtil.doUninterruptibly(() -> {
+                    synchronized (logRecord) {
+                        while (!logRecord.isFlushed()) {
+                            logRecord.wait();
+                        }
+                    }
+                });
+            }
+            return true;
+        }
+        return false;
+    }
+
+    @SuppressWarnings("squid:S2445")
     protected void appendToLogTail(ILogRecord logRecord) {
         syncAppendToLogTail(logRecord);
         if (waitForFlush(logRecord) && !logRecord.isFlushed()) {
@@ -161,7 +178,7 @@ public class LogManager implements ILogManager, ILifeCycleComponent {
 
     synchronized void syncAppendToLogTail(ILogRecord logRecord) {
         if (logRecord.getLogSource() == LogSource.LOCAL && logRecord.getLogType() != LogType.FLUSH
-                && logRecord.getLogType() != LogType.WAIT) {
+                && logRecord.getLogType() != LogType.WAIT && logRecord.getLogType() != LogType.WAIT_FOR_FLUSHES) {
             ITransactionContext txnCtx = logRecord.getTxnCtx();
             if (txnCtx.getTxnState() == ITransactionManager.ABORTED && logRecord.getLogType() != LogType.ABORT) {
                 throw new ACIDException(
@@ -686,7 +703,7 @@ class LogFlusher implements Callable<Boolean> {
             }
         } catch (Exception e) {
             LOGGER.log(Level.ERROR, "LogFlusher is terminating abnormally. System is in unusable state; halting", e);
-            ExitUtil.halt(EC_IMMEDIATE_HALT);
+            ExitUtil.halt(ExitUtil.EC_TXN_LOG_FLUSHER_FAILURE);
             throw new AssertionError("not reachable");
         } finally {
             if (interrupted) {

@@ -22,7 +22,6 @@ package org.apache.asterix.om.pointables.nonvisitor;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.asterix.common.exceptions.AsterixException;
 import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.AUnionType;
@@ -33,14 +32,19 @@ import org.apache.asterix.om.utils.NonTaggedFormatUtil;
 import org.apache.asterix.om.utils.RecordUtil;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.IJsonSerializable;
+import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.data.std.api.AbstractPointable;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.api.IPointableFactory;
 import org.apache.hyracks.data.std.primitive.BooleanPointable;
 import org.apache.hyracks.data.std.primitive.BytePointable;
 import org.apache.hyracks.data.std.primitive.IntegerPointable;
+import org.apache.hyracks.data.std.primitive.VarLengthTypeTrait;
 import org.apache.hyracks.util.string.UTF8StringUtil;
 import org.apache.hyracks.util.string.UTF8StringWriter;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 /*
  * This class interprets the binary data representation of a record.
@@ -71,24 +75,10 @@ import org.apache.hyracks.util.string.UTF8StringWriter;
  */
 public class ARecordPointable extends AbstractPointable {
 
-    private final UTF8StringWriter utf8Writer = new UTF8StringWriter();
     public static final ARecordPointableFactory FACTORY = new ARecordPointableFactory();
+    private final UTF8StringWriter utf8Writer = new UTF8StringWriter();
 
-    public static final ITypeTraits TYPE_TRAITS = new ITypeTraits() {
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public boolean isFixedLength() {
-            return false;
-        }
-
-        @Override
-        public int getFixedLength() {
-            return 0;
-        }
-    };
-
-    public static class ARecordPointableFactory implements IPointableFactory {
+    public static final class ARecordPointableFactory implements IPointableFactory {
 
         private static final long serialVersionUID = 1L;
 
@@ -102,7 +92,17 @@ public class ARecordPointable extends AbstractPointable {
 
         @Override
         public ITypeTraits getTypeTraits() {
-            return TYPE_TRAITS;
+            return VarLengthTypeTrait.INSTANCE;
+        }
+
+        @Override
+        public JsonNode toJson(IPersistedResourceRegistry registry) throws HyracksDataException {
+            return registry.getClassIdentifier(getClass(), serialVersionUID);
+        }
+
+        @SuppressWarnings("squid:S1172") // unused parameter
+        public static IJsonSerializable fromJson(IPersistedResourceRegistry registry, JsonNode json) {
+            return FACTORY;
         }
 
     }
@@ -230,6 +230,21 @@ public class ARecordPointable extends AbstractPointable {
         }
     }
 
+    /**
+     * This is always untagged
+     *
+     * @param recordType
+     * @param fieldId
+     * @param pointable
+     * @throws IOException
+     */
+    public void getClosedFieldValue(ARecordType recordType, int fieldId, IPointable pointable) throws IOException {
+        if (isClosedFieldNull(recordType, fieldId) || isClosedFieldMissing(recordType, fieldId)) {
+            throw new IllegalStateException("Can't read a null or missing field");
+        }
+        pointable.set(bytes, getClosedFieldOffset(recordType, fieldId), getClosedFieldSize(recordType, fieldId));
+    }
+
     public String getClosedFieldName(ARecordType recordType, int fieldId) {
         return recordType.getFieldNames()[fieldId];
     }
@@ -304,6 +319,14 @@ public class ARecordPointable extends AbstractPointable {
         dOut.write(bytes, getOpenFieldNameOffset(recordType, fieldId), getOpenFieldNameSize(recordType, fieldId));
     }
 
+    public String getOpenFieldName(ARecordType recordType, int fieldId) throws IOException {
+        StringBuilder str = new StringBuilder();
+        int offset = getOpenFieldNameOffset(recordType, fieldId);
+        UTF8StringUtil.toString(str, bytes, offset);
+        String fieldName = str.toString();
+        return fieldName;
+    }
+
     public int getOpenFieldNameSize(ARecordType recordType, int fieldId) {
         int utfleng = UTF8StringUtil.getUTFLength(bytes, getOpenFieldNameOffset(recordType, fieldId));
         return utfleng + UTF8StringUtil.getNumBytesToStoreLength(utfleng);
@@ -340,5 +363,4 @@ public class ARecordPointable extends AbstractPointable {
     public int getOpenFieldOffsetSize(ARecordType recordType, int fieldId) {
         return OPEN_FIELD_HASH_SIZE;
     }
-
 }

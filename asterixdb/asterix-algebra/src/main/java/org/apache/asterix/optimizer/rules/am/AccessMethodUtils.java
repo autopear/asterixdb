@@ -64,6 +64,7 @@ import org.apache.hyracks.algebricks.common.utils.Quadruple;
 import org.apache.hyracks.algebricks.common.utils.Triple;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalOperator;
+import org.apache.hyracks.algebricks.core.algebra.base.ILogicalPlan;
 import org.apache.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalExpressionTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
@@ -81,6 +82,7 @@ import org.apache.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractDataSourceOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator.ExecutionMode;
+import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractOperatorWithNestedPlans;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractUnnestMapOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AggregateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AssignOperator;
@@ -95,6 +97,7 @@ import org.apache.hyracks.algebricks.core.algebra.operators.logical.visitors.Var
 import org.apache.hyracks.algebricks.core.algebra.plan.ALogicalPlanImpl;
 import org.apache.hyracks.algebricks.core.algebra.util.OperatorPropertiesUtil;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.DelimitedUTF8StringBinaryTokenizer;
 
 /**
@@ -274,7 +277,8 @@ public class AccessMethodUtils {
                 break;
             default:
                 throw new CompilationException(ErrorCode.COMPILATION_TYPE_UNSUPPORTED,
-                        BuiltinFunctions.FULLTEXT_CONTAINS.getName(), objectFromExpr.getType().getTypeTag());
+                        constExpression.getSourceLocation(), BuiltinFunctions.FULLTEXT_CONTAINS.getName(),
+                        objectFromExpr.getType().getTypeTag());
         }
     }
 
@@ -421,7 +425,8 @@ public class AccessMethodUtils {
             case CONDITIONAL_SPLIT_VAR:
                 // Sanity check - the given unnest map should generate this variable.
                 if (!abstractUnnestMapOp.getGenerateCallBackProceedResultVar()) {
-                    throw CompilationException.create(ErrorCode.CANNOT_GET_CONDITIONAL_SPLIT_KEY_VARIABLE);
+                    throw CompilationException.create(ErrorCode.CANNOT_GET_CONDITIONAL_SPLIT_KEY_VARIABLE,
+                            unnestMapOp.getSourceLocation());
                 }
                 // Fetches conditional splitter - the last position
                 start = numSecondaryKeys + numPrimaryKeys;
@@ -465,6 +470,7 @@ public class AccessMethodUtils {
     public static Triple<ILogicalExpression, ILogicalExpression, Boolean> createSearchKeyExpr(Index index,
             IOptimizableFuncExpr optFuncExpr, IAType indexedFieldType, OptimizableOperatorSubTree probeSubTree)
             throws AlgebricksException {
+        SourceLocation sourceLoc = optFuncExpr.getFuncExpr().getSourceLocation();
         if (probeSubTree == null) {
             // We are optimizing a selection query. Search key is a constant.
             // Type Checking and type promotion is done here
@@ -473,7 +479,9 @@ public class AccessMethodUtils {
                 //We are looking at a selection case, but using two variables
                 //This means that the second variable comes from a nonPure function call
                 //TODO: Right now we miss on type promotion for nonpure functions
-                return new Triple<>(new VariableReferenceExpression(optFuncExpr.getLogicalVar(1)), null, false);
+                VariableReferenceExpression varRef = new VariableReferenceExpression(optFuncExpr.getLogicalVar(1));
+                varRef.setSourceLocation(sourceLoc);
+                return new Triple<>(varRef, null, false);
             }
 
             ILogicalExpression constantAtRuntimeExpression = optFuncExpr.getConstantExpr(0);
@@ -539,25 +547,25 @@ public class AccessMethodUtils {
                         case LT:
                         case GE:
                             // round-up
-                            replacedConstantValue =
-                                    getReplacedConstantValue(constantValue.getObject(), constantValueTag,
-                                            indexedFieldTypeTag, index.isEnforced(), TypeCastingMathFunctionType.CEIL);
+                            replacedConstantValue = getReplacedConstantValue(constantValue.getObject(),
+                                    constantValueTag, indexedFieldTypeTag, index.isEnforced(),
+                                    TypeCastingMathFunctionType.CEIL, sourceLoc);
                             break;
                         case LE:
                         case GT:
                             // round-down
-                            replacedConstantValue =
-                                    getReplacedConstantValue(constantValue.getObject(), constantValueTag,
-                                            indexedFieldTypeTag, index.isEnforced(), TypeCastingMathFunctionType.FLOOR);
+                            replacedConstantValue = getReplacedConstantValue(constantValue.getObject(),
+                                    constantValueTag, indexedFieldTypeTag, index.isEnforced(),
+                                    TypeCastingMathFunctionType.FLOOR, sourceLoc);
                             break;
                         case EQ:
                             // equality case - both CEIL and FLOOR need to be applied.
-                            replacedConstantValue =
-                                    getReplacedConstantValue(constantValue.getObject(), constantValueTag,
-                                            indexedFieldTypeTag, index.isEnforced(), TypeCastingMathFunctionType.FLOOR);
-                            replacedConstantValueForEQCase =
-                                    getReplacedConstantValue(constantValue.getObject(), constantValueTag,
-                                            indexedFieldTypeTag, index.isEnforced(), TypeCastingMathFunctionType.CEIL);
+                            replacedConstantValue = getReplacedConstantValue(constantValue.getObject(),
+                                    constantValueTag, indexedFieldTypeTag, index.isEnforced(),
+                                    TypeCastingMathFunctionType.FLOOR, sourceLoc);
+                            replacedConstantValueForEQCase = getReplacedConstantValue(constantValue.getObject(),
+                                    constantValueTag, indexedFieldTypeTag, index.isEnforced(),
+                                    TypeCastingMathFunctionType.CEIL, sourceLoc);
                             break;
                         default:
                             // NEQ should not be a case.
@@ -566,7 +574,7 @@ public class AccessMethodUtils {
                 } else {
                     // Type conversion only case: (e.g., INT -> BIGINT)
                     replacedConstantValue = getReplacedConstantValue(constantValue.getObject(), constantValueTag,
-                            indexedFieldTypeTag, index.isEnforced(), TypeCastingMathFunctionType.NONE);
+                            indexedFieldTypeTag, index.isEnforced(), TypeCastingMathFunctionType.NONE, sourceLoc);
                 }
             }
             // No type-casting at all
@@ -586,7 +594,8 @@ public class AccessMethodUtils {
             OptimizableOperatorSubTree opSubTree0 = optFuncExpr.getOperatorSubTree(0);
             int probeVarIndex = opSubTree0 == null || opSubTree0 == probeSubTree ? 0 : 1;
             LogicalVariable probeVar = optFuncExpr.getLogicalVar(probeVarIndex);
-            ILogicalExpression probeExpr = new VariableReferenceExpression(probeVar);
+            VariableReferenceExpression probeExpr = new VariableReferenceExpression(probeVar);
+            probeExpr.setSourceLocation(sourceLoc);
 
             ATypeTag indexedFieldTypeTag = TypeComputeUtils.getActualType(indexedFieldType).getTypeTag();
             if (ATypeHierarchy.getTypeDomain(indexedFieldTypeTag) == ATypeHierarchy.Domain.NUMERIC) {
@@ -595,6 +604,7 @@ public class AccessMethodUtils {
                 if (probeTypeTypeTag != indexedFieldTypeTag) {
                     ScalarFunctionCallExpression castFunc = new ScalarFunctionCallExpression(
                             FunctionUtil.getFunctionInfo(BuiltinFunctions.CAST_TYPE_LAX));
+                    castFunc.setSourceLocation(sourceLoc);
                     castFunc.getArguments().add(new MutableObject<>(probeExpr));
                     TypeCastUtils.setRequiredAndInputTypes(castFunc, indexedFieldType, probeType);
                     boolean realTypeConvertedToIntegerType =
@@ -607,14 +617,14 @@ public class AccessMethodUtils {
     }
 
     private static AsterixConstantValue getReplacedConstantValue(IAObject sourceObject, ATypeTag sourceTypeTag,
-            ATypeTag targetTypeTag, boolean strictDemote, TypeCastingMathFunctionType mathFunction)
-            throws CompilationException {
+            ATypeTag targetTypeTag, boolean strictDemote, TypeCastingMathFunctionType mathFunction,
+            SourceLocation sourceLoc) throws CompilationException {
         try {
             return ATypeHierarchy.getAsterixConstantValueFromNumericTypeObject(sourceObject, targetTypeTag,
                     strictDemote, mathFunction);
         } catch (HyracksDataException e) {
-            throw new CompilationException(ErrorCode.ERROR_OCCURRED_BETWEEN_TWO_TYPES_CONVERSION, e, sourceTypeTag,
-                    targetTypeTag);
+            throw new CompilationException(ErrorCode.ERROR_OCCURRED_BETWEEN_TWO_TYPES_CONVERSION, e, sourceLoc,
+                    sourceTypeTag, targetTypeTag);
         }
     }
 
@@ -749,6 +759,7 @@ public class AccessMethodUtils {
                 // Non-index only plan case
                 indexSubTree.getDataSourceRef().setValue(finalIndexSearchOp);
                 SelectOperator topSelectOp = new SelectOperator(conditionRef, isLeftOuterJoin, newNullPlaceHolderVar);
+                topSelectOp.setSourceLocation(finalIndexSearchOp.getSourceLocation());
                 topSelectOp.getInputs().add(indexSubTree.getRootRef());
                 topSelectOp.setExecutionMode(ExecutionMode.LOCAL);
                 context.computeAndSetTypeEnvironmentForOperator(topSelectOp);
@@ -768,6 +779,7 @@ public class AccessMethodUtils {
             ARecordType metaRecordType, Index index, ILogicalOperator inputOp, AccessMethodJobGenParams jobGenParams,
             IOptimizationContext context, boolean retainInput, boolean retainNull,
             boolean generateInstantTrylockResultFromIndexSearch) throws AlgebricksException {
+        SourceLocation sourceLoc = inputOp.getSourceLocation();
         // The job gen parameters are transferred to the actual job gen via the UnnestMapOperator's function arguments.
         ArrayList<Mutable<ILogicalExpression>> secondaryIndexFuncArgs = new ArrayList<>();
         jobGenParams.writeToFuncArgs(secondaryIndexFuncArgs);
@@ -784,6 +796,7 @@ public class AccessMethodUtils {
         IFunctionInfo secondaryIndexSearch = FunctionUtil.getFunctionInfo(BuiltinFunctions.INDEX_SEARCH);
         UnnestingFunctionCallExpression secondaryIndexSearchFunc =
                 new UnnestingFunctionCallExpression(secondaryIndexSearch, secondaryIndexFuncArgs);
+        secondaryIndexSearchFunc.setSourceLocation(sourceLoc);
         secondaryIndexSearchFunc.setReturnsUniqueValues(true);
         // This is the operator that jobgen will be looking for. It contains an unnest function that has all
         // necessary arguments to determine which index to use, which variables contain the index-search keys,
@@ -796,6 +809,7 @@ public class AccessMethodUtils {
                 LeftOuterUnnestMapOperator secondaryIndexLeftOuterUnnestOp = new LeftOuterUnnestMapOperator(
                         secondaryIndexUnnestVars, new MutableObject<ILogicalExpression>(secondaryIndexSearchFunc),
                         secondaryIndexOutputTypes, true);
+                secondaryIndexLeftOuterUnnestOp.setSourceLocation(sourceLoc);
                 secondaryIndexLeftOuterUnnestOp
                         .setGenerateCallBackProceedResultVar(generateInstantTrylockResultFromIndexSearch);
                 secondaryIndexLeftOuterUnnestOp.getInputs().add(new MutableObject<>(inputOp));
@@ -804,13 +818,15 @@ public class AccessMethodUtils {
                 return secondaryIndexLeftOuterUnnestOp;
             } else {
                 // Left-outer-join without retainInput doesn't make sense.
-                throw new AlgebricksException("Left-outer-join should propagate all inputs from the outer branch.");
+                throw new CompilationException(ErrorCode.COMPILATION_ERROR, sourceLoc,
+                        "Left-outer-join should propagate all inputs from the outer branch.");
             }
         } else {
             // If this is not a left-outer-join case, then we use UNNEST-MAP operator.
             UnnestMapOperator secondaryIndexUnnestOp = new UnnestMapOperator(secondaryIndexUnnestVars,
                     new MutableObject<ILogicalExpression>(secondaryIndexSearchFunc), secondaryIndexOutputTypes,
                     retainInput);
+            secondaryIndexUnnestOp.setSourceLocation(sourceLoc);
             secondaryIndexUnnestOp.setGenerateCallBackProceedResultVar(generateInstantTrylockResultFromIndexSearch);
             secondaryIndexUnnestOp.getInputs().add(new MutableObject<>(inputOp));
             context.computeAndSetTypeEnvironmentForOperator(secondaryIndexUnnestOp);
@@ -824,12 +840,16 @@ public class AccessMethodUtils {
             boolean retainMissing, boolean requiresBroadcast, List<LogicalVariable> primaryKeyVars,
             List<LogicalVariable> primaryIndexUnnestVars, List<Object> primaryIndexOutputTypes)
             throws AlgebricksException {
+        SourceLocation sourceLoc = inputOp.getSourceLocation();
         // Optionally add a sort on the primary-index keys before searching the primary index.
         OrderOperator order = null;
         if (sortPrimaryKeys) {
             order = new OrderOperator();
+            order.setSourceLocation(sourceLoc);
             for (LogicalVariable pkVar : primaryKeyVars) {
-                Mutable<ILogicalExpression> vRef = new MutableObject<>(new VariableReferenceExpression(pkVar));
+                VariableReferenceExpression pkVarRef = new VariableReferenceExpression(pkVar);
+                pkVarRef.setSourceLocation(sourceLoc);
+                Mutable<ILogicalExpression> vRef = new MutableObject<>(pkVarRef);
                 order.getOrderExpressions().add(new Pair<>(OrderOperator.ASC_ORDER, vRef));
             }
             // The secondary-index search feeds into the sort.
@@ -837,9 +857,11 @@ public class AccessMethodUtils {
             order.setExecutionMode(ExecutionMode.LOCAL);
             context.computeAndSetTypeEnvironmentForOperator(order);
         }
+
         // Creates the primary-index search unnest-map operator.
-        AbstractUnnestMapOperator primaryIndexUnnestMapOp = createPrimaryIndexUnnestMapOp(dataset, retainInput,
-                retainMissing, requiresBroadcast, primaryKeyVars, primaryIndexUnnestVars, primaryIndexOutputTypes);
+        AbstractUnnestMapOperator primaryIndexUnnestMapOp =
+                createPrimaryIndexUnnestMapOp(dataset, retainInput, retainMissing, requiresBroadcast, primaryKeyVars,
+                        primaryIndexUnnestVars, primaryIndexOutputTypes, sourceLoc);
         if (sortPrimaryKeys) {
             primaryIndexUnnestMapOp.getInputs().add(new MutableObject<ILogicalOperator>(order));
         } else {
@@ -859,6 +881,7 @@ public class AccessMethodUtils {
             LogicalVariable newMissingPlaceHolderForLOJ, List<LogicalVariable> pkVarsFromSIdxUnnestMapOp,
             List<LogicalVariable> primaryIndexUnnestVars, List<Object> primaryIndexOutputTypes)
             throws AlgebricksException {
+        SourceLocation sourceLoc = inputOp.getSourceLocation();
         Quadruple<Boolean, Boolean, Boolean, Boolean> indexOnlyPlanInfo = analysisCtx.getIndexOnlyPlanInfo();
         // From now on, we deal with the index-only plan.
         // Initializes the information required for the index-only plan optimization.
@@ -930,19 +953,24 @@ public class AccessMethodUtils {
             switch (spatialType.getTypeTag()) {
                 case POINT:
                     // Reconstructs a POINT value.
-                    AbstractFunctionCallExpression createPointExpr = createPointExpression(skVarsFromSIdxUnnestMap);
+                    AbstractFunctionCallExpression createPointExpr =
+                            createPointExpression(skVarsFromSIdxUnnestMap, sourceLoc);
                     restoredSKVarFromRTree.add(context.newVar());
                     restoredSKFromRTreeExprs.add(new MutableObject<ILogicalExpression>(createPointExpr));
                     skVarAssignOpInRightPath = new AssignOperator(restoredSKVarFromRTree, restoredSKFromRTreeExprs);
+                    skVarAssignOpInRightPath.setSourceLocation(sourceLoc);
                     break;
                 case RECTANGLE:
                     // Reconstructs a RECTANGLE value.
-                    AbstractFunctionCallExpression expr1 = createPointExpression(skVarsFromSIdxUnnestMap.subList(0, 2));
-                    AbstractFunctionCallExpression expr2 = createPointExpression(skVarsFromSIdxUnnestMap.subList(2, 4));
+                    AbstractFunctionCallExpression expr1 =
+                            createPointExpression(skVarsFromSIdxUnnestMap.subList(0, 2), sourceLoc);
+                    AbstractFunctionCallExpression expr2 =
+                            createPointExpression(skVarsFromSIdxUnnestMap.subList(2, 4), sourceLoc);
                     AbstractFunctionCallExpression createRectangleExpr = createRectangleExpression(expr1, expr2);
                     restoredSKVarFromRTree.add(context.newVar());
                     restoredSKFromRTreeExprs.add(new MutableObject<ILogicalExpression>(createRectangleExpr));
                     skVarAssignOpInRightPath = new AssignOperator(restoredSKVarFromRTree, restoredSKFromRTreeExprs);
+                    skVarAssignOpInRightPath.setSourceLocation(sourceLoc);
                     break;
                 default:
                     break;
@@ -950,9 +978,9 @@ public class AccessMethodUtils {
         }
 
         // Gets all variables from the right (inner) branch.
-        VariableUtilities.getLiveVariables((ILogicalOperator) subTree.getRootRef().getValue(), liveVarsInSubTreeRootOp);
+        VariableUtilities.getLiveVariables(subTree.getRootRef().getValue(), liveVarsInSubTreeRootOp);
         // Gets the used variables from the SELECT or JOIN operator.
-        VariableUtilities.getUsedVariables((ILogicalOperator) topOpRef.getValue(), usedVarsInTopOp);
+        VariableUtilities.getUsedVariables(topOpRef.getValue(), usedVarsInTopOp);
         // Excludes the variables in the condition from the outer branch - in join case.
         for (Iterator<LogicalVariable> iterator = usedVarsInTopOp.iterator(); iterator.hasNext();) {
             LogicalVariable v = iterator.next();
@@ -1022,6 +1050,7 @@ public class AccessMethodUtils {
                 // If this assign operator is not used in the SELECT or JOIN operator,
                 // we will add this operator after creating UNION operator in the last part of this method.
                 constAssignOp = new AssignOperator(constAssignVars, constAssignExprs);
+                constAssignOp.setSourceLocation(sourceLoc);
                 if (constantAssignVarUsedInTopOp) {
                     // Places this assign after the secondary index-search op.
                     constAssignOp.getInputs().add(new MutableObject<ILogicalOperator>(inputOp));
@@ -1037,7 +1066,7 @@ public class AccessMethodUtils {
         if (afterTopOpRefs != null) {
             for (Mutable<ILogicalOperator> afterTopOpRef : afterTopOpRefs) {
                 varsTmpSet.clear();
-                OperatorPropertiesUtil.getFreeVariablesInOp((ILogicalOperator) afterTopOpRef.getValue(), varsTmpSet);
+                OperatorPropertiesUtil.getFreeVariablesInOp(afterTopOpRef.getValue(), varsTmpSet);
                 copyVarsToAnotherList(varsTmpSet, usedVarsAfterTopOp);
             }
         }
@@ -1052,6 +1081,7 @@ public class AccessMethodUtils {
         // Adds a SPLIT operator after the given secondary index-search unnest-map operator.
         splitOp = new SplitOperator(2,
                 new MutableObject<ILogicalExpression>(new VariableReferenceExpression(condSplitVars.get(0))));
+        splitOp.setSourceLocation(sourceLoc);
         splitOp.getInputs().add(new MutableObject<ILogicalOperator>(currentOp));
         splitOp.setExecutionMode(ExecutionMode.PARTITIONED);
         context.computeAndSetTypeEnvironmentForOperator(splitOp);
@@ -1075,9 +1105,12 @@ public class AccessMethodUtils {
             LogicalVariable newVar = context.newVar();
             liveVarAfterSplitToLeftPathMap.put(v, newVar);
             assignVars.add(newVar);
-            assignExprs.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(v)));
+            VariableReferenceExpression vRef = new VariableReferenceExpression(v);
+            vRef.setSourceLocation(sourceLoc);
+            assignExprs.add(new MutableObject<ILogicalExpression>(vRef));
         }
         AssignOperator origVarsToLeftPathVarsAssignOp = new AssignOperator(assignVars, assignExprs);
+        origVarsToLeftPathVarsAssignOp.setSourceLocation(sourceLoc);
         origVarsToLeftPathVarsAssignOp.getInputs().add(new MutableObject<ILogicalOperator>(splitOp));
         context.computeAndSetTypeEnvironmentForOperator(origVarsToLeftPathVarsAssignOp);
         origVarsToLeftPathVarsAssignOp.setExecutionMode(ExecutionMode.PARTITIONED);
@@ -1177,7 +1210,7 @@ public class AccessMethodUtils {
         // For the index-nested-loop join case,
         // we propagate all variables that come from the outer relation and are used after join operator.
         // Adds the variables that are both live after JOIN and used after the JOIN operator.
-        VariableUtilities.getLiveVariables((ILogicalOperator) topOpRef.getValue(), liveVarsAfterTopOp);
+        VariableUtilities.getLiveVariables(topOpRef.getValue(), liveVarsAfterTopOp);
         for (LogicalVariable v : usedVarsAfterTopOp) {
             if (!liveVarsAfterTopOp.contains(v) || findVarInTripleVarList(unionVarMap, v, false)) {
                 continue;
@@ -1190,8 +1223,7 @@ public class AccessMethodUtils {
         // Replaces the original variables in the operators after the SELECT or JOIN operator to satisfy SSA.
         if (afterTopOpRefs != null) {
             for (Mutable<ILogicalOperator> afterTopOpRef : afterTopOpRefs) {
-                VariableUtilities.substituteVariables((ILogicalOperator) afterTopOpRef.getValue(),
-                        origVarToOutputVarMap, context);
+                VariableUtilities.substituteVariables(afterTopOpRef.getValue(), origVarToOutputVarMap, context);
             }
         }
 
@@ -1199,7 +1231,8 @@ public class AccessMethodUtils {
         // The job gen parameters are transferred to the actual job gen via the UnnestMapOperator's function arguments.
         AbstractUnnestMapOperator primaryIndexUnnestMapOp = createPrimaryIndexUnnestMapOp(dataset, retainInput,
                 retainMissing, requiresBroadcast, pkVarsInLeftPathFromSIdxSearchBeforeSplit,
-                pkVarsFromPIdxSearchInLeftPath, primaryIndexOutputTypes);
+                pkVarsFromPIdxSearchInLeftPath, primaryIndexOutputTypes, sourceLoc);
+        primaryIndexUnnestMapOp.setSourceLocation(sourceLoc);
         primaryIndexUnnestMapOp.getInputs().add(new MutableObject<ILogicalOperator>(origVarsToLeftPathVarsAssignOp));
         context.computeAndSetTypeEnvironmentForOperator(primaryIndexUnnestMapOp);
         primaryIndexUnnestMapOp.setExecutionMode(ExecutionMode.PARTITIONED);
@@ -1217,6 +1250,7 @@ public class AccessMethodUtils {
         LogicalVariable newMissingPlaceHolderVar = retainMissing ? newMissingPlaceHolderForLOJ : null;
         newSelectOpInLeftPath = new SelectOperator(new MutableObject<ILogicalExpression>(conditionRefExpr),
                 retainMissing, newMissingPlaceHolderVar);
+        newSelectOpInLeftPath.setSourceLocation(conditionRefExpr.getSourceLocation());
         VariableUtilities.substituteVariables(newSelectOpInLeftPath, origVarToNewVarInLeftPathMap, context);
 
         // If there are ASSIGN operators before the SELECT or JOIN operator,
@@ -1276,6 +1310,7 @@ public class AccessMethodUtils {
             ILogicalExpression conditionRefExpr2 = conditionRef.getValue().cloneExpression();
             newSelectOpInRightPath = new SelectOperator(new MutableObject<ILogicalExpression>(conditionRefExpr2),
                     retainMissing, newMissingPlaceHolderVar);
+            newSelectOpInRightPath.setSourceLocation(conditionRefExpr2.getSourceLocation());
             newSelectOpInRightPath.getInputs().add(new MutableObject<ILogicalOperator>(currentTopOpInRightPath));
             VariableUtilities.substituteVariables(newSelectOpInRightPath, origVarToSIdxUnnestMapOpVarMap, context);
             VariableUtilities.substituteVariables(newSelectOpInRightPath, origSKFieldVarToNewSKFieldVarMap, context);
@@ -1294,6 +1329,7 @@ public class AccessMethodUtils {
 
         // UNIONALL operator that combines both paths.
         unionAllOp = new UnionAllOperator(unionVarMap);
+        unionAllOp.setSourceLocation(sourceLoc);
         unionAllOp.getInputs().add(new MutableObject<ILogicalOperator>(newSelectOpInLeftPath));
         unionAllOp.getInputs().add(new MutableObject<ILogicalOperator>(currentTopOpInRightPath));
 
@@ -1322,8 +1358,8 @@ public class AccessMethodUtils {
 
     private static AbstractUnnestMapOperator createPrimaryIndexUnnestMapOp(Dataset dataset, boolean retainInput,
             boolean retainMissing, boolean requiresBroadcast, List<LogicalVariable> primaryKeyVars,
-            List<LogicalVariable> primaryIndexUnnestVars, List<Object> primaryIndexOutputTypes)
-            throws AlgebricksException {
+            List<LogicalVariable> primaryIndexUnnestVars, List<Object> primaryIndexOutputTypes,
+            SourceLocation sourceLoc) throws AlgebricksException {
         // The job gen parameters are transferred to the actual job gen via the UnnestMapOperator's function arguments.
         List<Mutable<ILogicalExpression>> primaryIndexFuncArgs = new ArrayList<>();
         BTreeJobGenParams jobGenParams = new BTreeJobGenParams(dataset.getDatasetName(), IndexType.BTREE,
@@ -1339,6 +1375,7 @@ public class AccessMethodUtils {
         IFunctionInfo primaryIndexSearch = FunctionUtil.getFunctionInfo(BuiltinFunctions.INDEX_SEARCH);
         AbstractFunctionCallExpression primaryIndexSearchFunc =
                 new ScalarFunctionCallExpression(primaryIndexSearch, primaryIndexFuncArgs);
+        primaryIndexSearchFunc.setSourceLocation(sourceLoc);
         // This is the operator that jobgen will be looking for. It contains an unnest function that has
         // all necessary arguments to determine which index to use, which variables contain the index-search keys,
         // what is the original dataset, etc.
@@ -1348,14 +1385,17 @@ public class AccessMethodUtils {
                 primaryIndexUnnestMapOp = new LeftOuterUnnestMapOperator(primaryIndexUnnestVars,
                         new MutableObject<ILogicalExpression>(primaryIndexSearchFunc), primaryIndexOutputTypes,
                         retainInput);
+                primaryIndexUnnestMapOp.setSourceLocation(sourceLoc);
             } else {
                 // Left-outer-join without retainNull and retainInput doesn't make sense.
-                throw new AlgebricksException("Left-outer-join should propagate all inputs from the outer branch.");
+                throw new CompilationException(ErrorCode.COMPILATION_ERROR, sourceLoc,
+                        "Left-outer-join should propagate all inputs from the outer branch.");
             }
         } else {
             primaryIndexUnnestMapOp = new UnnestMapOperator(primaryIndexUnnestVars,
                     new MutableObject<ILogicalExpression>(primaryIndexSearchFunc), primaryIndexOutputTypes,
                     retainInput);
+            primaryIndexUnnestMapOp.setSourceLocation(sourceLoc);
         }
         return primaryIndexUnnestMapOp;
     }
@@ -1416,12 +1456,18 @@ public class AccessMethodUtils {
         }
     }
 
-    private static AbstractFunctionCallExpression createPointExpression(List<LogicalVariable> pointVars) {
+    private static AbstractFunctionCallExpression createPointExpression(List<LogicalVariable> pointVars,
+            SourceLocation sourceLoc) {
         List<Mutable<ILogicalExpression>> expressions = new ArrayList<>();
         AbstractFunctionCallExpression createPointExpr1 =
                 new ScalarFunctionCallExpression(FunctionUtil.getFunctionInfo(BuiltinFunctions.CREATE_POINT));
-        expressions.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(pointVars.get(0))));
-        expressions.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(pointVars.get(1))));
+        createPointExpr1.setSourceLocation(sourceLoc);
+        VariableReferenceExpression pointVarRef0 = new VariableReferenceExpression(pointVars.get(0));
+        pointVarRef0.setSourceLocation(sourceLoc);
+        expressions.add(new MutableObject<ILogicalExpression>(pointVarRef0));
+        VariableReferenceExpression pointVarRef1 = new VariableReferenceExpression(pointVars.get(1));
+        pointVarRef1.setSourceLocation(sourceLoc);
+        expressions.add(new MutableObject<ILogicalExpression>(pointVarRef1));
         createPointExpr1.getArguments().addAll(expressions);
         return createPointExpr1;
     }
@@ -1431,51 +1477,93 @@ public class AccessMethodUtils {
         List<Mutable<ILogicalExpression>> expressions = new ArrayList<>();
         AbstractFunctionCallExpression createRectangleExpr =
                 new ScalarFunctionCallExpression(FunctionUtil.getFunctionInfo(BuiltinFunctions.CREATE_RECTANGLE));
+        createRectangleExpr.setSourceLocation(createPointExpr1.getSourceLocation());
         expressions.add(new MutableObject<ILogicalExpression>(createPointExpr1));
         expressions.add(new MutableObject<ILogicalExpression>(createPointExpr2));
         createRectangleExpr.getArguments().addAll(expressions);
         return createRectangleExpr;
     }
 
-    public static ScalarFunctionCallExpression findLOJIsMissingFuncInGroupBy(GroupByOperator lojGroupbyOp)
-            throws AlgebricksException {
-        //find IS_MISSING function of which argument has the nullPlaceholder variable in the nested plan of groupby.
-        ALogicalPlanImpl subPlan = (ALogicalPlanImpl) lojGroupbyOp.getNestedPlans().get(0);
-        Mutable<ILogicalOperator> subPlanRootOpRef = subPlan.getRoots().get(0);
-        AbstractLogicalOperator subPlanRootOp = (AbstractLogicalOperator) subPlanRootOpRef.getValue();
-        boolean foundSelectNonMissing = false;
-        ScalarFunctionCallExpression isMissingFuncExpr = null;
-        AbstractLogicalOperator inputOp = subPlanRootOp;
-        while (inputOp != null) {
-            if (inputOp.getOperatorTag() == LogicalOperatorTag.SELECT) {
-                SelectOperator selectOp = (SelectOperator) inputOp;
-                if (selectOp.getCondition().getValue().getExpressionTag() == LogicalExpressionTag.FUNCTION_CALL) {
-                    if (((AbstractFunctionCallExpression) selectOp.getCondition().getValue()).getFunctionIdentifier()
-                            .equals(AlgebricksBuiltinFunctions.NOT)) {
-                        ScalarFunctionCallExpression notFuncExpr =
-                                (ScalarFunctionCallExpression) selectOp.getCondition().getValue();
-                        if (notFuncExpr.getArguments().get(0).getValue()
-                                .getExpressionTag() == LogicalExpressionTag.FUNCTION_CALL) {
-                            if (((AbstractFunctionCallExpression) notFuncExpr.getArguments().get(0).getValue())
-                                    .getFunctionIdentifier().equals(AlgebricksBuiltinFunctions.IS_MISSING)) {
-                                isMissingFuncExpr =
-                                        (ScalarFunctionCallExpression) notFuncExpr.getArguments().get(0).getValue();
-                                if (isMissingFuncExpr.getArguments().get(0).getValue()
-                                        .getExpressionTag() == LogicalExpressionTag.VARIABLE) {
-                                    foundSelectNonMissing = true;
-                                    break;
-                                }
-                            }
+    private static ScalarFunctionCallExpression getNestedIsMissingCall(AbstractFunctionCallExpression call,
+            OptimizableOperatorSubTree rightSubTree) throws AlgebricksException {
+        ScalarFunctionCallExpression isMissingFuncExpr;
+        if (call.getFunctionIdentifier().equals(AlgebricksBuiltinFunctions.NOT)) {
+            if (call.getArguments().get(0).getValue().getExpressionTag() == LogicalExpressionTag.FUNCTION_CALL) {
+                if (((AbstractFunctionCallExpression) call.getArguments().get(0).getValue()).getFunctionIdentifier()
+                        .equals(AlgebricksBuiltinFunctions.IS_MISSING)) {
+                    isMissingFuncExpr = (ScalarFunctionCallExpression) call.getArguments().get(0).getValue();
+                    if (isMissingFuncExpr.getArguments().get(0).getValue()
+                            .getExpressionTag() == LogicalExpressionTag.VARIABLE) {
+                        LogicalVariable var =
+                                ((VariableReferenceExpression) isMissingFuncExpr.getArguments().get(0).getValue())
+                                        .getVariableReference();
+                        List<LogicalVariable> liveSubplanVars = new ArrayList<>();
+                        VariableUtilities.getSubplanLocalLiveVariables(rightSubTree.getRoot(), liveSubplanVars);
+                        if (liveSubplanVars.contains(var)) {
+                            return isMissingFuncExpr;
                         }
                     }
                 }
             }
-            inputOp = inputOp.getInputs().size() > 0 ? (AbstractLogicalOperator) inputOp.getInputs().get(0).getValue()
-                    : null;
         }
+        return null;
+    }
 
-        if (!foundSelectNonMissing) {
-            throw CompilationException.create(ErrorCode.CANNOT_FIND_NON_MISSING_SELECT_OPERATOR);
+    public static ScalarFunctionCallExpression findIsMissingInSubplan(AbstractLogicalOperator inputOp,
+            OptimizableOperatorSubTree rightSubTree) throws AlgebricksException {
+        ScalarFunctionCallExpression isMissingFuncExpr = null;
+        AbstractLogicalOperator currentOp = inputOp;
+        while (currentOp != null) {
+            if (currentOp.getOperatorTag() == LogicalOperatorTag.SELECT) {
+                SelectOperator selectOp = (SelectOperator) currentOp;
+                if (selectOp.getCondition().getValue().getExpressionTag() == LogicalExpressionTag.FUNCTION_CALL) {
+                    AbstractFunctionCallExpression call =
+                            (AbstractFunctionCallExpression) (selectOp).getCondition().getValue();
+                    if (call.getFunctionIdentifier().equals(AlgebricksBuiltinFunctions.AND)) {
+                        for (Mutable<ILogicalExpression> mexpr : call.getArguments()) {
+                            if (mexpr.getValue().getExpressionTag() == LogicalExpressionTag.FUNCTION_CALL) {
+                                isMissingFuncExpr = getNestedIsMissingCall(
+                                        (AbstractFunctionCallExpression) mexpr.getValue(), rightSubTree);
+                                if (isMissingFuncExpr != null) {
+                                    return isMissingFuncExpr;
+                                }
+                            }
+                        }
+                    }
+                    isMissingFuncExpr = getNestedIsMissingCall(call, rightSubTree);
+                    if (isMissingFuncExpr != null) {
+                        return isMissingFuncExpr;
+                    }
+                }
+            } else if (currentOp.hasNestedPlans()) {
+                AbstractOperatorWithNestedPlans nestedPlanOp = (AbstractOperatorWithNestedPlans) currentOp;
+                for (ILogicalPlan nestedPlan : nestedPlanOp.getNestedPlans()) {
+                    for (Mutable<ILogicalOperator> root : nestedPlan.getRoots()) {
+                        isMissingFuncExpr =
+                                findIsMissingInSubplan((AbstractLogicalOperator) root.getValue(), rightSubTree);
+                        if (isMissingFuncExpr != null) {
+                            return isMissingFuncExpr;
+                        }
+                    }
+                }
+            }
+            currentOp = currentOp.getInputs().isEmpty() ? null
+                    : (AbstractLogicalOperator) currentOp.getInputs().get(0).getValue();
+        }
+        return isMissingFuncExpr;
+    }
+
+    public static ScalarFunctionCallExpression findLOJIsMissingFuncInGroupBy(GroupByOperator lojGroupbyOp,
+            OptimizableOperatorSubTree rightSubTree) throws AlgebricksException {
+        //find IS_MISSING function of which argument has the nullPlaceholder variable in the nested plan of groupby.
+        ALogicalPlanImpl subPlan = (ALogicalPlanImpl) lojGroupbyOp.getNestedPlans().get(0);
+        Mutable<ILogicalOperator> subPlanRootOpRef = subPlan.getRoots().get(0);
+        AbstractLogicalOperator subPlanRootOp = (AbstractLogicalOperator) subPlanRootOpRef.getValue();
+        ScalarFunctionCallExpression isMissingFuncExpr = findIsMissingInSubplan(subPlanRootOp, rightSubTree);
+
+        if (isMissingFuncExpr == null) {
+            throw CompilationException.create(ErrorCode.CANNOT_FIND_NON_MISSING_SELECT_OPERATOR,
+                    lojGroupbyOp.getSourceLocation());
         }
         return isMissingFuncExpr;
     }
@@ -1486,8 +1574,9 @@ public class AccessMethodUtils {
         //reset the missing placeholder variable in groupby operator
         ScalarFunctionCallExpression isMissingFuncExpr = analysisCtx.getLOJIsMissingFuncInGroupBy();
         isMissingFuncExpr.getArguments().clear();
-        isMissingFuncExpr.getArguments().add(
-                new MutableObject<ILogicalExpression>(new VariableReferenceExpression(newMissingPlaceholderVaraible)));
+        VariableReferenceExpression newMissingVarRef = new VariableReferenceExpression(newMissingPlaceholderVaraible);
+        newMissingVarRef.setSourceLocation(isMissingFuncExpr.getSourceLocation());
+        isMissingFuncExpr.getArguments().add(new MutableObject<ILogicalExpression>(newMissingVarRef));
 
         //recompute type environment.
         OperatorPropertiesUtil.typeOpRec(analysisCtx.getLOJGroupbyOpRef(), context);
@@ -1526,12 +1615,16 @@ public class AccessMethodUtils {
             Dataset dataset, ARecordType recordType, ARecordType metaRecordType, ILogicalOperator inputOp,
             IOptimizationContext context, Index secondaryIndex, boolean retainInput, boolean retainNull)
             throws AlgebricksException {
+        SourceLocation sourceLoc = inputOp.getSourceLocation();
         List<LogicalVariable> primaryKeyVars = AccessMethodUtils.getKeyVarsFromSecondaryUnnestMap(dataset, recordType,
                 metaRecordType, inputOp, secondaryIndex, SecondaryUnnestMapOutputVarType.PRIMARY_KEY);
         // add a sort on the RID fields before fetching external data.
         OrderOperator order = new OrderOperator();
+        order.setSourceLocation(sourceLoc);
         for (LogicalVariable pkVar : primaryKeyVars) {
-            Mutable<ILogicalExpression> vRef = new MutableObject<>(new VariableReferenceExpression(pkVar));
+            VariableReferenceExpression pkVarRef = new VariableReferenceExpression(pkVar);
+            pkVarRef.setSourceLocation(sourceLoc);
+            Mutable<ILogicalExpression> vRef = new MutableObject<>(pkVarRef);
             order.getOrderExpressions().add(new Pair<>(OrderOperator.ASC_ORDER, vRef));
         }
         // The secondary-index search feeds into the sort.
@@ -1556,8 +1649,10 @@ public class AccessMethodUtils {
         IFunctionInfo externalLookup = FunctionUtil.getFunctionInfo(BuiltinFunctions.EXTERNAL_LOOKUP);
         AbstractFunctionCallExpression externalLookupFunc =
                 new ScalarFunctionCallExpression(externalLookup, externalLookupArgs);
+        externalLookupFunc.setSourceLocation(sourceLoc);
         UnnestMapOperator unnestOp = new UnnestMapOperator(externalUnnestVars,
                 new MutableObject<ILogicalExpression>(externalLookupFunc), outputTypes, retainInput);
+        unnestOp.setSourceLocation(sourceLoc);
         // Fed by the order operator or the secondaryIndexUnnestOp.
         unnestOp.getInputs().add(new MutableObject<ILogicalOperator>(order));
 
@@ -1712,7 +1807,7 @@ public class AccessMethodUtils {
         List<LogicalVariable> dataScanRecordVars = new ArrayList<>();
 
         // Collects the used variables in the given select (join) operator.
-        VariableUtilities.getUsedVariables((ILogicalOperator) topRef.getValue(), usedVarsInSelJoinOpTemp);
+        VariableUtilities.getUsedVariables(topRef.getValue(), usedVarsInSelJoinOpTemp);
 
         // Removes the duplicated variables that are used in the select (join) operator
         // in case where the variable is used multiple times in the operator's expression.
@@ -1745,10 +1840,8 @@ public class AccessMethodUtils {
         List<LogicalVariable> liveVarsInSubTreeRootOp = new ArrayList<>();
         List<LogicalVariable> producedVarsInSubTreeRootOp = new ArrayList<>();
 
-        VariableUtilities.getLiveVariables((ILogicalOperator) indexSubTree.getRootRef().getValue(),
-                liveVarsInSubTreeRootOp);
-        VariableUtilities.getProducedVariables((ILogicalOperator) indexSubTree.getRootRef().getValue(),
-                producedVarsInSubTreeRootOp);
+        VariableUtilities.getLiveVariables(indexSubTree.getRootRef().getValue(), liveVarsInSubTreeRootOp);
+        VariableUtilities.getProducedVariables(indexSubTree.getRootRef().getValue(), producedVarsInSubTreeRootOp);
 
         copyVarsToAnotherList(liveVarsInSubTreeRootOp, liveVarsAfterSelJoinOp);
         copyVarsToAnotherList(producedVarsInSubTreeRootOp, liveVarsAfterSelJoinOp);
@@ -1943,10 +2036,8 @@ public class AccessMethodUtils {
         for (Mutable<ILogicalOperator> afterSelectRef : afterSelectOpRefs) {
             usedVarsAfterSelectOrJoinOp.clear();
             producedVarsAfterSelectOrJoinOp.clear();
-            VariableUtilities.getUsedVariables((ILogicalOperator) afterSelectRef.getValue(),
-                    usedVarsAfterSelectOrJoinOp);
-            VariableUtilities.getProducedVariables((ILogicalOperator) afterSelectRef.getValue(),
-                    producedVarsAfterSelectOrJoinOp);
+            VariableUtilities.getUsedVariables(afterSelectRef.getValue(), usedVarsAfterSelectOrJoinOp);
+            VariableUtilities.getProducedVariables(afterSelectRef.getValue(), producedVarsAfterSelectOrJoinOp);
             // Checks whether COUNT exists in the given plan since we can substitute record variable
             // with the PK variable as an optimization because COUNT(record) is equal to COUNT(PK).
             // For this case only, we can replace the record variable with the PK variable.
@@ -1955,14 +2046,13 @@ public class AccessMethodUtils {
                 aggOp = (AggregateOperator) afterSelectRefOp;
                 condExprs = aggOp.getExpressions();
                 for (int i = 0; i < condExprs.size(); i++) {
-                    condExpr = (ILogicalExpression) condExprs.get(i).getValue();
+                    condExpr = condExprs.get(i).getValue();
                     if (condExpr.getExpressionTag() == LogicalExpressionTag.FUNCTION_CALL) {
                         condExprFnCall = (AbstractFunctionCallExpression) condExpr;
                         if (condExprFnCall.getFunctionIdentifier() == BuiltinFunctions.COUNT) {
                             // COUNT found. count on the record ($$0) can be replaced as the PK variable.
                             countAggFunctionIsUsedInThePlan = true;
-                            VariableUtilities.getUsedVariables((ILogicalOperator) afterSelectRef.getValue(),
-                                    usedVarsInCount);
+                            VariableUtilities.getUsedVariables(afterSelectRef.getValue(), usedVarsInCount);
                             break;
                         }
                     }
@@ -2091,7 +2181,7 @@ public class AccessMethodUtils {
         }
 
         if (matchedFuncExprs.size() == 1) {
-            condExpr = (ILogicalExpression) optFuncExpr.getFuncExpr();
+            condExpr = optFuncExpr.getFuncExpr();
             condExprFnCall = (AbstractFunctionCallExpression) condExpr;
             for (int i = 0; i < condExprFnCall.getArguments().size(); i++) {
                 Mutable<ILogicalExpression> expr = condExprFnCall.getArguments().get(i);
@@ -2276,7 +2366,7 @@ public class AccessMethodUtils {
                 AssignOperator assignOp = (AssignOperator) assignUnnestOp;
                 condExprs = assignOp.getExpressions();
                 for (int i = 0; i < condExprs.size(); i++) {
-                    condExpr = (ILogicalExpression) condExprs.get(i).getValue();
+                    condExpr = condExprs.get(i).getValue();
                     if (condExpr.getExpressionTag() == LogicalExpressionTag.CONSTANT
                             && !targetVars.contains(assignOp.getVariables().get(i))) {
                         targetVars.add(assignOp.getVariables().get(i));
@@ -2304,13 +2394,13 @@ public class AccessMethodUtils {
             case LEFT_OUTER_UNNEST_MAP:
                 return topOp;
             case UNIONALL:
-                dataSourceOp = (ILogicalOperator) dataSourceOp.getInputs().get(0).getValue();
+                dataSourceOp = dataSourceOp.getInputs().get(0).getValue();
                 // Index-only plan case:
                 // The order of operators: 7 unionall <- 6 select <- 5 assign?
                 // <- 4 unnest-map (PIdx) <- 3 split <- 2 unnest-map (SIdx) <- ...
                 // We do this to skip the primary index-search since we are looking for a secondary index-search here.
                 do {
-                    dataSourceOp = (ILogicalOperator) dataSourceOp.getInputs().get(0).getValue();
+                    dataSourceOp = dataSourceOp.getInputs().get(0).getValue();
                 } while (dataSourceOp.getOperatorTag() != LogicalOperatorTag.SPLIT && dataSourceOp.hasInputs());
 
                 if (dataSourceOp.getOperatorTag() != LogicalOperatorTag.SPLIT) {
@@ -2319,7 +2409,7 @@ public class AccessMethodUtils {
                 }
 
                 do {
-                    dataSourceOp = (ILogicalOperator) dataSourceOp.getInputs().get(0).getValue();
+                    dataSourceOp = dataSourceOp.getInputs().get(0).getValue();
                 } while (dataSourceOp.getOperatorTag() != LogicalOperatorTag.UNNEST_MAP
                         && dataSourceOp.getOperatorTag() != LogicalOperatorTag.LEFT_OUTER_UNNEST_MAP
                         && dataSourceOp.hasInputs());
@@ -2436,9 +2526,10 @@ public class AccessMethodUtils {
      *         false otherwise.
      */
     public static boolean getNoIndexOnlyOption(IOptimizationContext context) {
-        Map<String, String> config = context.getMetadataProvider().getConfig();
+        Map<String, Object> config = context.getMetadataProvider().getConfig();
         if (config.containsKey(AbstractIntroduceAccessMethodRule.NO_INDEX_ONLY_PLAN_OPTION)) {
-            return Boolean.parseBoolean(config.get(AbstractIntroduceAccessMethodRule.NO_INDEX_ONLY_PLAN_OPTION));
+            return Boolean
+                    .parseBoolean((String) config.get(AbstractIntroduceAccessMethodRule.NO_INDEX_ONLY_PLAN_OPTION));
         }
         return AbstractIntroduceAccessMethodRule.NO_INDEX_ONLY_PLAN_OPTION_DEFAULT_VALUE;
     }

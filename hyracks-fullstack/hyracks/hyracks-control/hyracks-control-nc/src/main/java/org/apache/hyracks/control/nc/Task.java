@@ -43,7 +43,6 @@ import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.dataflow.IOperatorNodePushable;
 import org.apache.hyracks.api.dataflow.TaskAttemptId;
 import org.apache.hyracks.api.dataflow.state.IStateObject;
-import org.apache.hyracks.api.dataset.IDatasetPartitionManager;
 import org.apache.hyracks.api.deployment.DeploymentId;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.HyracksException;
@@ -57,6 +56,7 @@ import org.apache.hyracks.api.job.profiling.counters.ICounter;
 import org.apache.hyracks.api.job.profiling.counters.ICounterContext;
 import org.apache.hyracks.api.partitions.PartitionId;
 import org.apache.hyracks.api.resources.IDeallocatable;
+import org.apache.hyracks.api.result.IResultPartitionManager;
 import org.apache.hyracks.api.util.ExceptionUtils;
 import org.apache.hyracks.api.util.JavaSerializationUtils;
 import org.apache.hyracks.control.common.job.PartitionState;
@@ -290,7 +290,7 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
                     .schedule(new NotifyTaskFailureWork(ncs, this, exceptions, joblet.getJobId(), taskAttemptId));
             return;
         }
-        ct.setName(displayName + ":" + taskAttemptId + ":" + 0);
+        ct.setName(displayName + ":" + joblet.getJobId() + ":" + taskAttemptId + ":" + 0);
         try {
             Throwable operatorException = null;
             try {
@@ -309,7 +309,8 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
                                 if (!addPendingThread(thread)) {
                                     return;
                                 }
-                                thread.setName(displayName + ":" + taskAttemptId + ":" + cIdx);
+                                thread.setName(
+                                        displayName + ":" + joblet.getJobId() + ":" + taskAttemptId + ":" + cIdx);
                                 thread.setPriority(Thread.MIN_PRIORITY);
                                 try {
                                     pushFrames(collector, inputChannelsFromConnectors.get(cIdx), writer);
@@ -354,10 +355,11 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
         if (!exceptions.isEmpty()) {
             if (LOGGER.isWarnEnabled()) {
                 for (int i = 0; i < exceptions.size(); i++) {
-                    LOGGER.log(Level.WARN,
-                            "Task " + taskAttemptId + " failed with exception"
+                    Exception e = exceptions.get(i);
+                    LOGGER.log(ExceptionUtils.causedByInterrupt(e) ? Level.DEBUG : Level.WARN,
+                            "Task failed with exception"
                                     + (exceptions.size() > 1 ? "s (" + (i + 1) + "/" + exceptions.size() + ")" : ""),
-                            exceptions.get(i));
+                            e);
                 }
             }
             ExceptionUtils.setNodeIds(exceptions, ncs.getId());
@@ -426,8 +428,8 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
     }
 
     @Override
-    public IDatasetPartitionManager getDatasetPartitionManager() {
-        return ncs.getDatasetPartitionManager();
+    public IResultPartitionManager getResultPartitionManager() {
+        return ncs.getResultPartitionManager();
     }
 
     @Override
@@ -468,5 +470,11 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
 
     public boolean isCompleted() {
         return completed;
+    }
+
+    @Override
+    public String toString() {
+        return "{ \"class\" : \"" + getClass().getSimpleName() + "\", \"node\" : \"" + ncs.getId() + "\" \"jobId\" : \""
+                + joblet.getJobId() + "\", \"taskId\" : \"" + taskAttemptId + "\" }";
     }
 }

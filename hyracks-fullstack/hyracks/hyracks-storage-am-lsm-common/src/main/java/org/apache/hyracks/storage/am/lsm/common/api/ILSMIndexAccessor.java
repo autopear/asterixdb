@@ -44,24 +44,19 @@ public interface ILSMIndexAccessor extends IIndexAccessor {
     /**
      * Schedule a flush operation
      *
-     * @param callback
-     *            the IO operation callback
      * @throws HyracksDataException
      */
-    void scheduleFlush(ILSMIOOperationCallback callback) throws HyracksDataException;
+    ILSMIOOperation scheduleFlush() throws HyracksDataException;
 
     /**
      * Schedule a merge operation
      *
-     * @param callback
-     *            the merge operation callback
      * @param components
      *            the components to be merged
      * @throws HyracksDataException
      * @throws IndexException
      */
-    void scheduleMerge(ILSMIOOperationCallback callback, List<ILSMDiskComponent> components)
-            throws HyracksDataException;
+    ILSMIOOperation scheduleMerge(List<ILSMDiskComponent> components) throws HyracksDataException;
 
     /**
      * Schedule a merge operation
@@ -74,19 +69,17 @@ public interface ILSMIndexAccessor extends IIndexAccessor {
      *            the overlapping components in level l+1 to be merged
      * @throws HyracksDataException
      */
-    void scheduleLeveledMerge(ILSMIOOperationCallback callback, List<ILSMDiskComponent> overlappingComponentsFromNextLevel,
+    ILSMIOOperation scheduleLeveledMerge(List<ILSMDiskComponent> overlappingComponentsFromNextLevel,
             List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel, IComponentPartitionPolicy partitionPolicy)
             throws HyracksDataException;
 
     /**
      * Schedule a full merge
      *
-     * @param callback
-     *            the merge operation callback
      * @throws HyracksDataException
      * @throws IndexException
      */
-    void scheduleFullMerge(ILSMIOOperationCallback callback) throws HyracksDataException;
+    ILSMIOOperation scheduleFullMerge() throws HyracksDataException;
 
     /**
      * Delete the tuple from the memory component only. Don't replace with antimatter tuple
@@ -208,17 +201,15 @@ public interface ILSMIndexAccessor extends IIndexAccessor {
      *
      * @param diskComponents
      *            the components to be replicated
-     * @param bulkload
-     *            true if the components were bulkloaded, false otherwise
      * @param opType
      *            the operation type
      * @throws HyracksDataException
      */
-    void scheduleReplication(List<ILSMDiskComponent> diskComponents, boolean bulkload, LSMOperationType opType)
+    void scheduleReplication(List<ILSMDiskComponent> diskComponents, LSMOperationType opType)
             throws HyracksDataException;
 
     /**
-     * Force a flush of the in-memory component.
+     * Flush an in-memory component.
      *
      * @throws HyracksDataException
      * @throws TreeIndexException
@@ -280,9 +271,10 @@ public interface ILSMIndexAccessor extends IIndexAccessor {
     void deleteComponents(Predicate<ILSMComponent> predicate) throws HyracksDataException;
 
     /**
-    * Update the filter of an LSM index
-    * @param tuple
-    * @throws HyracksDataException
-    */
+     * Update the filter of an LSM index
+     *
+     * @param tuple
+     * @throws HyracksDataException
+     */
     void updateFilter(ITupleReference tuple) throws HyracksDataException;
 }

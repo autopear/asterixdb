@@ -46,7 +46,7 @@ ${license.content}
    <#list projects as p>
        * ${p.name} (${p.groupId}:${p.artifactId}:${p.version})
      <#list p.locations as loc>
-         - ${loc}${p.artifactId}-${p.version}.jar
+         - ${loc}${p.jarName}
        </#list>
    </#list>
 
@@ -63,6 +63,18 @@ ${license.content}
    </#if>
 ---
 </#list>
+
+<#if !asterixDashboardSkip!false>
+===
+   ASTERIXDB Dashboard JS COMPONENTS:
+
+    includes a number of packed subcomponents under
+    dashboard/static/ with separate copyright
+    notices and license terms. Your use of these subcomponents is subject
+    to the terms and condition of the following licenses.
+===
+<#include "3rdpartylicenses.txt">
+</#if>
 ===
    AsterixDB includes source code with separate copyright notices and
    license terms. Your use of this source code is subject to the terms

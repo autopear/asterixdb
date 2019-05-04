@@ -51,6 +51,7 @@ public class ExceptionIT {
             // We test all generated functions except
             // record and cast functions, which requires type settings.
             if (className.contains("Gen") && !className.contains("record") && !className.contains("Cast")) {
+                System.out.println("Testing " + className);
                 testFunction(func);
                 ++testedFunctions;
             }
@@ -67,9 +68,9 @@ public class ExceptionIT {
         while (argEvalFactoryIterator.hasNext()) {
             IScalarEvaluatorFactory evalFactory = funcDesc.createEvaluatorFactory(argEvalFactoryIterator.next());
             IHyracksTaskContext ctx = mock(IHyracksTaskContext.class);
-            IScalarEvaluator evaluator = evalFactory.createScalarEvaluator(ctx);
-            IPointable resultPointable = new VoidPointable();
             try {
+                IScalarEvaluator evaluator = evalFactory.createScalarEvaluator(ctx);
+                IPointable resultPointable = new VoidPointable();
                 evaluator.evaluate(null, resultPointable);
             } catch (Throwable e) {
                 String msg = e.getMessage();
@@ -81,6 +82,10 @@ public class ExceptionIT {
                     int errorCode = Integer.parseInt(msg.substring(3, 7));
                     Assert.assertTrue(errorCode >= 0 && errorCode < 1000);
                     continue;
+                } else if (msg.startsWith("HYR")) {
+                    // Verifies the error code.
+                    int errorCode = Integer.parseInt(msg.substring(3, 7));
+                    Assert.assertTrue(errorCode >= 0 && errorCode < 1000);
                 } else {
                     // Any root-level data exceptions thrown from runtime functions should have an error code.
                     Assert.assertTrue(!(e instanceof HyracksDataException) || (e.getCause() != null));

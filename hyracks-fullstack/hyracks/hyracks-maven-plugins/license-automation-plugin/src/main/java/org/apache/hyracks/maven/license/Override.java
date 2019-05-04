@@ -29,6 +29,9 @@ public class Override {
     @SuppressWarnings("unused") // set by Maven plugin configuration
     private String name;
 
+    @SuppressWarnings("unused") // set by Maven plugin configuration
+    private String noticeUrl;
+
     public String getGav() {
         return gav;
     }
@@ -39,5 +42,9 @@ public class Override {
 
     public String getName() {
         return name;
+    }
+
+    public String getNoticeUrl() {
+        return noticeUrl;
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.asterix.lang.aql.rewrites;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -69,15 +70,15 @@ class AqlQueryRewriter implements IQueryRewriter {
 
     @Override
     public void rewrite(List<FunctionDecl> declaredFunctions, IReturningStatement topStatement,
-            MetadataProvider metadataProvider, LangRewritingContext context, boolean inlineUdfs)
-            throws CompilationException {
+            MetadataProvider metadataProvider, LangRewritingContext context, boolean inlineUdfs,
+            Collection<VarIdentifier> externalVars) throws CompilationException {
         setup(declaredFunctions, topStatement, metadataProvider, context);
         if (topStatement.isTopLevel()) {
             wrapInLets();
         }
         inlineDeclaredUdfs();
         rewriteFunctionName();
-        topStatement.setVarCounter(context.getVarCounter());
+        topStatement.setVarCounter(context.getVarCounter().get());
     }
 
     private void wrapInLets() {
@@ -119,7 +120,7 @@ class AqlQueryRewriter implements IQueryRewriter {
         for (Expression topLevelExpr : topStatement.getDirectlyEnclosedExpressions()) {
             storedFunctionDecls.addAll(FunctionUtil.retrieveUsedStoredFunctions(metadataProvider, topLevelExpr, funIds,
                     null, expr -> getFunctionCalls(expr), func -> functionParser.getFunctionDecl(func),
-                    signature -> CommonFunctionMapUtil.normalizeBuiltinFunctionSignature(signature)));
+                    (signature, sourceLoc) -> CommonFunctionMapUtil.normalizeBuiltinFunctionSignature(signature)));
             declaredFunctions.addAll(storedFunctionDecls);
         }
         if (!declaredFunctions.isEmpty()) {

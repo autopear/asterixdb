@@ -69,6 +69,7 @@ import org.apache.asterix.testframework.context.TestCaseContext;
 import org.apache.asterix.testframework.context.TestCaseContext.OutputFormat;
 import org.apache.asterix.testframework.context.TestFileContext;
 import org.apache.asterix.testframework.xml.ComparisonEnum;
+import org.apache.asterix.testframework.xml.ParameterTypeEnum;
 import org.apache.asterix.testframework.xml.TestCase.CompilationUnit;
 import org.apache.asterix.testframework.xml.TestCase.CompilationUnit.Parameter;
 import org.apache.asterix.testframework.xml.TestGroup;
@@ -90,6 +91,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.client.StandardHttpRequestRetryHandler;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
+import org.apache.hyracks.http.server.utils.HttpUtil;
 import org.apache.hyracks.util.StorageUtil;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -102,6 +104,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.util.RawValue;
 
 public class TestExecutor {
 
@@ -111,6 +114,7 @@ public class TestExecutor {
     protected static final Logger LOGGER = LogManager.getLogger();
     private static final String AQL = "aql";
     private static final String SQLPP = "sqlpp";
+    private static final String DEFAULT_PLAN_FORMAT = "string";
     // see
     // https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers/417184
     private static final long MAX_URL_LENGTH = 2000l;
@@ -124,11 +128,13 @@ public class TestExecutor {
     private static final Pattern POLL_DELAY_PATTERN = Pattern.compile("polldelaysecs=(\\d+)(\\D|$)", Pattern.MULTILINE);
     private static final Pattern HANDLE_VARIABLE_PATTERN = Pattern.compile("handlevariable=(\\w+)");
     private static final Pattern VARIABLE_REF_PATTERN = Pattern.compile("\\$(\\w+)");
-    private static final Pattern HTTP_PARAM_PATTERN = Pattern.compile("param (\\w+)=(.*)", Pattern.MULTILINE);
+    private static final Pattern HTTP_PARAM_PATTERN =
+            Pattern.compile("param (?<name>[\\w$]+)(?::(?<type>\\w+))?=(?<value>.*)", Pattern.MULTILINE);
     private static final Pattern HTTP_BODY_PATTERN = Pattern.compile("body=(.*)", Pattern.MULTILINE);
     private static final Pattern HTTP_STATUSCODE_PATTERN = Pattern.compile("statuscode (.*)", Pattern.MULTILINE);
     private static final Pattern MAX_RESULT_READS_PATTERN =
             Pattern.compile("maxresultreads=(\\d+)(\\D|$)", Pattern.MULTILINE);
+    private static final Pattern HTTP_REQUEST_TYPE = Pattern.compile("requesttype=(.*)", Pattern.MULTILINE);
     public static final int TRUNCATE_THRESHOLD = 16384;
     public static final Set<String> NON_CANCELLABLE =
             Collections.unmodifiableSet(new HashSet<>(Arrays.asList("store", "validate")));
@@ -579,19 +585,22 @@ public class TestExecutor {
 
     public InputStream executeQueryService(String str, OutputFormat fmt, URI uri, List<Parameter> params,
             boolean jsonEncoded, Predicate<Integer> responseCodeValidator, boolean cancellable) throws Exception {
-        List<Parameter> newParams = upsertParam(params, "format", fmt.mimeType());
+        List<Parameter> newParams = upsertParam(params, "format", ParameterTypeEnum.STRING, fmt.mimeType());
+        newParams = upsertParam(newParams, QueryServiceServlet.Parameter.PLAN_FORMAT.str(), ParameterTypeEnum.STRING,
+                DEFAULT_PLAN_FORMAT);
         final Optional<String> maxReadsOptional = extractMaxResultReads(str);
         if (maxReadsOptional.isPresent()) {
             newParams = upsertParam(newParams, QueryServiceServlet.Parameter.MAX_RESULT_READS.str(),
-                    maxReadsOptional.get());
+                    ParameterTypeEnum.STRING, maxReadsOptional.get());
         }
         final List<Parameter> additionalParams = extractParameters(str);
         for (Parameter param : additionalParams) {
-            newParams = upsertParam(newParams, param.getName(), param.getValue());
+            newParams = upsertParam(newParams, param.getName(), param.getType(), param.getValue());
         }
         HttpUriRequest method = jsonEncoded ? constructPostMethodJson(str, uri, "statement", newParams)
                 : constructPostMethodUrl(str, uri, "statement", newParams);
         // Set accepted output response type
+        method.setHeader("Origin", uri.getScheme() + uri.getAuthority());
         method.setHeader("Accept", OutputFormat.CLEAN_JSON.mimeType());
         HttpResponse response = executeHttpRequest(method);
         if (responseCodeValidator != null) {
@@ -600,16 +609,18 @@ public class TestExecutor {
         return response.getEntity().getContent();
     }
 
-    protected List<Parameter> upsertParam(List<Parameter> params, String name, String value) {
+    protected List<Parameter> upsertParam(List<Parameter> params, String name, ParameterTypeEnum type, String value) {
         boolean replaced = false;
         List<Parameter> result = new ArrayList<>();
         for (Parameter param : params) {
             Parameter newParam = new Parameter();
             newParam.setName(param.getName());
             if (name.equals(param.getName())) {
+                newParam.setType(type);
                 newParam.setValue(value);
                 replaced = true;
             } else {
+                newParam.setType(param.getType());
                 newParam.setValue(param.getValue());
             }
             result.add(newParam);
@@ -617,6 +628,7 @@ public class TestExecutor {
         if (!replaced) {
             Parameter newParam = new Parameter();
             newParam.setName(name);
+            newParam.setType(type);
             newParam.setValue(value);
             result.add(newParam);
         }
@@ -677,7 +689,7 @@ public class TestExecutor {
             List<Parameter> otherParams) {
         RequestBuilder builder = RequestBuilder.post(uri);
         if (stmtParam != null) {
-            for (Parameter param : upsertParam(otherParams, stmtParam, statement)) {
+            for (Parameter param : upsertParam(otherParams, stmtParam, ParameterTypeEnum.STRING, statement)) {
                 builder.addParameter(param.getName(), param.getValue());
             }
             builder.addParameter(stmtParam, statement);
@@ -697,8 +709,23 @@ public class TestExecutor {
         RequestBuilder builder = RequestBuilder.post(uri);
         ObjectMapper om = new ObjectMapper();
         ObjectNode content = om.createObjectNode();
-        for (Parameter param : upsertParam(otherParams, stmtParam, statement)) {
-            content.put(param.getName(), param.getValue());
+        for (Parameter param : upsertParam(otherParams, stmtParam, ParameterTypeEnum.STRING, statement)) {
+            String paramName = param.getName();
+            ParameterTypeEnum paramType = param.getType();
+            if (paramType == null) {
+                paramType = ParameterTypeEnum.STRING;
+            }
+            String paramValue = param.getValue();
+            switch (paramType) {
+                case STRING:
+                    content.put(paramName, paramValue);
+                    break;
+                case JSON:
+                    content.putRawValue(paramName, new RawValue(paramValue));
+                    break;
+                default:
+                    throw new IllegalStateException(paramType.toString());
+            }
         }
         try {
             builder.setEntity(new StringEntity(om.writeValueAsString(content), ContentType.APPLICATION_JSON));
@@ -1156,6 +1183,7 @@ public class TestExecutor {
                 if (testFile.getName().startsWith(DIAGNOSE)) {
                     LOGGER.info("Diagnostic output: {}", IOUtils.toString(resultStream, StandardCharsets.UTF_8));
                 } else {
+                    LOGGER.info("Unexpected output: {}", IOUtils.toString(resultStream, StandardCharsets.UTF_8));
                     Assert.fail("no result file for " + testFile.toString() + "; queryCount: " + queryCount
                             + ", filectxs.size: " + numResultFiles);
                 }
@@ -1178,14 +1206,17 @@ public class TestExecutor {
         }
         URI uri = testFile.getName().endsWith("aql") ? getEndpoint(Servlets.QUERY_AQL)
                 : getEndpoint(Servlets.QUERY_SERVICE);
+        boolean isJsonEncoded = isJsonEncoded(extractHttpRequestType(statement));
         InputStream resultStream;
         if (DELIVERY_IMMEDIATE.equals(delivery)) {
-            resultStream = executeQueryService(statement, fmt, uri, params, true, null, isCancellable(reqType));
+            resultStream =
+                    executeQueryService(statement, fmt, uri, params, isJsonEncoded, null, isCancellable(reqType));
             resultStream = METRICS_QUERY_TYPE.equals(reqType) ? ResultExtractor.extractMetrics(resultStream)
                     : ResultExtractor.extract(resultStream);
         } else {
             String handleVar = getHandleVariable(statement);
-            resultStream = executeQueryService(statement, fmt, uri, upsertParam(params, "mode", delivery), true);
+            resultStream = executeQueryService(statement, fmt, uri,
+                    upsertParam(params, "mode", ParameterTypeEnum.STRING, delivery), isJsonEncoded);
             String handle = ResultExtractor.extractHandle(resultStream);
             Assert.assertNotNull("no handle for " + reqType + " test " + testFile.toString(), handleVar);
             variableCtx.put(handleVar, toQueryServiceHandle(handle));
@@ -1445,16 +1476,47 @@ public class TestExecutor {
         return Optional.empty();
     }
 
-    protected static List<Parameter> extractParameters(String statement) {
+    public static List<Parameter> extractParameters(String statement) {
         List<Parameter> params = new ArrayList<>();
         final Matcher m = HTTP_PARAM_PATTERN.matcher(statement);
         while (m.find()) {
             final Parameter param = new Parameter();
-            param.setName(m.group(1));
-            param.setValue(m.group(2));
+            String name = m.group("name");
+            param.setName(name);
+            String value = m.group("value");
+            param.setValue(value);
+            String type = m.group("type");
+            if (type != null) {
+                try {
+                    param.setType(ParameterTypeEnum.fromValue(type.toLowerCase()));
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException(
+                            String.format("Invalid type '%s' specified for parameter '%s'", type, name));
+                }
+            }
             params.add(param);
         }
         return params;
+    }
+
+    private static String extractHttpRequestType(String statement) {
+        Matcher m = HTTP_REQUEST_TYPE.matcher(statement);
+        return m.find() ? m.group(1) : null;
+    }
+
+    private static boolean isJsonEncoded(String httpRequestType) throws Exception {
+        if (httpRequestType == null || httpRequestType.isEmpty()) {
+            return true;
+        }
+        switch (httpRequestType.trim()) {
+            case HttpUtil.ContentType.JSON:
+            case HttpUtil.ContentType.APPLICATION_JSON:
+                return true;
+            case HttpUtil.ContentType.APPLICATION_X_WWW_FORM_URLENCODED:
+                return false;
+            default:
+                throw new Exception("Invalid value for http request type: " + httpRequestType);
+        }
     }
 
     protected static Predicate<Integer> extractStatusCodePredicate(String statement) {
@@ -1511,6 +1573,7 @@ public class TestExecutor {
         List<Parameter> params = new ArrayList<>();
         Parameter node = new Parameter();
         node.setName("node");
+        node.setType(ParameterTypeEnum.STRING);
         node.setValue(nodeId);
         params.add(node);
         InputStream executeJSON = executeJSON(fmt, "POST", URI.create("http://localhost:16001" + endpoint), params);
@@ -1569,7 +1632,8 @@ public class TestExecutor {
                     }
                 } catch (Exception e) {
                     numOfErrors++;
-                    boolean unexpected = isUnExpected(e, expectedErrors, numOfErrors, queryCount);
+                    boolean unexpected = isUnExpected(e, expectedErrors, numOfErrors, queryCount,
+                            testCaseCtx.isSourceLocationExpected(cUnit));
                     if (unexpected) {
                         LOGGER.error("testFile {} raised an unexpected exception", testFile, e);
                         if (failedGroup != null) {
@@ -1615,20 +1679,39 @@ public class TestExecutor {
         throw new Exception("Test \"" + testFile + "\" FAILED!", e);
     }
 
-    protected boolean isUnExpected(Exception e, List<String> expectedErrors, int numOfErrors, MutableInt queryCount) {
+    protected boolean isUnExpected(Exception e, List<String> expectedErrors, int numOfErrors, MutableInt queryCount,
+            boolean expectedSourceLoc) {
         String expectedError = null;
         if (expectedErrors.size() < numOfErrors) {
             return true;
         } else {
             // Get the expected exception
             expectedError = expectedErrors.get(numOfErrors - 1);
-            if (e.toString().contains(expectedError)) {
-                return false;
-            } else {
+            String actualError = e.toString();
+            if (!actualError.contains(expectedError)) {
                 LOGGER.error("Expected to find the following in error text: +++++{}+++++", expectedError);
                 return true;
             }
+            if (expectedSourceLoc && !containsSourceLocation(actualError)) {
+                LOGGER.error("Expected to find source location \"{}, {}\" in error text: +++++{}+++++",
+                        ERR_MSG_SRC_LOC_LINE_REGEX, ERR_MSG_SRC_LOC_COLUMN_REGEX, actualError);
+                return true;
+            }
+            return false;
         }
+    }
+
+    private static final String ERR_MSG_SRC_LOC_LINE_REGEX = "in line \\d+";
+    private static final Pattern ERR_MSG_SRC_LOC_LINE_PATTERN =
+            Pattern.compile(ERR_MSG_SRC_LOC_LINE_REGEX, Pattern.CASE_INSENSITIVE);
+
+    private static final String ERR_MSG_SRC_LOC_COLUMN_REGEX = "at column \\d+";
+    private static final Pattern ERR_MSG_SRC_LOC_COLUMN_PATTERN =
+            Pattern.compile(ERR_MSG_SRC_LOC_COLUMN_REGEX, Pattern.CASE_INSENSITIVE);
+
+    private boolean containsSourceLocation(String errorMessage) {
+        Matcher lineMatcher = ERR_MSG_SRC_LOC_LINE_PATTERN.matcher(errorMessage);
+        return lineMatcher.find() && ERR_MSG_SRC_LOC_COLUMN_PATTERN.matcher(errorMessage).find(lineMatcher.end());
     }
 
     private static File getTestCaseQueryBeforeCrashFile(String actualPath, TestCaseContext testCaseCtx,
@@ -1706,13 +1789,14 @@ public class TestExecutor {
                 LOGGER.info("Last test left some garbage. Dropping dataverses: " + StringUtils.join(toBeDropped, ','));
                 StringBuilder dropStatement = new StringBuilder();
                 for (String dv : toBeDropped) {
+                    dropStatement.setLength(0);
                     dropStatement.append("drop dataverse ");
                     dropStatement.append(dv);
                     dropStatement.append(";\n");
+                    resultStream = executeQueryService(dropStatement.toString(), getEndpoint(Servlets.QUERY_SERVICE),
+                            OutputFormat.CLEAN_JSON);
+                    ResultExtractor.extract(resultStream);
                 }
-                resultStream = executeQueryService(dropStatement.toString(), getEndpoint(Servlets.QUERY_SERVICE),
-                        OutputFormat.CLEAN_JSON);
-                ResultExtractor.extract(resultStream);
             }
         } catch (Throwable th) {
             th.printStackTrace();
@@ -1778,6 +1862,7 @@ public class TestExecutor {
         Stream.of("partition", "host", "port").forEach(arg -> {
             Parameter p = new Parameter();
             p.setName(arg);
+            p.setType(ParameterTypeEnum.STRING);
             parameters.add(p);
         });
         parameters.get(0).setValue(partition);
@@ -1827,8 +1912,9 @@ public class TestExecutor {
         }
     }
 
-    abstract static class TestLoop extends Exception {
+    public abstract static class TestLoop extends Exception {
 
+        private static final long serialVersionUID = 1L;
         private final String target;
 
         TestLoop(String target) {
@@ -1838,6 +1924,7 @@ public class TestExecutor {
         static TestLoop createLoop(String target, final int count) {
             LOGGER.info("Starting loop '" + count + " times back to '" + target + "'...");
             return new TestLoop(target) {
+                private static final long serialVersionUID = 1L;
                 int remainingLoops = count;
 
                 @Override
@@ -1853,6 +1940,7 @@ public class TestExecutor {
         static TestLoop createLoop(String target, long duration, TimeUnit unit) {
             LOGGER.info("Starting loop for " + unit.toSeconds(duration) + "s back to '" + target + "'...");
             return new TestLoop(target) {
+                private static final long serialVersionUID = 1L;
                 long endTime = unit.toMillis(duration) + System.currentTimeMillis();
 
                 @Override

@@ -48,7 +48,6 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentBulkLoader;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
@@ -71,7 +70,7 @@ import org.apache.hyracks.util.trace.ITracer;
 
 public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
 
-    private static final ICursorFactory cursorFactory = opCtx -> new LSMBTreeSearchCursor(opCtx);
+    private static final ICursorFactory cursorFactory = LSMBTreeSearchCursor::new;
     // Common for in-memory and on-disk components.
     protected final ITreeIndexFrameFactory insertLeafFrameFactory;
     protected final ITreeIndexFrameFactory deleteLeafFrameFactory;
@@ -106,8 +105,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                     new BTree(virtualBufferCache, new VirtualFreePageManager(virtualBufferCache), interiorFrameFactory,
                             insertLeafFrameFactory, cmpFactories, fieldCount,
                             ioManager.resolveAbsolutePath(fileManager.getBaseDir() + "_virtual_" + i)),
-                    virtualBufferCache, i == 0 ? true : false,
-                    filterHelper == null ? null : filterHelper.createFilter());
+                    virtualBufferCache, filterHelper == null ? null : filterHelper.createFilter());
             memoryComponents.add(mutableComponent);
             ++i;
         }
@@ -274,8 +272,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             }
             component = createDiskComponent(componentFactory, flushOp.getTarget(), null, flushOp.getBloomFilterTarget(),
                     true);
-            componentBulkLoader =
-                    component.createBulkLoader(LSMIOOperationType.MERGE, 1.0f, false, numElements, false, false, false);
+            componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, numElements, false, false, false);
             IIndexCursor scanCursor = accessor.createSearchCursor(false);
             accessor.search(scanCursor, nullPred);
             try {
@@ -334,8 +331,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                     long numElements = getNumberOfElements(mergedComponents);
                     mergedComponent = createDiskComponent(componentFactory, mergeOp.getTarget(), null,
                             mergeOp.getBloomFilterTarget(), true);
-                    componentBulkLoader = mergedComponent.createBulkLoader(LSMIOOperationType.MERGE, 1.0f, false,
-                            numElements, false, false, false);
+                    componentBulkLoader =
+                            mergedComponent.createBulkLoader(operation, 1.0f, false, numElements, false, false, false);
                     while (cursor.hasNext()) {
                         cursor.next();
                         ITupleReference frameTuple = cursor.getTuple();
@@ -372,15 +369,18 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return mergedComponent;
     }
 
-    @Override protected List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException {
+    @Override
+    protected List<ILSMDiskComponent> doLeveledMerge(ILSMIOOperation operation) throws HyracksDataException {
         return null;
     }
 
-    @Override protected Rectangle getPointsFromTuple(ITupleReference frameTuple) {
+    @Override
+    protected Rectangle getPointsFromTuple(ITupleReference frameTuple) {
         return null;
     }
 
-    @Override protected void computeRangesOfLevel(int level) throws HyracksDataException {
+    @Override
+    protected void computeRangesOfLevel(int level) throws HyracksDataException {
 
     }
 
@@ -401,7 +401,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             LSMComponentFileReferences componentFileRefs, ILSMIOOperationCallback callback) {
         ILSMIndexAccessor accessor = createAccessor(opCtx);
         return new LSMBTreeFlushOperation(accessor, componentFileRefs.getInsertIndexFileReference(),
-                componentFileRefs.getBloomFilterFileReference(), callback, fileManager.getBaseDir().getAbsolutePath());
+                componentFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
     }
 
     @Override
@@ -475,11 +475,12 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
     }
 
-    @Override protected LSMComponentFileReferences[] getLeveledMergeFileReferences(
-            List<ILSMDiskComponent> mergingComponentsFromNextLevel, List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException {
+    @Override
+    protected LSMComponentFileReferences[] getLeveledMergeFileReferences(
+            List<ILSMDiskComponent> mergingComponentsFromNextLevel,
+            List<ILSMDiskComponent> mergingComponentsFromprevLevel) throws HyracksDataException {
         return new LSMComponentFileReferences[0];
     }
-
 
     @Override
     protected ILSMIOOperation createMergeOperation(AbstractLSMIndexOperationContext opCtx,
@@ -492,10 +493,11 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
         LSMBTreeRangeSearchCursor cursor = new LSMBTreeRangeSearchCursor(opCtx, returnDeletedTuples);
         return new LSMBTreeMergeOperation(accessor, cursor, mergeFileRefs.getInsertIndexFileReference(),
-                mergeFileRefs.getBloomFilterFileReference(), callback, fileManager.getBaseDir().getAbsolutePath());
+                mergeFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
     }
 
-    @Override protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
+    @Override
+    protected ILSMIOOperation createLeveledMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences[] mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
         return null;
     }

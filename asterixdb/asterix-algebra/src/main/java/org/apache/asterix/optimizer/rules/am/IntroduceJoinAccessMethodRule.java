@@ -24,7 +24,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.asterix.algebra.operators.CommitOperator;
 import org.apache.asterix.metadata.entities.Dataset;
 import org.apache.asterix.metadata.entities.Index;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -41,7 +40,6 @@ import org.apache.hyracks.algebricks.core.algebra.expressions.ScalarFunctionCall
 import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractBinaryJoinOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
-import org.apache.hyracks.algebricks.core.algebra.operators.logical.DelegateOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.GroupByOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.InnerJoinOperator;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.LeftOuterJoinOperator;
@@ -127,11 +125,6 @@ public class IntroduceJoinAccessMethodRule extends AbstractIntroduceAccessMethod
             return false;
         }
 
-        if (op.getOperatorTag() == LogicalOperatorTag.DELEGATE_OPERATOR
-                && !(((DelegateOperator) op).getDelegate() instanceof CommitOperator)) {
-            return false;
-        }
-
         afterJoinRefs = new ArrayList<>();
         // Recursively checks the given plan whether the desired pattern exists in it.
         // If so, try to optimize the plan.
@@ -206,8 +199,7 @@ public class IntroduceJoinAccessMethodRule extends AbstractIntroduceAccessMethod
         if (op1.getInputs().size() != 1) {
             return false;
         }
-        if (((AbstractLogicalOperator) op1.getInputs().get(0).getValue())
-                .getOperatorTag() != LogicalOperatorTag.LEFTOUTERJOIN) {
+        if (op1.getInputs().get(0).getValue().getOperatorTag() != LogicalOperatorTag.LEFTOUTERJOIN) {
             return false;
         }
         if (op1.getOperatorTag() == LogicalOperatorTag.GROUP) {
@@ -387,8 +379,8 @@ public class IntroduceJoinAccessMethodRule extends AbstractIntroduceAccessMethod
                     // in GroupByOp.
                     if (isThisOpLeftOuterJoin && isParentOpGroupBy) {
                         analysisCtx.setLOJGroupbyOpRef(opRef);
-                        ScalarFunctionCallExpression isNullFuncExpr =
-                                AccessMethodUtils.findLOJIsMissingFuncInGroupBy((GroupByOperator) opRef.getValue());
+                        ScalarFunctionCallExpression isNullFuncExpr = AccessMethodUtils
+                                .findLOJIsMissingFuncInGroupBy((GroupByOperator) opRef.getValue(), rightSubTree);
                         analysisCtx.setLOJIsMissingFuncInGroupBy(isNullFuncExpr);
                     }
 

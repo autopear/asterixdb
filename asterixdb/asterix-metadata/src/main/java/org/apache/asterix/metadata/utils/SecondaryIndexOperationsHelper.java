@@ -73,6 +73,7 @@ import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
+import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.dataflow.std.file.IFileSplitProvider;
 import org.apache.hyracks.dataflow.std.sort.ExternalSortOperatorDescriptor;
@@ -129,6 +130,8 @@ public abstract class SecondaryIndexOperationsHelper {
     protected List<ExternalFile> externalFiles;
     protected int numPrimaryKeys;
     public boolean defaultComp = false;
+    protected SourceLocation sourceLoc;
+
     // Prevent public construction. Should be created via createIndexCreator().
     protected SecondaryIndexOperationsHelper(Dataset dataset, Index index, PhysicalOptimizationConfig physOptConf,
             MetadataProvider metadataProvider) throws AlgebricksException {
@@ -152,7 +155,8 @@ public abstract class SecondaryIndexOperationsHelper {
     }
 
     public static SecondaryIndexOperationsHelper createIndexOperationsHelper(Dataset dataset, Index index,
-            MetadataProvider metadataProvider, PhysicalOptimizationConfig physOptConf) throws AlgebricksException {
+            MetadataProvider metadataProvider, PhysicalOptimizationConfig physOptConf, SourceLocation sourceLoc)
+            throws AlgebricksException {
 
         SecondaryIndexOperationsHelper indexOperationsHelper;
         switch (index.getIndexType()) {
@@ -172,8 +176,10 @@ public abstract class SecondaryIndexOperationsHelper {
                         new SecondaryInvertedIndexOperationsHelper(dataset, index, physOptConf, metadataProvider);
                 break;
             default:
-                throw new CompilationException(ErrorCode.COMPILATION_UNKNOWN_INDEX_TYPE, index.getIndexType());
+                throw new CompilationException(ErrorCode.COMPILATION_UNKNOWN_INDEX_TYPE, sourceLoc,
+                        index.getIndexType());
         }
+        indexOperationsHelper.setSourceLocation(sourceLoc);
         indexOperationsHelper.init();
         return indexOperationsHelper;
     }
@@ -185,6 +191,10 @@ public abstract class SecondaryIndexOperationsHelper {
     public abstract JobSpecification buildCompactJobSpec() throws AlgebricksException;
 
     public abstract JobSpecification buildDropJobSpec(Set<DropOption> options) throws AlgebricksException;
+
+    public void setSourceLocation(SourceLocation sourceLoc) {
+        this.sourceLoc = sourceLoc;
+    }
 
     protected void init() throws AlgebricksException {
         payloadSerde = SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(itemType);
@@ -215,8 +225,9 @@ public abstract class SecondaryIndexOperationsHelper {
         //      DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
         //mergePolicyFactory = compactionInfo.first;
         //mergePolicyProperties = compactionInfo.second;
-        if (defaultComp == false && index.getIndexType() == DatasetConfig.IndexType.RTREE && dataset.getDatasetType() == DatasetType.INTERNAL) {
-            mergePolicyFactory =  new LeveledPartitioningMergePolicyFactory();
+        if (defaultComp == false && index.getIndexType() == DatasetConfig.IndexType.RTREE
+                && dataset.getDatasetType() == DatasetType.INTERNAL) {
+            mergePolicyFactory = new LeveledPartitioningMergePolicyFactory();
             mergePolicyProperties = GlobalConfig.DEFAULT_RTREE_INDEX_COMPACTION_POLICY_NAME_PROPERTIES;
             //mergePolicyFactory = new NoMergePolicyFactory();
             //mergePolicyProperties = null;
@@ -314,8 +325,10 @@ public abstract class SecondaryIndexOperationsHelper {
             sefs[i] = secondaryFieldAccessEvalFactories[i];
         }
         AssignRuntimeFactory assign = new AssignRuntimeFactory(outColumns, sefs, projectionList);
+        assign.setSourceLocation(sourceLoc);
         AlgebricksMetaOperatorDescriptor asterixAssignOp = new AlgebricksMetaOperatorDescriptor(spec, 1, 1,
                 new IPushRuntimeFactory[] { assign }, new RecordDescriptor[] { secondaryRecDesc });
+        asterixAssignOp.setSourceLocation(sourceLoc);
         AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(spec, asterixAssignOp,
                 primaryPartitionConstraint);
         return asterixAssignOp;
@@ -345,6 +358,7 @@ public abstract class SecondaryIndexOperationsHelper {
         IScalarEvaluatorFactory[] sefs = new IScalarEvaluatorFactory[1];
         sefs[0] = createCastFunction(strictCast).createEvaluatorFactory(castEvalFact);
         AssignRuntimeFactory castAssign = new AssignRuntimeFactory(outColumns, sefs, projectionList);
+        castAssign.setSourceLocation(sourceLoc);
         return new AlgebricksMetaOperatorDescriptor(spec, 1, 1, new IPushRuntimeFactory[] { castAssign },
                 new RecordDescriptor[] { enforcedRecDesc });
     }
@@ -352,6 +366,7 @@ public abstract class SecondaryIndexOperationsHelper {
     protected IFunctionDescriptor createCastFunction(boolean strictCast) throws AlgebricksException {
         IFunctionDescriptor castFuncDesc = metadataProvider.getFunctionManager()
                 .lookupFunction(strictCast ? BuiltinFunctions.CAST_TYPE : BuiltinFunctions.CAST_TYPE_LAX);
+        castFuncDesc.setSourceLocation(sourceLoc);
         castFuncDesc.setImmutableStates(enforcedItemType, itemType);
         return castFuncDesc;
     }
@@ -364,6 +379,7 @@ public abstract class SecondaryIndexOperationsHelper {
         }
         ExternalSortOperatorDescriptor sortOp = new ExternalSortOperatorDescriptor(spec,
                 physOptConf.getMaxFramesExternalSort(), sortFields, secondaryComparatorFactories, secondaryRecDesc);
+        sortOp.setSourceLocation(sourceLoc);
         AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(spec, sortOp, primaryPartitionConstraint);
         return sortOp;
     }
@@ -377,6 +393,7 @@ public abstract class SecondaryIndexOperationsHelper {
         LSMIndexBulkLoadOperatorDescriptor treeIndexBulkLoadOp = new LSMIndexBulkLoadOperatorDescriptor(spec,
                 secondaryRecDesc, fieldPermutation, fillFactor, false, numElementsHint, false, dataflowHelperFactory,
                 primaryIndexDataflowHelperFactory, BulkLoadUsage.CREATE_INDEX, dataset.getDatasetId());
+        treeIndexBulkLoadOp.setSourceLocation(sourceLoc);
         AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(spec, treeIndexBulkLoadOp,
                 secondaryPartitionConstraint);
         return treeIndexBulkLoadOp;
@@ -388,6 +405,7 @@ public abstract class SecondaryIndexOperationsHelper {
         ExternalIndexBulkLoadOperatorDescriptor treeIndexBulkLoadOp = new ExternalIndexBulkLoadOperatorDescriptor(spec,
                 secondaryRecDesc, fieldPermutation, fillFactor, false, numElementsHint, false, dataflowHelperFactory,
                 ExternalDatasetsRegistry.INSTANCE.getAndLockDatasetVersion(dataset, metadataProvider));
+        treeIndexBulkLoadOp.setSourceLocation(sourceLoc);
         AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(spec, treeIndexBulkLoadOp,
                 secondaryPartitionConstraint);
         return treeIndexBulkLoadOp;
@@ -397,7 +415,9 @@ public abstract class SecondaryIndexOperationsHelper {
             RecordDescriptor secondaryRecDesc) throws AlgebricksException {
         IScalarEvaluatorFactory[] andArgsEvalFactories = new IScalarEvaluatorFactory[numSecondaryKeyFields];
         NotDescriptor notDesc = new NotDescriptor();
+        notDesc.setSourceLocation(sourceLoc);
         IsUnknownDescriptor isUnknownDesc = new IsUnknownDescriptor();
+        isUnknownDesc.setSourceLocation(sourceLoc);
         for (int i = 0; i < numSecondaryKeyFields; i++) {
             // Access column i, and apply 'is not null'.
             ColumnAccessEvalFactory columnAccessEvalFactory = new ColumnAccessEvalFactory(i);
@@ -412,14 +432,17 @@ public abstract class SecondaryIndexOperationsHelper {
             // Create conjunctive condition where all secondary index keys must
             // satisfy 'is not null'.
             AndDescriptor andDesc = new AndDescriptor();
+            andDesc.setSourceLocation(sourceLoc);
             selectCond = andDesc.createEvaluatorFactory(andArgsEvalFactories);
         } else {
             selectCond = andArgsEvalFactories[0];
         }
         StreamSelectRuntimeFactory select =
                 new StreamSelectRuntimeFactory(selectCond, null, BinaryBooleanInspector.FACTORY, false, -1, null);
+        select.setSourceLocation(sourceLoc);
         AlgebricksMetaOperatorDescriptor asterixSelectOp = new AlgebricksMetaOperatorDescriptor(spec, 1, 1,
                 new IPushRuntimeFactory[] { select }, new RecordDescriptor[] { secondaryRecDesc });
+        asterixSelectOp.setSourceLocation(sourceLoc);
         AlgebricksPartitionConstraintHelper.setPartitionConstraintInJobSpec(spec, asterixSelectOp,
                 primaryPartitionConstraint);
         return asterixSelectOp;
@@ -446,7 +469,7 @@ public abstract class SecondaryIndexOperationsHelper {
         Pair<ExternalScanOperatorDescriptor, AlgebricksPartitionConstraint> indexingOpAndConstraints;
         try {
             indexingOpAndConstraints = ExternalIndexingOperations.createExternalIndexingOp(spec, metadataProvider,
-                    dataset, itemType, indexerDesc, externalFiles);
+                    dataset, itemType, indexerDesc, externalFiles, sourceLoc);
         } catch (Exception e) {
             throw new AlgebricksException(e);
         }

@@ -20,15 +20,16 @@ package org.apache.asterix.translator;
 
 import java.util.Map;
 
+import org.apache.asterix.om.base.IAObject;
 import org.apache.asterix.translator.IStatementExecutor.Stats;
-import org.apache.hyracks.api.dataset.IHyracksDataset;
+import org.apache.hyracks.api.result.IResultSet;
 
 public interface IRequestParameters {
 
     /**
-     * @return A Hyracks dataset client object that is used to read the results.
+     * @return A Resultset client object that is used to read the results.
      */
-    IHyracksDataset getHyracksDataset();
+    IResultSet getResultSet();
 
     /**
      * Gets the required result properties of the request.
@@ -56,4 +57,14 @@ public interface IRequestParameters {
      * @return Optional request parameters. Otherwise null.
      */
     Map<String, String> getOptionalParameters();
+
+    /**
+     * @return Statement parameters
+     */
+    Map<String, IAObject> getStatementParameters();
+
+    /**
+     * @return true if the request accepts multiple statements. Otherwise, false.
+     */
+    boolean isMultiStatement();
 }

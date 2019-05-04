@@ -18,6 +18,9 @@
  */
 package org.apache.hyracks.util;
 
+import java.lang.reflect.Field;
+import java.util.IdentityHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.mutable.MutableLong;
@@ -33,22 +36,34 @@ public class ExitUtil {
     public static final int EC_ABNORMAL_TERMINATION = 1;
     public static final int EC_FAILED_TO_STARTUP = 2;
     public static final int EC_FAILED_TO_RECOVER = 3;
-    public static final int NC_FAILED_TO_ABORT_ALL_PREVIOUS_TASKS = 4;
+    public static final int EC_NC_FAILED_TO_ABORT_ALL_PREVIOUS_TASKS = 4;
+    public static final int EC_FAILED_TO_PROCESS_UN_INTERRUPTIBLE_REQUEST = 5;
+    public static final int EC_FAILED_TO_COMMIT_METADATA_TXN = 6;
+    public static final int EC_FAILED_TO_ABORT_METADATA_TXN = 7;
+    public static final int EC_INCONSISTENT_METADATA = 8;
+    public static final int EC_UNCAUGHT_THROWABLE = 9;
     public static final int EC_UNHANDLED_EXCEPTION = 11;
+    public static final int EC_FAILED_TO_DELETE_CORRUPTED_RESOURCES = 12;
+    public static final int EC_ERROR_CREATING_RESOURCES = 13;
+    public static final int EC_TXN_LOG_FLUSHER_FAILURE = 14;
+    public static final int EC_NODE_REGISTRATION_FAILURE = 15;
+    public static final int EC_NETWORK_FAILURE = 16;
+    public static final int EC_ACTIVE_SUSPEND_FAILURE = 17;
+    public static final int EC_ACTIVE_RESUME_FAILURE = 18;
+    public static final int EC_FAILED_TO_CANCEL_ACTIVE_START_STOP = 22;
     public static final int EC_IMMEDIATE_HALT = 33;
     public static final int EC_HALT_ABNORMAL_RESERVED_44 = 44;
-    public static final int EC_HALT_ABNORMAL_RESERVED_55 = 55;
+    public static final int EC_IO_SCHEDULER_FAILED = 55;
     public static final int EC_HALT_SHUTDOWN_TIMED_OUT = 66;
     public static final int EC_HALT_WATCHDOG_FAILED = 77;
-    public static final int EC_HALT_ABNORMAL_RESERVED_88 = 88;
+    public static final int EC_FLUSH_FAILED = 88;
     public static final int EC_TERMINATE_NC_SERVICE_DIRECTIVE = 99;
-
     private static final ExitThread exitThread = new ExitThread();
     private static final ShutdownWatchdog watchdogThread = new ShutdownWatchdog();
     private static final MutableLong shutdownHaltDelay = new MutableLong(10 * 60 * 1000L); // 10 minutes default
 
     static {
-        Runtime.getRuntime().addShutdownHook(new Thread(watchdogThread::start));
+        watchdogThread.start();
     }
 
     private ExitUtil() {
@@ -64,7 +79,7 @@ public class ExitUtil {
                 LOGGER.warn("ignoring duplicate request to exit with status " + status
                         + "; already exiting with status " + exitThread.status + "...");
             } else {
-                exitThread.setStatus(status);
+                exitThread.setStatus(status, new Throwable("exit callstack"));
                 exitThread.start();
             }
         }
@@ -75,14 +90,16 @@ public class ExitUtil {
         exit(status);
     }
 
-    public static void halt(int status) {
-        LOGGER.fatal("JVM halting with status " + status + "; bye!", new Throwable("halt stacktrace"));
+    public static synchronized void halt(int status) {
+        LOGGER.fatal("JVM halting with status {}; thread dump at halt: {}", status, ThreadDumpUtil.takeDumpString());
         // try to give time for the log to be emitted...
         LogManager.shutdown();
         Runtime.getRuntime().halt(status);
     }
 
     private static class ShutdownWatchdog extends Thread {
+
+        private final Semaphore startSemaphore = new Semaphore(0);
 
         private ShutdownWatchdog() {
             super("ShutdownWatchdog");
@@ -91,11 +108,14 @@ public class ExitUtil {
 
         @Override
         public void run() {
+            startSemaphore.acquireUninterruptibly();
+            LOGGER.info("starting shutdown watchdog- system will halt if shutdown is not completed within {} seconds",
+                    TimeUnit.MILLISECONDS.toSeconds(shutdownHaltDelay.getValue()));
             try {
-                exitThread.join(shutdownHaltDelay.getValue()); // 10 min
+                exitThread.join(shutdownHaltDelay.getValue());
                 if (exitThread.isAlive()) {
                     try {
-                        LOGGER.info("Watchdog is angry. Killing shutdown hook");
+                        LOGGER.fatal("shutdown did not complete within configured delay; halting");
                     } finally {
                         ExitUtil.halt(EC_HALT_SHUTDOWN_TIMED_OUT);
                     }
@@ -104,10 +124,15 @@ public class ExitUtil {
                 ExitUtil.halt(EC_HALT_WATCHDOG_FAILED);
             }
         }
+
+        public void beginWatch() {
+            startSemaphore.release();
+        }
     }
 
     private static class ExitThread extends Thread {
-        private int status;
+        private volatile int status;
+        private volatile Throwable callstack;
 
         ExitThread() {
             super("JVM exit thread");
@@ -116,15 +141,30 @@ public class ExitUtil {
 
         @Override
         public void run() {
+            watchdogThread.beginWatch();
             try {
-                LOGGER.info("JVM exiting with status " + status + "; bye!");
+                LOGGER.warn("JVM exiting with status " + status + "; bye!", callstack);
+                logShutdownHooks();
             } finally {
                 Runtime.getRuntime().exit(status);
             }
         }
 
-        public void setStatus(int status) {
+        public void setStatus(int status, Throwable callstack) {
             this.status = status;
+            this.callstack = callstack;
+        }
+
+        private static void logShutdownHooks() {
+            try {
+                Class clazz = Class.forName("java.lang.ApplicationShutdownHooks");
+                Field hooksField = clazz.getDeclaredField("hooks");
+                hooksField.setAccessible(true);
+                IdentityHashMap hooks = (IdentityHashMap) hooksField.get(null);
+                LOGGER.info("the following ({}) shutdown hooks have been registered: {}", hooks::size, hooks::toString);
+            } catch (Exception e) {
+                LOGGER.warn("ignoring exception trying to determine number of shutdown hooks", e);
+            }
         }
     }
 }

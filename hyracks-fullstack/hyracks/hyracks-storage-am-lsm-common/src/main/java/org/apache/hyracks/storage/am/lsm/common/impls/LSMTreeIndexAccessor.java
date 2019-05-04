@@ -28,7 +28,16 @@ import org.apache.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import org.apache.hyracks.dataflow.common.data.accessors.FrameTupleReference;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
-import org.apache.hyracks.storage.am.lsm.common.api.*;
+import org.apache.hyracks.storage.am.lsm.common.api.IFrameOperationCallback;
+import org.apache.hyracks.storage.am.lsm.common.api.IFrameTupleProcessor;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMHarness;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
+import org.apache.hyracks.storage.am.lsm.common.api.IComponentPartitionPolicy;
+import org.apache.hyracks.storage.am.lsm.common.api.LSMOperationType;
 import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 
@@ -111,12 +120,12 @@ public class LSMTreeIndexAccessor implements ILSMIndexAccessor {
 
     @Override
     public void flush(ILSMIOOperation operation) throws HyracksDataException {
-        lsmHarness.flush(ctx, operation);
+        lsmHarness.flush(operation);
     }
 
     @Override
     public void merge(ILSMIOOperation operation) throws HyracksDataException {
-        lsmHarness.merge(ctx, operation);
+        lsmHarness.merge(operation);
     }
 
     @Override
@@ -126,48 +135,46 @@ public class LSMTreeIndexAccessor implements ILSMIndexAccessor {
     }
 
     @Override
-    public void scheduleFlush(ILSMIOOperationCallback callback) throws HyracksDataException {
+    public ILSMIOOperation scheduleFlush() throws HyracksDataException {
         ctx.setOperation(IndexOperation.FLUSH);
-        lsmHarness.scheduleFlush(ctx, callback);
+        return lsmHarness.scheduleFlush(ctx);
     }
 
     @Override
-    public void scheduleMerge(ILSMIOOperationCallback callback, List<ILSMDiskComponent> components)
-            throws HyracksDataException {
+    public ILSMIOOperation scheduleMerge(List<ILSMDiskComponent> components) throws HyracksDataException {
         ctx.setOperation(IndexOperation.MERGE);
         ctx.getComponentsToBeMerged().clear();
         ctx.getComponentsToBeMerged().addAll(components);
-        lsmHarness.scheduleMerge(ctx, callback);
+        return lsmHarness.scheduleMerge(ctx);
     }
-
-    @Override public void scheduleLeveledMerge(ILSMIOOperationCallback callback,
-            List<ILSMDiskComponent> overlappingComponentsFromNextLevel,
-            List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel, IComponentPartitionPolicy partitionPolicy) throws HyracksDataException {
-        ctx.setOperation(IndexOperation.MERGE);
-        ctx.getComponentsToBeMerged().clear();
-        if(overlappingComponentsFromNextLevel!=null)
-            ctx.getComponentsToBeMerged().addAll(overlappingComponentsFromNextLevel);
-        ctx.getComponentPickedToBeMergedFromPrevLevel().clear();
-
-        ctx.getComponentPickedToBeMergedFromPrevLevel().addAll(componentsPickedToMergeFromPrevLevel);
-        ctx.setPartitionPolicy(partitionPolicy);
-        lsmHarness.scheduleLeveledMerge(ctx, callback);
-    }
-
 
     @Override
-    public void scheduleReplication(List<ILSMDiskComponent> lsmComponents, boolean bulkload, LSMOperationType opType)
+    public ILSMIOOperation scheduleLeveledMerge(List<ILSMDiskComponent> overlappingComponentsFromNextLevel,
+            List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel, IComponentPartitionPolicy partitionPolicy)
+            throws HyracksDataException {
+        ctx.setOperation(IndexOperation.MERGE);
+        ctx.getComponentsToBeMerged().clear();
+        if (overlappingComponentsFromNextLevel != null)
+            ctx.getComponentsToBeMerged().addAll(overlappingComponentsFromNextLevel);
+        ctx.getComponentPickedToBeMergedFromPrevLevel().clear();
+        ctx.getComponentPickedToBeMergedFromPrevLevel().addAll(componentsPickedToMergeFromPrevLevel);
+        ((AbstractLSMIndexOperationContext) ctx).setPartitionPolicy(partitionPolicy);
+        return lsmHarness.scheduleLeveledMerge(ctx);
+    }
+
+    @Override
+    public void scheduleReplication(List<ILSMDiskComponent> lsmComponents, LSMOperationType opType)
             throws HyracksDataException {
         ctx.setOperation(IndexOperation.REPLICATE);
         ctx.getComponentsToBeReplicated().clear();
         ctx.getComponentsToBeReplicated().addAll(lsmComponents);
-        lsmHarness.scheduleReplication(ctx, lsmComponents, bulkload, opType);
+        lsmHarness.scheduleReplication(ctx, lsmComponents, opType);
     }
 
     @Override
-    public void scheduleFullMerge(ILSMIOOperationCallback callback) throws HyracksDataException {
+    public ILSMIOOperation scheduleFullMerge() throws HyracksDataException {
         ctx.setOperation(IndexOperation.FULL_MERGE);
-        lsmHarness.scheduleFullMerge(ctx, callback);
+        return lsmHarness.scheduleFullMerge(ctx);
     }
 
     @Override

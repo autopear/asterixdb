@@ -27,17 +27,17 @@ import java.util.stream.IntStream;
 
 import org.apache.asterix.active.IActiveEntityEventsListener;
 import org.apache.asterix.active.IActiveNotificationHandler;
+import org.apache.asterix.common.api.IDatasetInfoProvider;
+import org.apache.asterix.common.api.ILSMComponentIdGeneratorFactory;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.context.CorrelatedPrefixMergePolicyFactory;
+import org.apache.asterix.common.context.DatasetInfoProvider;
 import org.apache.asterix.common.context.DatasetLSMComponentIdGeneratorFactory;
 import org.apache.asterix.common.context.IStorageComponentProvider;
 import org.apache.asterix.common.dataflow.NoOpFrameOperationCallbackFactory;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
-import org.apache.asterix.common.ioopcallbacks.LSMBTreeIOOperationCallbackFactory;
-import org.apache.asterix.common.ioopcallbacks.LSMBTreeWithBuddyIOOperationCallbackFactory;
-import org.apache.asterix.common.ioopcallbacks.LSMInvertedIndexIOOperationCallbackFactory;
-import org.apache.asterix.common.ioopcallbacks.LSMRTreeIOOperationCallbackFactory;
+import org.apache.asterix.common.ioopcallbacks.LSMIndexIOOperationCallbackFactory;
 import org.apache.asterix.common.metadata.IDataset;
 import org.apache.asterix.common.transactions.IRecoveryManager.ResourceType;
 import org.apache.asterix.common.utils.JobUtils;
@@ -98,6 +98,7 @@ import org.apache.hyracks.api.dataflow.value.IBinaryHashFunctionFactory;
 import org.apache.hyracks.api.dataflow.value.ISerializerDeserializer;
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
+import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.api.io.FileSplit;
 import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.storage.am.common.api.IModificationOperationCallbackFactory;
@@ -105,7 +106,6 @@ import org.apache.hyracks.storage.am.common.api.ISearchOperationCallbackFactory;
 import org.apache.hyracks.storage.am.common.impls.NoOpOperationCallbackFactory;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.IFrameOperationCallbackFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentIdGeneratorFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTrackerFactory;
@@ -127,9 +127,6 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
      */
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = LogManager.getLogger();
-    //TODO: Remove Singletons
-    private static final BTreeResourceFactoryProvider bTreeResourceFactoryProvider =
-            BTreeResourceFactoryProvider.INSTANCE;
     private static final RTreeResourceFactoryProvider rTreeResourceFactoryProvider =
             RTreeResourceFactoryProvider.INSTANCE;
     private static final InvertedIndexResourceFactoryProvider invertedIndexResourceFactoryProvider =
@@ -152,10 +149,6 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
     private final String metaTypeName;
     private final long rebalanceCount;
     private int pendingOp;
-
-    /*
-     * Transient (For caching)
-     */
 
     public Dataset(String dataverseName, String datasetName, String recordTypeDataverseName, String recordTypeName,
             String nodeGroupName, String compactionPolicy, Map<String, String> compactionPolicyProperties,
@@ -338,12 +331,14 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
      *            a mutable progress state used for error handling during the drop operation
      * @param hcc
      *            a client connection to hyracks master for job execution
+     * @param sourceLoc
      * @throws Exception
      *             if an error occur during the drop process or if the dataset can't be dropped for any reason
      */
     public void drop(MetadataProvider metadataProvider, MutableObject<MetadataTransactionContext> mdTxnCtx,
             List<JobSpecification> jobsToExecute, MutableBoolean bActiveTxn, MutableObject<ProgressState> progress,
-            IHyracksClientConnection hcc, boolean dropCorrespondingNodeGroup) throws Exception {
+            IHyracksClientConnection hcc, boolean dropCorrespondingNodeGroup, SourceLocation sourceLoc)
+            throws Exception {
         Map<FeedConnectionId, Pair<JobSpecification, Boolean>> disconnectJobList = new HashMap<>();
         if (getDatasetType() == DatasetType.INTERNAL) {
             // prepare job spec(s) that would disconnect any active feeds involving the dataset.
@@ -362,7 +357,8 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
                     MetadataManager.INSTANCE.getDatasetIndexes(mdTxnCtx.getValue(), dataverseName, datasetName);
             for (int j = 0; j < indexes.size(); j++) {
                 if (indexes.get(j).isSecondaryIndex()) {
-                    jobsToExecute.add(IndexUtil.buildDropIndexJobSpec(indexes.get(j), metadataProvider, this));
+                    jobsToExecute
+                            .add(IndexUtil.buildDropIndexJobSpec(indexes.get(j), metadataProvider, this, sourceLoc));
                 }
             }
             jobsToExecute.add(DatasetUtil.dropDatasetJobSpec(this, metadataProvider));
@@ -399,7 +395,8 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
                     MetadataManager.INSTANCE.getDatasetIndexes(mdTxnCtx.getValue(), dataverseName, datasetName);
             for (int j = 0; j < indexes.size(); j++) {
                 if (ExternalIndexingOperations.isFileIndex(indexes.get(j))) {
-                    jobsToExecute.add(IndexUtil.buildDropIndexJobSpec(indexes.get(j), metadataProvider, this));
+                    jobsToExecute
+                            .add(IndexUtil.buildDropIndexJobSpec(indexes.get(j), metadataProvider, this, sourceLoc));
                 } else {
                     jobsToExecute.add(DatasetUtil.buildDropFilesIndexJobSpec(metadataProvider, this));
                 }
@@ -469,8 +466,9 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
         IResourceFactory resourceFactory;
         switch (index.getIndexType()) {
             case BTREE:
-                resourceFactory = bTreeResourceFactoryProvider.getResourceFactory(mdProvider, this, index, recordType,
-                        metaType, mergePolicyFactory, mergePolicyProperties, filterTypeTraits, filterCmpFactories);
+                resourceFactory = BTreeResourceFactoryProvider.INSTANCE.getResourceFactory(mdProvider, this, index,
+                        recordType, metaType, mergePolicyFactory, mergePolicyProperties, filterTypeTraits,
+                        filterCmpFactories);
                 break;
             case RTREE:
                 resourceFactory = rTreeResourceFactoryProvider.getResourceFactory(mdProvider, this, index, recordType,
@@ -502,24 +500,9 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
      * @throws AlgebricksException
      *             if the factory could not be created for the index/dataset combination
      */
+    @SuppressWarnings("squid:S1172")
     public ILSMIOOperationCallbackFactory getIoOperationCallbackFactory(Index index) throws AlgebricksException {
-        switch (index.getIndexType()) {
-            case BTREE:
-                return getDatasetType() == DatasetType.EXTERNAL
-                        && !index.getIndexName().equals(IndexingConstants.getFilesIndexName(getDatasetName()))
-                                ? new LSMBTreeWithBuddyIOOperationCallbackFactory(getComponentIdGeneratorFactory())
-                                : new LSMBTreeIOOperationCallbackFactory(getComponentIdGeneratorFactory());
-            case RTREE:
-                return new LSMRTreeIOOperationCallbackFactory(getComponentIdGeneratorFactory());
-            case LENGTH_PARTITIONED_NGRAM_INVIX:
-            case LENGTH_PARTITIONED_WORD_INVIX:
-            case SINGLE_PARTITION_NGRAM_INVIX:
-            case SINGLE_PARTITION_WORD_INVIX:
-                return new LSMInvertedIndexIOOperationCallbackFactory(getComponentIdGeneratorFactory());
-            default:
-                throw new CompilationException(ErrorCode.COMPILATION_UNKNOWN_INDEX_TYPE,
-                        index.getIndexType().toString());
-        }
+        return new LSMIndexIOOperationCallbackFactory(getComponentIdGeneratorFactory(), getDatasetInfoProvider());
     }
 
     /**
@@ -536,6 +519,10 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
 
     public ILSMComponentIdGeneratorFactory getComponentIdGeneratorFactory() {
         return new DatasetLSMComponentIdGeneratorFactory(getDatasetId());
+    }
+
+    public IDatasetInfoProvider getDatasetInfoProvider() {
+        return new DatasetInfoProvider(getDatasetId());
     }
 
     /**
@@ -563,7 +550,6 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
             boolean proceedIndexOnlyPlan) throws AlgebricksException {
         if (index.isPrimaryIndex()) {
             /**
-            /*
              * Due to the read-committed isolation level,
              * we may acquire very short duration lock(i.e., instant lock) for readers.
              */
@@ -696,7 +682,7 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
                 datasetPartitions, isSink);
     }
 
-    public IFrameOperationCallbackFactory getFrameOpCallbackFactory() {
+    public IFrameOperationCallbackFactory getFrameOpCallbackFactory(MetadataProvider mdProvider) {
         return NoOpFrameOperationCallbackFactory.INSTANCE;
     }
 
@@ -860,5 +846,9 @@ public class Dataset implements IMetadataEntity<Dataset>, IDataset {
             partitions[i] = StoragePathUtil.getPartitionNumFromRelativePath(splitsForDataset[i].getPath());
         }
         return partitions;
+    }
+
+    public String getFullyQualifiedName() {
+        return dataverseName + '.' + datasetName;
     }
 }

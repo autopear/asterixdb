@@ -19,6 +19,7 @@
 package org.apache.asterix.lang.sqlpp.rewrites;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -31,6 +32,7 @@ import org.apache.asterix.lang.common.clause.LetClause;
 import org.apache.asterix.lang.common.expression.CallExpr;
 import org.apache.asterix.lang.common.rewrites.LangRewritingContext;
 import org.apache.asterix.lang.common.statement.FunctionDecl;
+import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.lang.common.util.FunctionUtil;
 import org.apache.asterix.lang.common.visitor.GatherFunctionCallsVisitor;
 import org.apache.asterix.lang.sqlpp.clause.AbstractBinaryCorrelateClause;
@@ -68,36 +70,35 @@ import org.apache.asterix.lang.sqlpp.util.FunctionMapUtil;
 import org.apache.asterix.lang.sqlpp.visitor.base.ISqlppVisitor;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 
-class SqlppQueryRewriter implements IQueryRewriter {
-    private static final String INLINE_WITH = "inline_with";
-    private static final String NOT_INLINE_WITH = "false";
+public class SqlppQueryRewriter implements IQueryRewriter {
+    public static final String INLINE_WITH_OPTION = "inline_with";
+    private static final boolean INLINE_WITH_OPTION_DEFAULT = true;
     private final FunctionParser functionRepository = new FunctionParser(new SqlppParserFactory());
     private IReturningStatement topExpr;
     private List<FunctionDecl> declaredFunctions;
     private LangRewritingContext context;
     private MetadataProvider metadataProvider;
+    private Collection<VarIdentifier> externalVars;
 
     protected void setup(List<FunctionDecl> declaredFunctions, IReturningStatement topExpr,
-            MetadataProvider metadataProvider, LangRewritingContext context) {
+            MetadataProvider metadataProvider, LangRewritingContext context, Collection<VarIdentifier> externalVars) {
         this.topExpr = topExpr;
         this.context = context;
         this.declaredFunctions = declaredFunctions;
         this.metadataProvider = metadataProvider;
+        this.externalVars = externalVars;
     }
 
     @Override
     public void rewrite(List<FunctionDecl> declaredFunctions, IReturningStatement topStatement,
-            MetadataProvider metadataProvider, LangRewritingContext context, boolean inlineUdfs)
-            throws CompilationException {
+            MetadataProvider metadataProvider, LangRewritingContext context, boolean inlineUdfs,
+            Collection<VarIdentifier> externalVars) throws CompilationException {
         if (topStatement == null) {
             return;
         }
 
         // Sets up parameters.
-        setup(declaredFunctions, topStatement, metadataProvider, context);
-
-        // Inlines column aliases.
-        inlineColumnAlias();
+        setup(declaredFunctions, topStatement, metadataProvider, context, externalVars);
 
         // Generates column names.
         generateColumnNames();
@@ -110,6 +111,9 @@ class SqlppQueryRewriter implements IQueryRewriter {
 
         // Rewrites set operations.
         rewriteSetOperations();
+
+        // Inlines column aliases.
+        inlineColumnAlias();
 
         // Generate ids for variables (considering scopes) and replace global variable access with the dataset function.
         variableCheckAndRewrite();
@@ -139,7 +143,7 @@ class SqlppQueryRewriter implements IQueryRewriter {
         rewriteDistinctAggregations();
 
         // Sets the var counter of the query.
-        topStatement.setVarCounter(context.getVarCounter());
+        topStatement.setVarCounter(context.getVarCounter().get());
     }
 
     protected void rewriteGroupByAggregationSugar() throws CompilationException {
@@ -164,8 +168,7 @@ class SqlppQueryRewriter implements IQueryRewriter {
     }
 
     protected void inlineWithExpressions() throws CompilationException {
-        String inlineWith = metadataProvider.getConfig().get(INLINE_WITH);
-        if (inlineWith != null && inlineWith.equalsIgnoreCase(NOT_INLINE_WITH)) {
+        if (!metadataProvider.getBooleanProperty(INLINE_WITH_OPTION, INLINE_WITH_OPTION_DEFAULT)) {
             return;
         }
         // Inlines with expressions.
@@ -206,7 +209,7 @@ class SqlppQueryRewriter implements IQueryRewriter {
 
     protected void variableCheckAndRewrite() throws CompilationException {
         VariableCheckAndRewriteVisitor variableCheckAndRewriteVisitor =
-                new VariableCheckAndRewriteVisitor(context, metadataProvider, topExpr.getExternalVars());
+                new VariableCheckAndRewriteVisitor(context, metadataProvider, externalVars);
         topExpr.accept(variableCheckAndRewriteVisitor, null);
     }
 
@@ -225,7 +228,8 @@ class SqlppQueryRewriter implements IQueryRewriter {
         for (Expression topLevelExpr : topExpr.getDirectlyEnclosedExpressions()) {
             usedStoredFunctionDecls.addAll(FunctionUtil.retrieveUsedStoredFunctions(metadataProvider, topLevelExpr,
                     funIds, null, expr -> getFunctionCalls(expr), func -> functionRepository.getFunctionDecl(func),
-                    signature -> FunctionMapUtil.normalizeBuiltinFunctionSignature(signature, false)));
+                    (signature, sourceLoc) -> FunctionMapUtil.normalizeBuiltinFunctionSignature(signature, false,
+                            sourceLoc)));
         }
         declaredFunctions.addAll(usedStoredFunctionDecls);
         if (inlineUdfs && !declaredFunctions.isEmpty()) {

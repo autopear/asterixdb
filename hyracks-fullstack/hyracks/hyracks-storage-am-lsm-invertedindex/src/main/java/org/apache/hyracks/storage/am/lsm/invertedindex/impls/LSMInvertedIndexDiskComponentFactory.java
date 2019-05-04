@@ -54,5 +54,4 @@ public class LSMInvertedIndexDiskComponentFactory implements ILSMDiskComponentFa
                 filterHelper == null ? null : filterHelper.createFilter());
     }
 
-
 }

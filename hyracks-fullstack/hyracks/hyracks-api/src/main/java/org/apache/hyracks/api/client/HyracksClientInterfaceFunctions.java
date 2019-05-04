@@ -25,12 +25,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.hyracks.api.dataset.DatasetDirectoryRecord;
-import org.apache.hyracks.api.dataset.ResultSetId;
 import org.apache.hyracks.api.deployment.DeploymentId;
 import org.apache.hyracks.api.job.DeployedJobSpecId;
 import org.apache.hyracks.api.job.JobFlag;
 import org.apache.hyracks.api.job.JobId;
+import org.apache.hyracks.api.result.ResultDirectoryRecord;
+import org.apache.hyracks.api.result.ResultSetId;
 
 public class HyracksClientInterfaceFunctions {
     public enum FunctionId {
@@ -39,12 +39,13 @@ public class HyracksClientInterfaceFunctions {
         GET_JOB_STATUS,
         GET_JOB_INFO,
         START_JOB,
-        DISTRIBUTE_JOB,
-        DESTROY_JOB,
+        DEPLOY_JOB,
+        UNDEPLOY_JOB,
+        REDEPLOY_JOB,
         CANCEL_JOB,
-        GET_DATASET_DIRECTORY_SERIVICE_INFO,
-        GET_DATASET_RESULT_STATUS,
-        GET_DATASET_RESULT_LOCATIONS,
+        GET_RESULT_DIRECTORY_ADDRESS,
+        GET_RESULT_STATUS,
+        GET_RESULT_LOCATIONS,
         WAIT_FOR_COMPLETION,
         GET_NODE_CONTROLLERS_INFO,
         CLI_DEPLOY_BINARY,
@@ -107,6 +108,32 @@ public class HyracksClientInterfaceFunctions {
         }
     }
 
+    public static class redeployJobSpecFunction extends Function {
+        private static final long serialVersionUID = 1L;
+
+        private final byte[] acggfBytes;
+
+        private final DeployedJobSpecId deployedJobSpecId;
+
+        public redeployJobSpecFunction(DeployedJobSpecId deployedJobSpecId, byte[] acggfBytes) {
+            this.deployedJobSpecId = deployedJobSpecId;
+            this.acggfBytes = acggfBytes;
+        }
+
+        @Override
+        public FunctionId getFunctionId() {
+            return FunctionId.REDEPLOY_JOB;
+        }
+
+        public byte[] getACGGFBytes() {
+            return acggfBytes;
+        }
+
+        public DeployedJobSpecId getDeployedJobSpecId() {
+            return deployedJobSpecId;
+        }
+    }
+
     public static class DeployJobSpecFunction extends Function {
         private static final long serialVersionUID = 1L;
 
@@ -118,7 +145,7 @@ public class HyracksClientInterfaceFunctions {
 
         @Override
         public FunctionId getFunctionId() {
-            return FunctionId.DISTRIBUTE_JOB;
+            return FunctionId.DEPLOY_JOB;
         }
 
         public byte[] getACGGFBytes() {
@@ -159,7 +186,7 @@ public class HyracksClientInterfaceFunctions {
 
         @Override
         public FunctionId getFunctionId() {
-            return FunctionId.DESTROY_JOB;
+            return FunctionId.UNDEPLOY_JOB;
         }
 
         public DeployedJobSpecId getDeployedJobSpecId() {
@@ -223,30 +250,30 @@ public class HyracksClientInterfaceFunctions {
         }
     }
 
-    public static class GetDatasetDirectoryServiceInfoFunction extends Function {
+    public static class GetResultDirectoryAddressFunction extends Function {
         private static final long serialVersionUID = 1L;
 
         @Override
         public FunctionId getFunctionId() {
-            return FunctionId.GET_DATASET_DIRECTORY_SERIVICE_INFO;
+            return FunctionId.GET_RESULT_DIRECTORY_ADDRESS;
         }
     }
 
-    public static class GetDatasetResultStatusFunction extends Function {
+    public static class GetResultStatusFunction extends Function {
         private static final long serialVersionUID = 1L;
 
         private final JobId jobId;
 
         private final ResultSetId rsId;
 
-        public GetDatasetResultStatusFunction(JobId jobId, ResultSetId rsId) {
+        public GetResultStatusFunction(JobId jobId, ResultSetId rsId) {
             this.jobId = jobId;
             this.rsId = rsId;
         }
 
         @Override
         public FunctionId getFunctionId() {
-            return FunctionId.GET_DATASET_RESULT_STATUS;
+            return FunctionId.GET_RESULT_STATUS;
         }
 
         public JobId getJobId() {
@@ -258,16 +285,16 @@ public class HyracksClientInterfaceFunctions {
         }
     }
 
-    public static class GetDatasetResultLocationsFunction extends Function {
+    public static class GetResultLocationsFunction extends Function {
         private static final long serialVersionUID = 1L;
 
         private final JobId jobId;
 
         private final ResultSetId rsId;
 
-        private final DatasetDirectoryRecord[] knownRecords;
+        private final ResultDirectoryRecord[] knownRecords;
 
-        public GetDatasetResultLocationsFunction(JobId jobId, ResultSetId rsId, DatasetDirectoryRecord[] knownRecords) {
+        public GetResultLocationsFunction(JobId jobId, ResultSetId rsId, ResultDirectoryRecord[] knownRecords) {
             this.jobId = jobId;
             this.rsId = rsId;
             this.knownRecords = knownRecords;
@@ -275,7 +302,7 @@ public class HyracksClientInterfaceFunctions {
 
         @Override
         public FunctionId getFunctionId() {
-            return FunctionId.GET_DATASET_RESULT_LOCATIONS;
+            return FunctionId.GET_RESULT_LOCATIONS;
         }
 
         public JobId getJobId() {
@@ -286,7 +313,7 @@ public class HyracksClientInterfaceFunctions {
             return rsId;
         }
 
-        public DatasetDirectoryRecord[] getKnownRecords() {
+        public ResultDirectoryRecord[] getKnownRecords() {
             return knownRecords;
         }
     }

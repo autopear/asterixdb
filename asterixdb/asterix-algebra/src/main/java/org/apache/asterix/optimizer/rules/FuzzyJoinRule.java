@@ -329,12 +329,13 @@ public class FuzzyJoinRule implements IAlgebraicRewriteRule {
             switch (joinOp.getJoinKind()) {
                 case INNER: {
                     extraSelect = new SelectOperator(expRef, false, null);
+                    extraSelect.setSourceLocation(expRef.getValue().getSourceLocation());
                     extraSelect.getInputs().add(new MutableObject<ILogicalOperator>(outputOp));
                     outputOp = extraSelect;
                     break;
                 }
                 case LEFT_OUTER: {
-                    if (((AbstractLogicalOperator) outputOp).getOperatorTag() != LogicalOperatorTag.LEFTOUTERJOIN) {
+                    if (outputOp.getOperatorTag() != LogicalOperatorTag.LEFTOUTERJOIN) {
                         throw new IllegalStateException();
                     }
                     LeftOuterJoinOperator topJoin = (LeftOuterJoinOperator) outputOp;

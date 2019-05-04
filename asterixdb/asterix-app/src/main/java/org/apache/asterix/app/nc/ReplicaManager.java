@@ -36,9 +36,11 @@ import org.apache.asterix.common.storage.ReplicaIdentifier;
 import org.apache.asterix.common.transactions.IRecoveryManager;
 import org.apache.asterix.replication.api.PartitionReplica;
 import org.apache.asterix.transaction.management.resource.PersistentLocalResourceRepository;
+import org.apache.hyracks.api.client.NodeStatus;
 import org.apache.hyracks.api.config.IApplicationConfig;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.control.common.controllers.NCConfig;
+import org.apache.hyracks.control.nc.NodeControllerService;
 import org.apache.hyracks.storage.common.LocalResource;
 import org.apache.hyracks.util.annotations.ThreadSafe;
 import org.apache.logging.log4j.LogManager;
@@ -66,6 +68,13 @@ public class ReplicaManager implements IReplicaManager {
 
     @Override
     public synchronized void addReplica(ReplicaIdentifier id) {
+        final NodeControllerService controllerService =
+                (NodeControllerService) appCtx.getServiceContext().getControllerService();
+        final NodeStatus nodeStatus = controllerService.getNodeStatus();
+        if (nodeStatus != NodeStatus.ACTIVE) {
+            LOGGER.warn("Ignoring request to add replica. Node is not ACTIVE yet. Current status: {}", nodeStatus);
+            return;
+        }
         if (!partitions.contains(id.getPartition())) {
             throw new IllegalStateException(
                     "This node is not the current master of partition(" + id.getPartition() + ")");

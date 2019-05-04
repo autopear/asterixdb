@@ -35,6 +35,7 @@ import org.apache.hyracks.storage.am.lsm.common.util.ComponentUtils;
 import org.apache.hyracks.storage.am.lsm.invertedindex.ondisk.OnDiskInvertedIndex;
 import org.apache.hyracks.storage.common.IIndexBulkLoader;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
+import org.apache.hyracks.storage.common.buffercache.IPageWriteFailureCallback;
 
 public class LSMInvertedIndexDiskComponent extends AbstractLSMWithBuddyDiskComponent {
 
@@ -102,20 +103,25 @@ public class LSMInvertedIndexDiskComponent extends AbstractLSMWithBuddyDiskCompo
         return getClass().getSimpleName() + ":" + invIndex.getInvListsFile().getRelativePath();
     }
 
-    @Override public List<Double> GetMBR() {
+    @Override
+    public List<Double> GetMBR() {
         return null;
     }
 
     @Override
-    public void markAsValid(boolean persist) throws HyracksDataException {
+    public void markAsValid(boolean persist, IPageWriteFailureCallback callback) throws HyracksDataException {
         ComponentUtils.markAsValid(getBloomFilterBufferCache(), getBloomFilter(), persist);
 
         // Flush inverted index second.
         invIndex.getBufferCache().force((invIndex).getInvListsFileId(), true);
-        ComponentUtils.markAsValid(getMetadataHolder(), persist);
-
-        // Flush deleted keys BTree.
-        ComponentUtils.markAsValid(getBuddyIndex(), persist);
+        ComponentUtils.markAsValid(getMetadataHolder(), persist, callback);
+        if (!callback.hasFailed()) {
+            // Flush deleted keys BTree.
+            ComponentUtils.markAsValid(getBuddyIndex(), persist, callback);
+        }
+        if (callback.hasFailed()) {
+            throw HyracksDataException.create(callback.getFailure());
+        }
     }
 
     @Override

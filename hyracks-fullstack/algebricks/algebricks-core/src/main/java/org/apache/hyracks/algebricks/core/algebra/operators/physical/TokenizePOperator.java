@@ -19,7 +19,6 @@
 
 package org.apache.hyracks.algebricks.core.algebra.operators.physical;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hyracks.algebricks.common.constraints.AlgebricksPartitionConstraint;
@@ -94,8 +93,10 @@ public class TokenizePOperator extends AbstractPhysicalOperator {
         Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> runtimeAndConstraints =
                 mp.getTokenizerRuntime(dataSourceIndex, propagatedSchema, inputSchemas, typeEnv, primaryKeys,
                         secondaryKeys, null, inputDesc, context, spec, true);
-        builder.contributeHyracksOperator(tokenizeOp, runtimeAndConstraints.first);
-        builder.contributeAlgebricksPartitionConstraint(runtimeAndConstraints.first, runtimeAndConstraints.second);
+        IOperatorDescriptor opDesc = runtimeAndConstraints.first;
+        opDesc.setSourceLocation(tokenizeOp.getSourceLocation());
+        builder.contributeHyracksOperator(tokenizeOp, opDesc);
+        builder.contributeAlgebricksPartitionConstraint(opDesc, runtimeAndConstraints.second);
         ILogicalOperator src = tokenizeOp.getInputs().get(0).getValue();
         builder.contributeGraphEdge(src, 0, tokenizeOp, 0);
     }

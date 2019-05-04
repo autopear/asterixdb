@@ -63,6 +63,7 @@ import org.apache.asterix.optimizer.rules.PushAggregateIntoNestedSubplanRule;
 import org.apache.asterix.optimizer.rules.PushFieldAccessRule;
 import org.apache.asterix.optimizer.rules.PushGroupByThroughProduct;
 import org.apache.asterix.optimizer.rules.PushLimitIntoOrderByRule;
+import org.apache.asterix.optimizer.rules.PushLimitIntoPrimarySearchRule;
 import org.apache.asterix.optimizer.rules.PushProperJoinThroughProduct;
 import org.apache.asterix.optimizer.rules.PushSimilarityFunctionsBelowJoin;
 import org.apache.asterix.optimizer.rules.RemoveLeftOuterUnnestForLeftOuterJoinRule;
@@ -181,13 +182,14 @@ public final class RuleCollections {
         normalization.add(new IntroduceDynamicTypeCastRule());
         normalization.add(new IntroduceDynamicTypeCastForExternalFunctionRule());
         normalization.add(new IntroduceEnforcedListTypeRule());
+        // Perform constant folding before common expression extraction
+        normalization.add(new ConstantFoldingRule(appCtx));
         normalization.add(new ExtractCommonExpressionsRule());
 
         // Let PushAggFuncIntoStandaloneAggregateRule run after ExtractCommonExpressionsRule
         // so that PushAggFunc can happen in fewer places.
         normalization.add(new PushAggFuncIntoStandaloneAggregateRule());
         normalization.add(new ListifyUnnestingFunctionRule());
-        normalization.add(new ConstantFoldingRule(appCtx));
         normalization.add(new RemoveRedundantSelectRule());
         normalization.add(new UnnestToDataScanRule());
         normalization.add(new MetaFunctionToMetaVariableRule());
@@ -350,6 +352,9 @@ public final class RuleCollections {
         // We are going to apply a constant folding rule again for this case.
         physicalRewritesTopLevel.add(new ConstantFoldingRule(appCtx));
         physicalRewritesTopLevel.add(new PushLimitIntoOrderByRule());
+        physicalRewritesTopLevel.add(new PushLimitIntoPrimarySearchRule());
+        // remove assigns that could become unused after PushLimitIntoPrimarySearchRule
+        physicalRewritesTopLevel.add(new RemoveUnusedAssignAndAggregateRule());
         physicalRewritesTopLevel.add(new IntroduceProjectsRule());
         physicalRewritesTopLevel.add(new SetAlgebricksPhysicalOperatorsRule());
         physicalRewritesTopLevel.add(new IntroduceRapidFrameFlushProjectAssignRule());

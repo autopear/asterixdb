@@ -47,40 +47,42 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
         if (!areComponentsReadableWritableState(index.getDiskComponents())) {
             return;
         }
-        for(int i = 0 ; i < maxLevel ; i++)
-        {
+        for (int i = 0; i < maxLevel; i++) {
             List<ILSMDiskComponent> immutableComponents = immutableComponentsInLevels.get(i);
             double maxComponentCountInALevel = 0;
-            if(i==0)
+            if (i == 0)
                 maxComponentCountInALevel = maxLevel0ComponentCount;
-            else if(i==1)
+            else if (i == 1)
                 maxComponentCountInALevel = maxLevel1ComponentCount;
             else
                 maxComponentCountInALevel = Math.pow(maxLevel1ComponentCount, i);
 
             int componentIndexToMerge = 0;
-            if(immutableComponents.size() > maxComponentCountInALevel) {
+            if (immutableComponents.size() > maxComponentCountInALevel) {
                 try {
-                    List<ILSMDiskComponent> immutableComponentsInNextLevel = immutableComponentsInLevels.get(i+1);
-                    if(i>0)
-                        componentIndexToMerge = orderPolicy.pickComponentToMerge(immutableComponents, immutableComponentsInNextLevel, index.getRangesOflevelsAsMBRorLine().get(i));
+                    List<ILSMDiskComponent> immutableComponentsInNextLevel = immutableComponentsInLevels.get(i + 1);
+                    if (i > 0)
+                        componentIndexToMerge = orderPolicy.pickComponentToMerge(immutableComponents,
+                                immutableComponentsInNextLevel, index.getRangesOflevelsAsMBRorLine().get(i));
 
+                    List<ILSMDiskComponent> overlappingComponentsFromNextLevel =
+                            partitionPolicy.findOverlappingComponents(immutableComponents.get(componentIndexToMerge),
+                                    immutableComponentsInNextLevel);
 
-                List<ILSMDiskComponent> overlappingComponentsFromNextLevel  = partitionPolicy.findOverlappingComponents(immutableComponents.get(componentIndexToMerge), immutableComponentsInNextLevel);
+                    List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel = new ArrayList<>();
+                    componentsPickedToMergeFromPrevLevel.add(immutableComponents.get(componentIndexToMerge));
 
-                List<ILSMDiskComponent> componentsPickedToMergeFromPrevLevel = new ArrayList<>();
-                componentsPickedToMergeFromPrevLevel.add(immutableComponents.get(componentIndexToMerge));
+                    //                if(overlappingComponentsFromNextLevel.size()==0) {
+                    //
+                    //                    index.subsumeLeveledMergedComponentsIfNoOverlapping(componentsPickedToMergeFromPrevLevel);
+                    //
+                    //                }
+                    //                else
 
-//                if(overlappingComponentsFromNextLevel.size()==0) {
-//
-//                    index.subsumeLeveledMergedComponentsIfNoOverlapping(componentsPickedToMergeFromPrevLevel);
-//
-//                }
-//                else
-
-                ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-                accessor.scheduleLeveledMerge(index.getIOOperationCallback(), overlappingComponentsFromNextLevel, componentsPickedToMergeFromPrevLevel, partitionPolicy);
-                return;
+                    ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+                    accessor.scheduleLeveledMerge(overlappingComponentsFromNextLevel,
+                            componentsPickedToMergeFromPrevLevel, partitionPolicy);
+                    return;
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -92,8 +94,7 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
 
     }
 
-    public IComponentPartitionPolicy getPartitionPolicy()
-    {
+    public IComponentPartitionPolicy getPartitionPolicy() {
         return partitionPolicy;
     }
 
@@ -107,7 +108,7 @@ public class LeveledParitioningMergePolicy implements ILSMMergePolicy {
         String order = properties.get("components-order-policy");
         if (order.equals("zorder"))
             orderPolicy = new ZOrderPolicy();
-        else if(order.equals("pickbest"))
+        else if (order.equals("pickbest"))
             orderPolicy = new PickBestOrderPolicy();
         String partition = properties.get("components-partition-policy");
         if (partition.equals("STR"))

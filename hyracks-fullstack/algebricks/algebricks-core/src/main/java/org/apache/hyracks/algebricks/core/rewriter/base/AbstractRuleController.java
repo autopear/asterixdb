@@ -19,7 +19,6 @@
 package org.apache.hyracks.algebricks.core.rewriter.base;
 
 import java.util.Collection;
-import java.util.logging.Level;
 
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -66,7 +65,7 @@ public abstract class AbstractRuleController {
     }
 
     private String getPlanString(Mutable<ILogicalOperator> opRef) throws AlgebricksException {
-        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled() && context != null) {
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled() && context != null) {
             LogicalOperatorPrettyPrintVisitor pvisitor = context.getPrettyPrintVisitor();
             pvisitor.reset(new AlgebricksAppendable());
             PlanPrettyPrinter.printOperator((AbstractLogicalOperator) opRef.getValue(), pvisitor, 0);
@@ -77,10 +76,10 @@ public abstract class AbstractRuleController {
 
     private void printRuleApplication(IAlgebraicRewriteRule rule, String beforePlan, String afterPlan)
             throws AlgebricksException {
-        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isDebugEnabled()) {
-            AlgebricksConfig.ALGEBRICKS_LOGGER.debug(">>>> Rule " + rule.getClass() + " fired.\n");
-            AlgebricksConfig.ALGEBRICKS_LOGGER.debug(">>>> Before plan\n" + beforePlan + "\n");
-            AlgebricksConfig.ALGEBRICKS_LOGGER.debug(">>>> After plan\n" + afterPlan + "\n");
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isTraceEnabled()) {
+            AlgebricksConfig.ALGEBRICKS_LOGGER.trace(">>>> Rule " + rule.getClass() + " fired.\n");
+            AlgebricksConfig.ALGEBRICKS_LOGGER.trace(">>>> Before plan\n" + beforePlan + "\n");
+            AlgebricksConfig.ALGEBRICKS_LOGGER.trace(">>>> After plan\n" + afterPlan + "\n");
         }
     }
 

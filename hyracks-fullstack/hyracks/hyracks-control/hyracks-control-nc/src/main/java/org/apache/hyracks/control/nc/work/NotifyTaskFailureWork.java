@@ -21,8 +21,9 @@ package org.apache.hyracks.control.nc.work;
 import java.util.List;
 
 import org.apache.hyracks.api.dataflow.TaskAttemptId;
-import org.apache.hyracks.api.dataset.IDatasetPartitionManager;
 import org.apache.hyracks.api.job.JobId;
+import org.apache.hyracks.api.result.IResultPartitionManager;
+import org.apache.hyracks.api.util.ExceptionUtils;
 import org.apache.hyracks.control.common.work.AbstractWork;
 import org.apache.hyracks.control.nc.NodeControllerService;
 import org.apache.hyracks.control.nc.Task;
@@ -49,12 +50,13 @@ public class NotifyTaskFailureWork extends AbstractWork {
 
     @Override
     public void run() {
-        LOGGER.log(Level.WARN, ncs.getId() + " is sending a notification to cc that task " + taskId + " has failed",
-                exceptions.get(0));
+        Exception ex = exceptions.get(0);
+        LOGGER.log(ExceptionUtils.causedByInterrupt(ex) ? Level.DEBUG : Level.WARN, "task " + taskId + " has failed",
+                ex);
         try {
-            IDatasetPartitionManager dpm = ncs.getDatasetPartitionManager();
-            if (dpm != null) {
-                dpm.abortReader(jobId);
+            IResultPartitionManager resultPartitionManager = ncs.getResultPartitionManager();
+            if (resultPartitionManager != null) {
+                resultPartitionManager.abortReader(jobId);
             }
             ncs.getClusterController(jobId.getCcId()).notifyTaskFailure(jobId, taskId, ncs.getId(), exceptions);
         } catch (Exception e) {
@@ -63,5 +65,10 @@ public class NotifyTaskFailureWork extends AbstractWork {
         if (task != null) {
             task.getJoblet().removeTask(task);
         }
+    }
+
+    @Override
+    public String toString() {
+        return getName() + ": [" + ncs.getId() + "[" + jobId + ":" + taskId + "]";
     }
 }

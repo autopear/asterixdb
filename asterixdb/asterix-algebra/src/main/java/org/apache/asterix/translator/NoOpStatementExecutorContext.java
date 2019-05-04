@@ -18,7 +18,7 @@
  */
 package org.apache.asterix.translator;
 
-import org.apache.hyracks.api.job.JobId;
+import org.apache.asterix.common.api.IClientRequest;
 
 public class NoOpStatementExecutorContext implements IStatementExecutorContext {
 
@@ -28,17 +28,17 @@ public class NoOpStatementExecutorContext implements IStatementExecutorContext {
     }
 
     @Override
-    public JobId getJobIdFromClientContextId(String clientContextId) {
+    public IClientRequest get(String clientContextId) {
         return null;
     }
 
     @Override
-    public void put(String clientContextId, JobId jobId) {
+    public void put(String clientContextId, IClientRequest req) {
         // Dummy for when a statement doesn't support cancellation
     }
 
     @Override
-    public JobId removeJobIdFromClientContextId(String clientContextId) {
+    public IClientRequest remove(String clientContextId) {
         return null;
     }
 

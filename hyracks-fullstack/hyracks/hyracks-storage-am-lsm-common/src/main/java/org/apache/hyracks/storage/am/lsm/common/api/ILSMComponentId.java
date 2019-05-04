@@ -38,4 +38,14 @@ public interface ILSMComponentId {
     boolean missing();
 
     IdCompareResult compareTo(ILSMComponentId id);
+
+    /**
+     * @return the min Id
+     */
+    long getMinId();
+
+    /**
+     * @return the max Id
+     */
+    long getMaxId();
 }

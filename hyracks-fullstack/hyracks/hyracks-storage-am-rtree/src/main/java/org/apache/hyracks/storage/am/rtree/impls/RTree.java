@@ -85,8 +85,7 @@ public class RTree extends AbstractTreeIndex {
         return globalNsn.incrementAndGet();
     }
 
-    public List<Double> getRootMBR() throws Exception
-    {
+    public List<Double> getRootMBR() throws Exception {
         List<Double> mbr = null;
         ICachedPage node = bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), rootPage), false);
         node.acquireReadLatch();
@@ -95,37 +94,36 @@ public class RTree extends AbstractTreeIndex {
             IRTreeLeafFrame leafFrame = (IRTreeLeafFrame) leafFrameFactory.createFrame();
 
             interiorFrame.setPage(node);
-//            String keyString;
-//            IPrimitiveValueProviderFactory[] keyValueProviderFactories = ((RTreeFrameFactory)interiorFrameFactory).GetkeyValueProviderFactories();
-//            interiorFrame.
-//            ISerializerDeserializer<ADouble>[] doubleSerde = new ISerializerDeserializer[];
-                    //SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADOUBLE);
-
+            //            String keyString;
+            //            IPrimitiveValueProviderFactory[] keyValueProviderFactories = ((RTreeFrameFactory)interiorFrameFactory).GetkeyValueProviderFactories();
+            //            interiorFrame.
+            //            ISerializerDeserializer<ADouble>[] doubleSerde = new ISerializerDeserializer[];
+            //SerializerDeserializerProvider.INSTANCE.getSerializerDeserializer(BuiltinType.ADOUBLE);
 
             if (interiorFrame.isLeaf()) {
                 leafFrame.setPage(node);
                 //keyString = TreeIndexUtils.printFrameTuples(leafFrame, keySerdes);
-                ((RTreeNSMLeafFrame)leafFrame).adjustMBR();
-                mbr = ((RTreeNSMLeafFrame)leafFrame).getMBRinDoubles();
+                ((RTreeNSMLeafFrame) leafFrame).adjustMBR();
+                mbr = ((RTreeNSMLeafFrame) leafFrame).getMBRinDoubles();
 
             } else {
                 //keyString = TreeIndexUtils.printFrameTuples(interiorFrame, keySerdes);
 
-                ((RTreeNSMInteriorFrame)interiorFrame).adjustMBR();
-               mbr = ((RTreeNSMInteriorFrame)interiorFrame).getMBRinDoubles();
+                ((RTreeNSMInteriorFrame) interiorFrame).adjustMBR();
+                mbr = ((RTreeNSMInteriorFrame) interiorFrame).getMBRinDoubles();
             }
 
-        }
-        catch (Exception e) {
-        //node.releaseReadLatch();
-        //bufferCache.unpin(node);
-        e.printStackTrace();
+        } catch (Exception e) {
+            //node.releaseReadLatch();
+            //bufferCache.unpin(node);
+            e.printStackTrace();
         }
 
         node.releaseReadLatch();
         bufferCache.unpin(node);
         return mbr;
     }
+
     @SuppressWarnings("rawtypes")
     public String printTree(IRTreeLeafFrame leafFrame, IRTreeInteriorFrame interiorFrame,
             ISerializerDeserializer[] keySerdes) throws Exception {
@@ -981,11 +979,10 @@ public class RTree extends AbstractTreeIndex {
                     propagateBulk(1, false, pagesToWrite);
 
                     leafFrontier.pageId = freePageManager.takePage(metaFrame);
-                    queue.put(leafFrontier.page);
+                    queue.put(leafFrontier.page, this);
                     for (ICachedPage c : pagesToWrite) {
-                        queue.put(c);
+                        queue.put(c, this);
                     }
-
                     pagesToWrite.clear();
                     leafFrontier.page = bufferCache
                             .confiscatePage(BufferedFileHandle.getDiskPageId(getFileId(), leafFrontier.pageId));
@@ -1015,7 +1012,7 @@ public class RTree extends AbstractTreeIndex {
             }
 
             for (ICachedPage c : pagesToWrite) {
-                queue.put(c);
+                queue.put(c, this);
             }
             finish();
             super.end();
@@ -1047,11 +1044,12 @@ public class RTree extends AbstractTreeIndex {
                 //set next guide MBR
                 //if propagateBulk didnt have to do anything this may be un-necessary
                 if (nodeFrontiers.size() > 1 && nodeFrontiers.indexOf(n) < nodeFrontiers.size() - 1) {
+                    lowerFrame = nodeFrontiers.indexOf(n) != 0 ? prevInteriorFrame : leafFrame;
                     lowerFrame.setPage(n.page);
                     ((RTreeNSMFrame) lowerFrame).adjustMBR();
                     interiorFrameTupleWriter.writeTupleFields(((RTreeNSMFrame) lowerFrame).getMBRTuples(), 0, mbr, 0);
                 }
-                queue.put(n.page);
+                queue.put(n.page, this);
                 n.page = null;
                 prevPageId = n.pageId;
             }
@@ -1061,7 +1059,6 @@ public class RTree extends AbstractTreeIndex {
 
         protected void propagateBulk(int level, boolean toRoot, List<ICachedPage> pagesToWrite)
                 throws HyracksDataException {
-            boolean propagated = false;
 
             if (level == 1) {
                 lowerFrame = leafFrame;

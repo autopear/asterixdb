@@ -118,6 +118,44 @@
     </compilation-unit>
   </test-case>
   <test-case FilePath="objects">
+    <compilation-unit name="object_remove">
+      <output-dir compare="Text">object_remove</output-dir>
+    </compilation-unit>
+  </test-case>
+  <test-case FilePath="objects">
+    <compilation-unit name="object_rename">
+      <output-dir compare="Text">object_rename</output-dir>
+    </compilation-unit>
+  </test-case>
+  <test-case FilePath="objects">
+    <compilation-unit name="object_unwrap">
+      <output-dir compare="Text">object_unwrap</output-dir>
+    </compilation-unit>
+  </test-case>
+  <test-case FilePath="objects">
+    <compilation-unit name="object_replace">
+      <output-dir compare="Text">object_replace</output-dir>
+      <expected-error>function object-replace expects its 2nd input parameter to be of type primitive</expected-error>
+      <expected-error>function object-replace expects its 2nd input parameter to be of type primitive</expected-error>
+      <source-location>false</source-location>
+    </compilation-unit>
+  </test-case>
+  <test-case FilePath="objects">>
+    <compilation-unit name="object_add">
+      <output-dir compare="Text">object_add</output-dir>
+    </compilation-unit>
+  </test-case>
+  <test-case FilePath="objects">
+    <compilation-unit name="object_put">
+      <output-dir compare="Text">object_put</output-dir>
+    </compilation-unit>
+  </test-case>
+  <test-case FilePath="objects">
+    <compilation-unit name="object_values">
+      <output-dir compare="Text">object_values</output-dir>
+    </compilation-unit>
+  </test-case>
+  <test-case FilePath="objects">
     <compilation-unit name="object_pairs">
       <output-dir compare="Text">object_pairs</output-dir>
     </compilation-unit>
@@ -140,19 +178,27 @@
   <test-case FilePath="objects">
     <compilation-unit name="closed-closed-fieldname-conflict_issue173">
       <output-dir compare="Text">closed-closed-fieldname-conflict_issue173</output-dir>
-      <expected-error>Closed fields 0 and 1 have the same field name "name"</expected-error>
+      <expected-error>Duplicate field name "name"</expected-error>
+      <source-location>false</source-location>
     </compilation-unit>
   </test-case>
   <test-case FilePath="objects">
     <compilation-unit name="open-closed-fieldname-conflict_issue173">
       <output-dir compare="Text">open-closed-fieldname-conflict_issue173</output-dir>
       <expected-error>Open field "name" has the same field name as closed field at index 0</expected-error>
+      <source-location>false</source-location>
     </compilation-unit>
   </test-case>
   <test-case FilePath="objects">
     <compilation-unit name="open-open-fieldname-conflict_issue173">
       <output-dir compare="Text">open-open-fieldname-conflict_issue173</output-dir>
       <expected-error>Open fields 0 and 1 have the same field name "name"</expected-error>
+      <source-location>false</source-location>
+    </compilation-unit>
+  </test-case>
+  <test-case FilePath="objects">
+    <compilation-unit name="pairs">
+      <output-dir compare="Text">pairs</output-dir>
     </compilation-unit>
   </test-case>
 </test-group>

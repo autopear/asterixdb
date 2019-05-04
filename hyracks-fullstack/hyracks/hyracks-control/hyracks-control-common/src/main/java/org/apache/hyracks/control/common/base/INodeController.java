@@ -24,16 +24,20 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.hyracks.api.comm.NetworkAddress;
+import org.apache.hyracks.api.control.CcId;
 import org.apache.hyracks.api.dataflow.ConnectorDescriptorId;
 import org.apache.hyracks.api.dataflow.TaskAttemptId;
 import org.apache.hyracks.api.dataflow.connectors.IConnectorPolicy;
 import org.apache.hyracks.api.deployment.DeploymentId;
+import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.DeployedJobSpecId;
 import org.apache.hyracks.api.job.JobFlag;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.JobStatus;
 import org.apache.hyracks.api.partitions.PartitionId;
+import org.apache.hyracks.control.common.controllers.NodeParameters;
 import org.apache.hyracks.control.common.job.TaskAttemptDescriptor;
+import org.apache.hyracks.ipc.exceptions.IPCException;
 
 public interface INodeController {
     void startTasks(DeploymentId deploymentId, JobId jobId, byte[] planBytes,
@@ -51,7 +55,8 @@ public interface INodeController {
 
     void undeployBinary(DeploymentId deploymentId) throws Exception;
 
-    void deployJobSpec(DeployedJobSpecId deployedJobSpecId, byte[] planBytes) throws Exception;
+    void deployJobSpec(DeployedJobSpecId deployedJobSpecId, byte[] planBytes, boolean checkForDuplicate)
+            throws Exception;
 
     void undeployJobSpec(DeployedJobSpecId deployedJobSpecId) throws Exception;
 
@@ -62,4 +67,40 @@ public interface INodeController {
     void sendApplicationMessageToNC(byte[] data, DeploymentId deploymentId, String nodeId) throws Exception;
 
     void takeThreadDump(String requestId) throws Exception;
+
+    /**
+     * Sends a request to this {@link INodeController} to abort all jobs
+     * started by cluster controller with id {@code ccId}
+     *
+     * @param ccId
+     * @throws IPCException
+     */
+    void abortJobs(CcId ccId) throws IPCException;
+
+    /**
+     * Sends node registration result to this {@link INodeController}.
+     *
+     * @param parameters
+     * @param regFailure
+     * @throws IPCException
+     */
+    void sendRegistrationResult(NodeParameters parameters, Exception regFailure) throws IPCException;
+
+    /**
+     * Sends a request to this {@link INodeController} to ping the
+     * cluster controller with id {@code ccId}
+     *
+     * @param ccId
+     * @throws IPCException
+     */
+    void ping(CcId ccId) throws IPCException;
+
+    /**
+     * Delivers a response to a heartbeat delivered to this {@link CcId}
+     *
+     * @param ccId
+     * @param e
+     * @throws IPCException
+     */
+    void heartbeatAck(CcId ccId, HyracksDataException e) throws IPCException;
 }

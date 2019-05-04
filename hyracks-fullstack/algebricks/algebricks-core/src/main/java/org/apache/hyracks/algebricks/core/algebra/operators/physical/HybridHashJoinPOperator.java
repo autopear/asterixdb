@@ -78,12 +78,13 @@ public class HybridHashJoinPOperator extends AbstractHashJoinPOperator {
         this.maxInputBuildSizeInFrames = maxInputSizeInFrames;
         this.aveRecordsPerFrame = aveRecordsPerFrame;
         this.fudgeFactor = fudgeFactor;
-
-        LOGGER.debug("HybridHashJoinPOperator constructed with: JoinKind=" + kind + ", JoinPartitioningType="
-                + partitioningType + ", List<LogicalVariable>=" + sideLeftOfEqualities + ", List<LogicalVariable>="
-                + sideRightOfEqualities + ", int memSizeInFrames=" + memSizeInFrames + ", int maxInputSize0InFrames="
-                + maxInputSizeInFrames + ", int aveRecordsPerFrame=" + aveRecordsPerFrame + ", double fudgeFactor="
-                + fudgeFactor + ".");
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("HybridHashJoinPOperator constructed with: JoinKind=" + kind + ", JoinPartitioningType="
+                    + partitioningType + ", List<LogicalVariable>=" + sideLeftOfEqualities + ", List<LogicalVariable>="
+                    + sideRightOfEqualities + ", int memSizeInFrames=" + memSizeInFrames
+                    + ", int maxInputSize0InFrames=" + maxInputSizeInFrames + ", int aveRecordsPerFrame="
+                    + aveRecordsPerFrame + ", double fudgeFactor=" + fudgeFactor + ".");
+        }
     }
 
     @Override
@@ -152,6 +153,7 @@ public class HybridHashJoinPOperator extends AbstractHashJoinPOperator {
             opDesc = generateHashJoinRuntime(context, inputSchemas, keysLeft, keysRight, hashFunFactories,
                     comparatorFactories, predEvaluatorFactory, recDescriptor, spec);
         }
+        opDesc.setSourceLocation(op.getSourceLocation());
         contributeOpDesc(builder, (AbstractLogicalOperator) op, opDesc);
 
         ILogicalOperator src1 = op.getInputs().get(0).getValue();
@@ -164,68 +166,49 @@ public class HybridHashJoinPOperator extends AbstractHashJoinPOperator {
             int[] keysLeft, int[] keysRight, IBinaryHashFunctionFactory[] hashFunFactories,
             IBinaryComparatorFactory[] comparatorFactories, IPredicateEvaluatorFactory predEvaluatorFactory,
             RecordDescriptor recDescriptor, IOperatorDescriptorRegistry spec) throws AlgebricksException {
-        IOperatorDescriptor opDesc;
-        try {
-            switch (kind) {
-                case INNER:
-                    opDesc = new HybridHashJoinOperatorDescriptor(spec, getMemSizeInFrames(), maxInputBuildSizeInFrames,
-                            aveRecordsPerFrame, getFudgeFactor(), keysLeft, keysRight, hashFunFactories,
-                            comparatorFactories, recDescriptor, predEvaluatorFactory, false, null);
-                    break;
-                case LEFT_OUTER:
-                    IMissingWriterFactory[] nonMatchWriterFactories =
-                            new IMissingWriterFactory[inputSchemas[1].getSize()];
-                    for (int j = 0; j < nonMatchWriterFactories.length; j++) {
-                        nonMatchWriterFactories[j] = context.getMissingWriterFactory();
-                    }
-                    opDesc = new HybridHashJoinOperatorDescriptor(spec, getMemSizeInFrames(), maxInputBuildSizeInFrames,
-                            aveRecordsPerFrame, getFudgeFactor(), keysLeft, keysRight, hashFunFactories,
-                            comparatorFactories, recDescriptor, predEvaluatorFactory, true, nonMatchWriterFactories);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-        } catch (HyracksDataException e) {
-            throw new AlgebricksException(e);
+        switch (kind) {
+            case INNER:
+                return new HybridHashJoinOperatorDescriptor(spec, getMemSizeInFrames(), maxInputBuildSizeInFrames,
+                        aveRecordsPerFrame, getFudgeFactor(), keysLeft, keysRight, hashFunFactories,
+                        comparatorFactories, recDescriptor, predEvaluatorFactory, false, null);
+            case LEFT_OUTER:
+                IMissingWriterFactory[] nonMatchWriterFactories = new IMissingWriterFactory[inputSchemas[1].getSize()];
+                for (int j = 0; j < nonMatchWriterFactories.length; j++) {
+                    nonMatchWriterFactories[j] = context.getMissingWriterFactory();
+                }
+                return new HybridHashJoinOperatorDescriptor(spec, getMemSizeInFrames(), maxInputBuildSizeInFrames,
+                        aveRecordsPerFrame, getFudgeFactor(), keysLeft, keysRight, hashFunFactories,
+                        comparatorFactories, recDescriptor, predEvaluatorFactory, true, nonMatchWriterFactories);
+            default:
+                throw new NotImplementedException();
         }
-        return opDesc;
     }
 
     private IOperatorDescriptor generateOptimizedHashJoinRuntime(JobGenContext context, IOperatorSchema[] inputSchemas,
             int[] keysLeft, int[] keysRight, IBinaryHashFunctionFamily[] hashFunFamilies,
             IBinaryComparatorFactory[] comparatorFactories, IPredicateEvaluatorFactory predEvaluatorFactory,
             RecordDescriptor recDescriptor, IOperatorDescriptorRegistry spec) throws AlgebricksException {
-        IOperatorDescriptor opDesc;
-        try {
-            switch (kind) {
-                case INNER:
-                    opDesc = new OptimizedHybridHashJoinOperatorDescriptor(spec, getMemSizeInFrames(),
-                            maxInputBuildSizeInFrames, getFudgeFactor(), keysLeft, keysRight, hashFunFamilies,
-                            comparatorFactories, recDescriptor,
-                            new JoinMultiComparatorFactory(comparatorFactories, keysLeft, keysRight),
-                            new JoinMultiComparatorFactory(comparatorFactories, keysRight, keysLeft),
-                            predEvaluatorFactory);
-                    break;
-                case LEFT_OUTER:
-                    IMissingWriterFactory[] nonMatchWriterFactories =
-                            new IMissingWriterFactory[inputSchemas[1].getSize()];
-                    for (int j = 0; j < nonMatchWriterFactories.length; j++) {
-                        nonMatchWriterFactories[j] = context.getMissingWriterFactory();
-                    }
-                    opDesc = new OptimizedHybridHashJoinOperatorDescriptor(spec, getMemSizeInFrames(),
-                            maxInputBuildSizeInFrames, getFudgeFactor(), keysLeft, keysRight, hashFunFamilies,
-                            comparatorFactories, recDescriptor,
-                            new JoinMultiComparatorFactory(comparatorFactories, keysLeft, keysRight),
-                            new JoinMultiComparatorFactory(comparatorFactories, keysRight, keysLeft),
-                            predEvaluatorFactory, true, nonMatchWriterFactories);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-        } catch (HyracksDataException e) {
-            throw new AlgebricksException(e);
+        switch (kind) {
+            case INNER:
+                return new OptimizedHybridHashJoinOperatorDescriptor(spec, getMemSizeInFrames(),
+                        maxInputBuildSizeInFrames, getFudgeFactor(), keysLeft, keysRight, hashFunFamilies,
+                        comparatorFactories, recDescriptor,
+                        new JoinMultiComparatorFactory(comparatorFactories, keysLeft, keysRight),
+                        new JoinMultiComparatorFactory(comparatorFactories, keysRight, keysLeft), predEvaluatorFactory);
+            case LEFT_OUTER:
+                IMissingWriterFactory[] nonMatchWriterFactories = new IMissingWriterFactory[inputSchemas[1].getSize()];
+                for (int j = 0; j < nonMatchWriterFactories.length; j++) {
+                    nonMatchWriterFactories[j] = context.getMissingWriterFactory();
+                }
+                return new OptimizedHybridHashJoinOperatorDescriptor(spec, getMemSizeInFrames(),
+                        maxInputBuildSizeInFrames, getFudgeFactor(), keysLeft, keysRight, hashFunFamilies,
+                        comparatorFactories, recDescriptor,
+                        new JoinMultiComparatorFactory(comparatorFactories, keysLeft, keysRight),
+                        new JoinMultiComparatorFactory(comparatorFactories, keysRight, keysLeft), predEvaluatorFactory,
+                        true, nonMatchWriterFactories);
+            default:
+                throw new NotImplementedException();
         }
-        return opDesc;
     }
 
     @Override
@@ -264,7 +247,7 @@ public class HybridHashJoinPOperator extends AbstractHashJoinPOperator {
 }
 
 /**
- * {@ ITuplePairComparatorFactory} implementation for optimized hybrid hash join.
+ * {@code ITuplePairComparatorFactory} implementation for optimized hybrid hash join.
  */
 class JoinMultiComparatorFactory implements ITuplePairComparatorFactory {
     private static final long serialVersionUID = 1L;

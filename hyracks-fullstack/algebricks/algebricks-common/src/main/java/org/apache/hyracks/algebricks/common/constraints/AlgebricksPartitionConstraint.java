@@ -18,6 +18,8 @@
  */
 package org.apache.hyracks.algebricks.common.constraints;
 
+import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
+
 public abstract class AlgebricksPartitionConstraint {
     public enum PartitionConstraintType {
         ABSOLUTE,
@@ -25,4 +27,7 @@ public abstract class AlgebricksPartitionConstraint {
     }
 
     public abstract PartitionConstraintType getPartitionConstraintType();
+
+    public abstract AlgebricksPartitionConstraint compose(AlgebricksPartitionConstraint that)
+            throws AlgebricksException;
 }

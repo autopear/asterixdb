@@ -23,7 +23,6 @@ import org.apache.hyracks.storage.am.bloomfilter.impls.BloomCalculations;
 import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilter;
 import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilterSpecification;
 import org.apache.hyracks.storage.am.common.api.IMetadataPageManager;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.BloomFilterBulkLoader;
@@ -31,6 +30,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.ChainedLSMDiskComponentBul
 import org.apache.hyracks.storage.am.lsm.common.impls.IChainedComponentBulkLoader;
 import org.apache.hyracks.storage.am.lsm.common.util.ComponentUtils;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
+import org.apache.hyracks.storage.common.buffercache.IPageWriteFailureCallback;
 
 import java.util.List;
 
@@ -39,11 +39,14 @@ public abstract class AbstractLSMWithBloomFilterDiskComponent extends AbstractLS
             ILSMComponentFilter filter) {
         super(lsmIndex, mdPageManager, filter);
     }
+
     public AbstractLSMWithBloomFilterDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
             ILSMComponentFilter filter, int level) {
         super(lsmIndex, mdPageManager, filter, level);
     }
-    @Override public List<Double> GetMBR() {
+
+    @Override
+    public List<Double> GetMBR() {
         return null;
     }
 
@@ -52,11 +55,11 @@ public abstract class AbstractLSMWithBloomFilterDiskComponent extends AbstractLS
     public abstract IBufferCache getBloomFilterBufferCache();
 
     @Override
-    public void markAsValid(boolean persist) throws HyracksDataException {
+    public void markAsValid(boolean persist, IPageWriteFailureCallback callback) throws HyracksDataException {
         // The order of forcing the dirty page to be flushed is critical. The
         // bloom filter must be always done first.
         ComponentUtils.markAsValid(getBloomFilterBufferCache(), getBloomFilter(), persist);
-        super.markAsValid(persist);
+        super.markAsValid(persist, callback);
     }
 
     @Override
@@ -66,13 +69,6 @@ public abstract class AbstractLSMWithBloomFilterDiskComponent extends AbstractLS
             getBloomFilter().create();
         }
         getBloomFilter().activate();
-    }
-
-    @Override
-    public void deactivateAndDestroy() throws HyracksDataException {
-        super.deactivateAndDestroy();
-        getBloomFilter().deactivate();
-        getBloomFilter().destroy();
     }
 
     @Override
@@ -88,9 +84,8 @@ public abstract class AbstractLSMWithBloomFilterDiskComponent extends AbstractLS
     }
 
     @Override
-    public void deactivateAndPurge() throws HyracksDataException {
-        super.deactivateAndPurge();
-        getBloomFilter().deactivate();
+    protected void purge() throws HyracksDataException {
+        super.purge();
         getBloomFilter().purge();
     }
 
@@ -102,10 +97,10 @@ public abstract class AbstractLSMWithBloomFilterDiskComponent extends AbstractLS
     }
 
     @Override
-    public ChainedLSMDiskComponentBulkLoader createBulkLoader(LSMIOOperationType opType, float fillFactor,
+    public ChainedLSMDiskComponentBulkLoader createBulkLoader(ILSMIOOperation operation, float fillFactor,
             boolean verifyInput, long numElementsHint, boolean checkIfEmptyIndex, boolean withFilter,
             boolean cleanupEmptyComponent) throws HyracksDataException {
-        ChainedLSMDiskComponentBulkLoader chainedBulkLoader = super.createBulkLoader(opType, fillFactor, verifyInput,
+        ChainedLSMDiskComponentBulkLoader chainedBulkLoader = super.createBulkLoader(operation, fillFactor, verifyInput,
                 numElementsHint, checkIfEmptyIndex, withFilter, cleanupEmptyComponent);
         if (numElementsHint > 0) {
             chainedBulkLoader.addBulkLoader(createBloomFilterBulkLoader(numElementsHint));

@@ -103,7 +103,6 @@ public class ConfigManager implements IConfigManager, Serializable {
 
     public ConfigManager(String[] args) {
         this.args = args;
-        checkJavaVersion();
         for (Section section : Section.values()) {
             allSections.add(section.sectionName());
         }
@@ -111,14 +110,6 @@ public class ConfigManager implements IConfigManager, Serializable {
         addConfigurator(ConfiguratorMetric.PARSE_INI, this::parseIni);
         addConfigurator(ConfiguratorMetric.PARSE_COMMAND_LINE, this::processCommandLine);
         addConfigurator(ConfiguratorMetric.APPLY_DEFAULTS, this::applyDefaults);
-    }
-
-    static void checkJavaVersion() {
-        final String javaVersion = System.getProperty("java.version");
-        LOGGER.info("Found JRE version " + javaVersion);
-        if (!javaVersion.startsWith("1.8")) {
-            throw new IllegalStateException("JRE version 1.8 is required");
-        }
     }
 
     @Override
@@ -185,7 +176,7 @@ public class ConfigManager implements IConfigManager, Serializable {
     }
 
     public synchronized void ensureNode(String nodeId) {
-        LOGGER.debug("ensureNode: " + nodeId);
+        LOGGER.trace("+ensureNode: {}", nodeId);
         Map<IOption, Object> nodeDefinedMap =
                 nodeSpecificDefinedMap.computeIfAbsent(nodeId, this::createNodeSpecificMap);
         Map<IOption, Object> nodeDefaultMap =
@@ -195,14 +186,14 @@ public class ConfigManager implements IConfigManager, Serializable {
     }
 
     public synchronized void forgetNode(String nodeId) {
-        LOGGER.debug("forgetNode: " + nodeId);
+        LOGGER.trace("+forgetNode: {}", nodeId);
         nodeSpecificDefinedMap.remove(nodeId);
         nodeSpecificDefaultMap.remove(nodeId);
         nodeEffectiveMaps.remove(nodeId);
     }
 
     private Map<IOption, Object> createNodeSpecificMap(String nodeId) {
-        LOGGER.debug("createNodeSpecificMap: " + nodeId);
+        LOGGER.trace("+createNodeSpecificMap: {}", nodeId);
         return Collections.synchronizedMap(new HashMap<>());
     }
 

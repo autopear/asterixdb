@@ -37,7 +37,6 @@ import org.apache.hyracks.algebricks.core.algebra.base.LogicalExpressionTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalOperatorTag;
 import org.apache.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractFunctionCallExpression;
-import org.apache.hyracks.algebricks.core.algebra.expressions.AbstractLogicalExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.StatefulFunctionCallExpression;
 import org.apache.hyracks.algebricks.core.algebra.expressions.VariableReferenceExpression;
 import org.apache.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
@@ -185,8 +184,7 @@ public class RemoveRedundantListifyRule implements IAlgebraicRewriteRule {
         }
         LogicalVariable aggVar = agg.getVariables().get(0);
         ILogicalExpression aggFun = agg.getExpressions().get(0).getValue();
-        if (!aggVar.equals(unnestedVar)
-                || ((AbstractLogicalExpression) aggFun).getExpressionTag() != LogicalExpressionTag.FUNCTION_CALL) {
+        if (!aggVar.equals(unnestedVar) || aggFun.getExpressionTag() != LogicalExpressionTag.FUNCTION_CALL) {
             return false;
         }
         AbstractFunctionCallExpression f = (AbstractFunctionCallExpression) aggFun;
@@ -197,7 +195,7 @@ public class RemoveRedundantListifyRule implements IAlgebraicRewriteRule {
             return false;
         }
         ILogicalExpression arg0 = f.getArguments().get(0).getValue();
-        if (((AbstractLogicalExpression) arg0).getExpressionTag() != LogicalExpressionTag.VARIABLE) {
+        if (arg0.getExpressionTag() != LogicalExpressionTag.VARIABLE) {
             return false;
         }
         LogicalVariable paramVar = ((VariableReferenceExpression) arg0).getVariableReference();
@@ -205,8 +203,11 @@ public class RemoveRedundantListifyRule implements IAlgebraicRewriteRule {
         List<LogicalVariable> assgnVars = new ArrayList<>(1);
         assgnVars.add(unnest1.getVariable());
         List<Mutable<ILogicalExpression>> assgnExprs = new ArrayList<>(1);
-        assgnExprs.add(new MutableObject<ILogicalExpression>(new VariableReferenceExpression(paramVar)));
+        VariableReferenceExpression paramVarRef = new VariableReferenceExpression(paramVar);
+        paramVarRef.setSourceLocation(arg0.getSourceLocation());
+        assgnExprs.add(new MutableObject<ILogicalExpression>(paramVarRef));
         AssignOperator assign = new AssignOperator(assgnVars, assgnExprs);
+        assign.setSourceLocation(agg.getSourceLocation());
         assign.getInputs().add(agg.getInputs().get(0));
         context.computeAndSetTypeEnvironmentForOperator(assign);
         LogicalVariable posVar = unnest1.getPositionalVariable();
@@ -220,8 +221,10 @@ public class RemoveRedundantListifyRule implements IAlgebraicRewriteRule {
             List<Mutable<ILogicalExpression>> rAggExprs = new ArrayList<>(1);
             StatefulFunctionCallExpression tidFun = new StatefulFunctionCallExpression(
                     FunctionUtil.getFunctionInfo(BuiltinFunctions.TID), UnpartitionedPropertyComputer.INSTANCE);
+            tidFun.setSourceLocation(agg.getSourceLocation());
             rAggExprs.add(new MutableObject<ILogicalExpression>(tidFun));
             RunningAggregateOperator rAgg = new RunningAggregateOperator(raggVars, rAggExprs);
+            rAgg.setSourceLocation(agg.getSourceLocation());
             rAgg.getInputs().add(new MutableObject<ILogicalOperator>(assign));
             aggregateParentRef.setValue(rAgg);
             context.computeAndSetTypeEnvironmentForOperator(rAgg);
@@ -251,7 +254,7 @@ public class RemoveRedundantListifyRule implements IAlgebraicRewriteRule {
             return false;
         }
         ILogicalExpression arg0 = f.getArguments().get(0).getValue();
-        if (((AbstractLogicalExpression) arg0).getExpressionTag() != LogicalExpressionTag.VARIABLE) {
+        if (arg0.getExpressionTag() != LogicalExpressionTag.VARIABLE) {
             return false;
         }
         LogicalVariable aggInputVar = ((VariableReferenceExpression) arg0).getVariableReference();
@@ -289,6 +292,7 @@ public class RemoveRedundantListifyRule implements IAlgebraicRewriteRule {
         List<LogicalVariable> assgnVars = new ArrayList<>(1);
         assgnVars.add(aggVar);
         AssignOperator assign = new AssignOperator(assgnVars, scanFunc.getArguments());
+        assign.setSourceLocation(agg.getSourceLocation());
         assign.getInputs().add(unnest.getInputs().get(0));
         context.computeAndSetTypeEnvironmentForOperator(assign);
         opRef.setValue(assign);

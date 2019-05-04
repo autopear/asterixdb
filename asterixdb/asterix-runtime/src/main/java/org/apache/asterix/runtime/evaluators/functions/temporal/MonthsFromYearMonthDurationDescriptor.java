@@ -75,13 +75,13 @@ public class MonthsFromYearMonthDurationDescriptor extends AbstractScalarFunctio
 
                     @Override
                     public void evaluate(IFrameTupleReference tuple, IPointable result) throws HyracksDataException {
-                        resultStorage.reset();;
+                        resultStorage.reset();
                         eval0.evaluate(tuple, argPtr0);
                         byte[] bytes = argPtr0.getByteArray();
                         int offset = argPtr0.getStartOffset();
 
                         if (bytes[offset] != ATypeTag.SERIALIZED_YEAR_MONTH_DURATION_TYPE_TAG) {
-                            throw new TypeMismatchException(getIdentifier(), 0, bytes[offset],
+                            throw new TypeMismatchException(sourceLoc, getIdentifier(), 0, bytes[offset],
                                     ATypeTag.SERIALIZED_YEAR_MONTH_DURATION_TYPE_TAG);
                         }
                         aInt64.setValue(AYearMonthDurationSerializerDeserializer.getYearMonth(bytes, offset + 1));

@@ -18,25 +18,24 @@
  */
 package org.apache.asterix.lang.sqlpp.rewrites;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.lang.common.base.IReturningStatement;
 import org.apache.asterix.lang.common.rewrites.LangRewritingContext;
 import org.apache.asterix.lang.common.statement.FunctionDecl;
+import org.apache.asterix.lang.common.struct.VarIdentifier;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 
 class SqlppFunctionBodyRewriter extends SqlppQueryRewriter {
 
     @Override
     public void rewrite(List<FunctionDecl> declaredFunctions, IReturningStatement topStatement,
-            MetadataProvider metadataProvider, LangRewritingContext context, boolean inlineUdfs)
-            throws CompilationException {
+            MetadataProvider metadataProvider, LangRewritingContext context, boolean inlineUdfs,
+            Collection<VarIdentifier> externalVars) throws CompilationException {
         // Sets up parameters.
-        setup(declaredFunctions, topStatement, metadataProvider, context);
-
-        // Inlines column aliases.
-        inlineColumnAlias();
+        setup(declaredFunctions, topStatement, metadataProvider, context, externalVars);
 
         // Generates column names.
         generateColumnNames();
@@ -49,6 +48,9 @@ class SqlppFunctionBodyRewriter extends SqlppQueryRewriter {
 
         // Rewrites set operations.
         rewriteSetOperations();
+
+        // Inlines column aliases.
+        inlineColumnAlias();
 
         // Generate ids for variables (considering scopes) and replace global variable access with the dataset function.
         variableCheckAndRewrite();

@@ -21,7 +21,7 @@
   <!ENTITY AsyncDeferredQueries SYSTEM "queries_sqlpp/async-deferred/AsyncDeferredQueries.xml">
   <!ENTITY GeoQueries SYSTEM "queries_sqlpp/geojson/GeoJSONQueries.xml">
 ]>
-<test-suite xmlns="urn:xml.testframework.asterix.apache.org" ResultOffsetPath="results" QueryOffsetPath="queries_sqlpp" QueryFileExtension=".sqlpp">
+<test-suite xmlns="urn:xml.testframework.asterix.apache.org" ResultOffsetPath="results" QueryOffsetPath="queries_sqlpp" QueryFileExtension=".sqlpp" SourceLocation="true">
   &AsyncDeferredQueries;
   <test-group name="flwor">
     <test-case FilePath="flwor">
@@ -60,6 +60,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="flwor">
+      <compilation-unit name="order-by-13">
+        <output-dir compare="Text">order-by-13</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="flwor">
       <compilation-unit name="query-issue550">
         <output-dir compare="Text">query-issue550</output-dir>
       </compilation-unit>
@@ -85,6 +90,14 @@
       <compilation-unit name="query-ASTERIXDB-1576-3">
         <output-dir compare="Text">query-ASTERIXDB-883</output-dir>
         <expected-error>Duplicate alias definitions: s1</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="flwor">
+      <compilation-unit name="query-ASTERIXDB-2446">
+        <output-dir compare="Text">query-ASTERIXDB-883</output-dir>
+        <expected-error>ASX0013: Duplicate field name "a"</expected-error>
+        <expected-error>ASX0013: Duplicate field name "c"</expected-error>
+        <expected-error>ASX0013: Duplicate field name "e"</expected-error>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -692,6 +705,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="aggregate-sql">
+      <compilation-unit name="issue2411">
+        <output-dir compare="Text">issue2411</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate-sql">
       <compilation-unit name="avg_double">
         <output-dir compare="Text">avg_double</output-dir>
       </compilation-unit>
@@ -982,6 +1000,139 @@
       </compilation-unit>
     </test-case>
   </test-group>
+  <test-group name="array_fun">
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_prepend">
+        <output-dir compare="Text">array_prepend</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_append">
+        <output-dir compare="Text">array_append</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_position">
+        <output-dir compare="Text">array_position</output-dir>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_repeat">
+        <output-dir compare="Text">array_repeat</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_reverse">
+        <output-dir compare="Text">array_reverse</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_contains">
+        <output-dir compare="Text">array_contains</output-dir>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_insert">
+        <output-dir compare="Text">array_insert</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_put">
+        <output-dir compare="Text">array_put</output-dir>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_remove">
+        <output-dir compare="Text">array_remove</output-dir>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_distinct">
+        <output-dir compare="Text">array_distinct</output-dir>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_sort">
+        <output-dir compare="Text">array_sort</output-dir>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_concat">
+        <output-dir compare="Text">array_concat</output-dir>
+        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_flatten">
+        <output-dir compare="Text">array_flatten</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_ifnull">
+        <output-dir compare="Text">array_ifnull</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_intersect">
+        <output-dir compare="Text">array_intersect</output-dir>
+        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_range">
+        <output-dir compare="Text">array_range</output-dir>
+        <expected-error>Invalid number of arguments for function array-range (in line 27, at column 8)</expected-error>
+        <expected-error>Invalid number of arguments for function array-range (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_replace">
+        <output-dir compare="Text">array_replace</output-dir>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+        <expected-error>Invalid number of arguments for function array-replace (in line 27, at column 8)</expected-error>
+        <expected-error>Invalid number of arguments for function array-replace (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_star">
+        <output-dir compare="Text">array_star</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_symdiff">
+        <output-dir compare="Text">array_symdiff</output-dir>
+        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_symdiffn">
+        <output-dir compare="Text">array_symdiffn</output-dir>
+        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_union">
+        <output-dir compare="Text">array_union</output-dir>
+        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
+        <expected-error>Cannot compare non-primitive values (in line 27, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+  </test-group>
   <test-group name="boolean">
     <test-case FilePath="boolean">
       <compilation-unit name="and_01">
@@ -1005,6 +1156,11 @@
     </test-case>
   </test-group>
   <test-group name="comparison">
+    <test-case FilePath="comparison">
+      <compilation-unit name="secondary_idx_lookup">
+        <output-dir compare="Text">secondary_idx_lookup</output-dir>
+      </compilation-unit>
+    </test-case>
     <test-case FilePath="comparison">
       <compilation-unit name="year_month_duration_order">
         <output-dir compare="Text">year_month_duration_order</output-dir>
@@ -1264,6 +1420,32 @@
         <output-dir compare="Text">least_mixed</output-dir>
       </compilation-unit>
     </test-case>
+    <test-case FilePath="comparison">
+      <compilation-unit name="missingif">
+        <output-dir compare="Text">missingif</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="comparison">
+      <compilation-unit name="nullif">
+        <output-dir compare="Text">nullif</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="comparison">
+      <compilation-unit name="nanif">
+        <output-dir compare="Text">nanif</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="comparison">
+      <compilation-unit name="posinfif">
+        <output-dir compare="Text">posinfif</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="comparison">
+      <compilation-unit name="neginfif">
+        <output-dir compare="Text">neginfif</output-dir>
+      </compilation-unit>
+    </test-case>
+
   </test-group>
   <test-group name="constructor">
     <test-case FilePath="constructor">
@@ -1500,7 +1682,7 @@
     <test-case FilePath="custord">
       <compilation-unit name="join_q_09">
         <output-dir compare="Text">join_q_01</output-dir>
-        <expected-error>Cannot resolve ambiguous alias reference for undefined identifier age</expected-error>
+        <expected-error>Cannot resolve ambiguous alias reference for identifier age</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="custord">
@@ -1569,7 +1751,7 @@
     <test-case FilePath="dapd">
       <compilation-unit name="q2-3">
         <output-dir compare="Text">q2</output-dir>
-        <expected-error>Cannot resolve ambiguous alias reference for undefined identifier sig_id</expected-error>
+        <expected-error>Cannot resolve ambiguous alias reference for identifier sig_id</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="dapd">
@@ -1653,6 +1835,12 @@
       <compilation-unit name="create-index-5">
         <output-dir compare="Text">create-index-5</output-dir>
         <expected-error>Syntax error: In line 53 >>create  primary index if exists sec_primary_idx1  on LineItem;&lt;&lt; Encountered "exists" at column 26.</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="ddl">
+      <compilation-unit name="drop-primary-index">
+        <output-dir compare="Text">drop-primary-index</output-dir>
+        <expected-error>Cannot drop index "ds". Drop dataset "ds" to remove this index</expected-error>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -1821,6 +2009,7 @@
       <compilation-unit name="insert-duplicated-keys">
         <output-dir compare="Text">insert-duplicated-keys</output-dir>
         <expected-error>Inserting duplicate keys into the primary storage</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="dml">
@@ -1869,13 +2058,13 @@
     <test-case FilePath="dml">
       <compilation-unit name="load-with-autogenerated-pk_adm_02">
         <output-dir compare="Text">load-with-autogenerated-pk_adm_02</output-dir>
-        <expected-error>Parse error at (0, 5): ASX3058: This record is closed, you can not add extra fields! new field name: id</expected-error>
+        <expected-error>ASX3058: This record is closed, you can not add extra fields! new field name: id</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="dml">
       <compilation-unit name="load-with-autogenerated-pk_adm_03">
         <output-dir compare="Text">load-with-autogenerated-pk_adm_03</output-dir>
-        <expected-error>Parse error at (0, 5): ASX3058: This record is closed, you can not add extra fields! new field name: id</expected-error>
+        <expected-error>ASX3058: This record is closed, you can not add extra fields! new field name: id</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="dml">
@@ -1896,7 +2085,7 @@
     <test-case FilePath="dml">
       <compilation-unit name="load-with-autogenerated-no-field">
         <output-dir compare="Text">load-with-autogenerated-no-field</output-dir>
-        <expected-error>org.apache.asterix.common.exceptions.AsterixException: ASX1014: Field "not_id" is not found</expected-error>
+        <expected-error>ASX1014: Field "not_id" is not found</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="dml">
@@ -1911,6 +2100,11 @@
     </test-case>
     <test-case FilePath="dml">
       <compilation-unit name="insert-returning-udf">
+        <output-dir compare="Text">insert-returning-fieldname</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="insert-returning-fieldname-qualified">
         <output-dir compare="Text">insert-returning-fieldname</output-dir>
       </compilation-unit>
     </test-case>
@@ -2760,6 +2954,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="fulltext">
+      <compilation-unit name="fulltext-index-09">
+        <output-dir compare="Text">fulltext-index-09</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="fulltext">
       <compilation-unit name="fulltext-index-large-data">
         <output-dir compare="Text">fulltext-index-large-data</output-dir>
       </compilation-unit>
@@ -2789,13 +2988,13 @@
     <test-case FilePath="global-aggregate">
       <compilation-unit name="q05_error">
         <output-dir compare="Text">q01</output-dir>
-        <expected-error>Type mismatch: function field-access-by-name expects its 1st input parameter to be type object, but the actual input type is array</expected-error>
+        <expected-error>ASX1091: Type mismatch: expected value of type object, but got the value of type array (in line 22, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="global-aggregate">
       <compilation-unit name="q06_error">
         <output-dir compare="Text">q01</output-dir>
-        <expected-error>Type mismatch: function scan-collection expects its 1st input parameter to be type array or multiset, but the actual input type is string</expected-error>
+        <expected-error>ASX0037: Type mismatch: expected value of type array or multiset, but got the value of type string (in line 22, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="global-aggregate">
@@ -2892,7 +3091,7 @@
     <test-case FilePath="group-by">
       <compilation-unit name="sugar-01-negative">
         <output-dir compare="Text">core-01</output-dir>
-        <expected-error>Type mismatch: function field-access-by-name expects its 1st input parameter to be type object, but the actual input type is array</expected-error>
+        <expected-error>ASX1091: Type mismatch: expected value of type object, but got the value of type array (in line 26, at column 38)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="group-by">
@@ -2903,13 +3102,13 @@
     <test-case FilePath="group-by">
       <compilation-unit name="sugar-02">
         <output-dir compare="Text">core-02</output-dir>
-        <expected-error>Cannot resolve ambiguous alias reference for undefined identifier deptId</expected-error>
+        <expected-error>Cannot resolve ambiguous alias reference for identifier deptId</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="group-by">
       <compilation-unit name="sugar-02-2">
         <output-dir compare="Text">core-02</output-dir>
-        <expected-error>Cannot resolve ambiguous alias reference for undefined identifier deptId</expected-error>
+        <expected-error>Cannot resolve ambiguous alias reference for identifier deptId</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="group-by">
@@ -2945,6 +3144,12 @@
     <test-case FilePath="group-by">
       <compilation-unit name="sugar-06-distinct">
         <output-dir compare="Text">sugar-06-distinct</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="group-by">
+      <compilation-unit name="sugar-07-negative">
+        <output-dir compare="Text">core-01</output-dir>
+        <expected-error>Cannot resolve ambiguous alias reference for identifier IDENT</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="group-by">
@@ -3549,6 +3754,16 @@
   </test-group>
   <test-group name="misc">
     <test-case FilePath="misc">
+      <compilation-unit name="comp-ASTERIXDB-2415">
+        <output-dir compare="Text">query-ASTERIXDB-1671</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="comp-ASTERIXDB-2412">
+        <output-dir compare="Text">comp-ASTERIXDB-2412</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
       <compilation-unit name="poll-dynamic">
         <output-dir compare="Text">poll-dynamic</output-dir>
       </compilation-unit>
@@ -3561,6 +3776,11 @@
     <test-case FilePath="misc">
       <compilation-unit name="dataset-resources">
         <output-dir compare="Text">dataset-resources</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="ping">
+        <output-dir compare="Text">ping</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="misc">
@@ -3612,7 +3832,7 @@
       <compilation-unit name="partition-by-nonexistent-field">
         <output-dir compare="Text">partition-by-nonexistent-field</output-dir>
         <expected-error>Field "id" is not found</expected-error>
-        <expected-error>Cannot find dataset testds in dataverse test</expected-error>
+        <expected-error>Cannot find dataset with name testds in dataverse test</expected-error>
         <expected-error>Cannot find dataset testds in dataverse test nor an alias with name testds!</expected-error>
       </compilation-unit>
     </test-case>
@@ -3654,6 +3874,11 @@
     <test-case FilePath="misc">
       <compilation-unit name="query_issue267">
         <output-dir compare="Text">query_issue267</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="random">
+        <output-dir compare="Text">random</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="misc">
@@ -3718,6 +3943,22 @@
     <test-case FilePath="misc">
       <compilation-unit name="query-ASTERIXDB-1671-2">
         <output-dir compare="Text">query-ASTERIXDB-1671</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="query-ASTERIXDB-2354">
+        <output-dir compare="Text">query-ASTERIXDB-2354</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="query-ASTERIXDB-2355">
+        <output-dir compare="Text">none</output-dir>
+        <expected-error><![CDATA[ASX1001: Syntax error: In line 22 >> %%%<< Encountered "%" at column 2.]]></expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="query-ASTERIXDB-2380">
+        <output-dir compare="Text">query-ASTERIXDB-2380</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="misc">
@@ -4802,6 +5043,16 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="numeric">
+      <compilation-unit name="const">
+        <output-dir compare="Text">const</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="degrees">
+        <output-dir compare="Text">degrees</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
       <compilation-unit name="divide_double">
         <output-dir compare="Text">divide_double</output-dir>
       </compilation-unit>
@@ -4909,6 +5160,11 @@
     <test-case FilePath="numeric">
       <compilation-unit name="power">
         <output-dir compare="Text">power</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="radians">
+        <output-dir compare="Text">radians</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="numeric">
@@ -5363,6 +5619,7 @@
       <compilation-unit name="query-issue410">
         <output-dir compare="Text">query-issue410</output-dir>
         <expected-error>Field type double can't be promoted to type string</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="open-closed">
@@ -5559,7 +5816,7 @@
     <test-case FilePath="resolution">
       <compilation-unit name="conflict-fields-dataset">
         <output-dir compare="Text">conflict-field-dataset</output-dir>
-        <expected-error>Cannot resolve ambiguous alias reference for undefined identifier samptable</expected-error>
+        <expected-error>Cannot resolve ambiguous alias reference for identifier samptable</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="resolution">
@@ -5699,8 +5956,7 @@
     </test-case>
     <test-case FilePath="select-star">
       <compilation-unit name="var_star_2">
-        <output-dir compare="Text">var_star</output-dir>
-        <expected-error>ASX0002: Type mismatch</expected-error>
+        <output-dir compare="Text">var_star_2</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -5972,6 +6228,71 @@
     <test-case FilePath="spatial">
       <compilation-unit name="spatial-area">
         <output-dir compare="Text">spatial-area</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="spatial">
+      <compilation-unit name="spatial-large-data">
+        <output-dir compare="Text">spatial-large-data</output-dir>
+      </compilation-unit>
+    </test-case>
+  </test-group>
+  <test-group name="statement-params">
+    <test-case FilePath="statement-params">
+      <compilation-unit name="mixed_01">
+        <output-dir compare="Text">mixed_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="named_01">
+        <output-dir compare="Text">named_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="named_02">
+        <output-dir compare="Text">named_01</output-dir>
+        <expected-error>ASX1086: No value for parameter: $p2</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="named_03">
+        <output-dir compare="Text">named_03</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="named_04">
+        <output-dir compare="Text">named_04</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="positional_01">
+        <output-dir compare="Text">positional_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="positional_02">
+        <output-dir compare="Text">positional_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="positional_03">
+        <output-dir compare="Text">positional_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="positional_04">
+        <output-dir compare="Text">positional_02</output-dir>
+        <expected-error>ASX1086: No value for parameter: $2</expected-error>
+        <expected-error>ASX1086: No value for parameter: $3</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="positional_05">
+        <output-dir compare="Text">positional_05</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="statement-params">
+      <compilation-unit name="query-ASTERIXDB-2413">
+        <output-dir compare="Text">query-ASTERIXDB-2413</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -6520,6 +6841,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="subquery">
+      <compilation-unit name="in_as_or">
+        <output-dir compare="Text">in_as_or</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="subquery">
       <compilation-unit name="in_correlated">
         <output-dir compare="Text">in</output-dir>
       </compilation-unit>
@@ -6589,7 +6915,7 @@
     <test-case FilePath="subquery">
       <compilation-unit name="query-ASTERIXDB-1574">
         <output-dir compare="Text">query-ASTERIXDB-1574</output-dir>
-        <expected-error>Type mismatch: function scan-collection expects its 1st input parameter to be type multiset or array, but the actual input type is object</expected-error>
+        <expected-error>ASX1091: Type mismatch: expected value of type multiset or array, but got the value of type object (in line 25, at column 41)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="subquery">
@@ -8079,36 +8405,42 @@
       <compilation-unit name="drop-dependency-1">
         <output-dir compare="Text">drop-dependency-1</output-dir>
         <expected-error>Cannot drop dataverse. Function B.f0@2 depends on function C.f1@2</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="user-defined-functions">
       <compilation-unit name="drop-dependency-2">
         <output-dir compare="Text">drop-dependency-2</output-dir>
         <expected-error>Cannot drop dataverse. Function B.f2@2 depends on dataset C.TweetMessages</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="user-defined-functions">
       <compilation-unit name="drop-dependency-3">
         <output-dir compare="Text">drop-dependency-3</output-dir>
         <expected-error>Cannot drop function C.f1@2 being used by function B.f0@2</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="user-defined-functions">
       <compilation-unit name="drop-dependency-4">
         <output-dir compare="Text">drop-dependency-4</output-dir>
         <expected-error>Cannot drop dataset C.TweetMessages being used by function B.f2@2</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="user-defined-functions">
       <compilation-unit name="drop-dependency-5">
         <output-dir compare="Text">drop-dependency-5</output-dir>
         <expected-error>Cannot drop function C.f1@2 being used by function C.f0@2</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="user-defined-functions">
       <compilation-unit name="drop-dependency-6">
         <output-dir compare="Text">drop-dependency-6</output-dir>
         <expected-error>Cannot drop dataset C.TweetMessages being used by function C.f2@2</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="user-defined-functions">
@@ -8353,18 +8685,21 @@
       <compilation-unit name="csv_05">
         <output-dir compare="Text">csv_05</output-dir>
         <expected-error>At record: 1, field#: 4 - a quote enclosing a field needs to be placed in the beginning of that field</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="load">
       <compilation-unit name="csv_06">
         <output-dir compare="Text">csv_06</output-dir>
         <expected-error>At record: 1, field#: 3 - a quote enclosing a field needs to be placed in the beginning of that field</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="load">
       <compilation-unit name="csv_07">
         <output-dir compare="Text">csv_07</output-dir>
         <expected-error>At record: 1, field#: 3 -  A quote enclosing a field needs to be followed by the delimiter</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="load">
@@ -8386,12 +8721,14 @@
       <compilation-unit name="issue14_query">
         <output-dir compare="Text">issue14_query</output-dir>
         <expected-error>Unspecified parameter: format</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="load">
       <compilation-unit name="issue315_query">
         <output-dir compare="Text">none</output-dir>
         <expected-error>Invalid path</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="load">
@@ -8402,7 +8739,7 @@
     <test-case FilePath="load">
       <compilation-unit name="issue650_query">
         <output-dir compare="Text">none</output-dir>
-        <expected-error>Unable to load dataset Users since it does not exist</expected-error>
+        <expected-error>Cannot find dataset with name Users in dataverse fuzzyjoin</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="load">
@@ -8435,6 +8772,7 @@
       <compilation-unit name="duplicate-key-error">
         <output-dir compare="Text">none</output-dir>
         <expected-error>Loading duplicate keys into the primary storage</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="load">
@@ -8462,6 +8800,18 @@
     <test-case FilePath="hints">
       <compilation-unit name="issue_251_dataset_hint_7">
         <output-dir compare="Text">issue_251_dataset_hint_7</output-dir>
+      </compilation-unit>
+    </test-case>
+  </test-group>
+  <test-group name="function">
+    <test-case FilePath="function">
+      <compilation-unit name="issue-2394">
+        <output-dir compare="Text">issue-2394</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="function">
+      <compilation-unit name="drop_if_exists">
+        <output-dir compare="Text">drop_if_exists</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -8537,6 +8887,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="feeds">
+      <compilation-unit name="change-feed-with-meta-pk-index">
+        <output-dir compare="Text">change-feed-with-meta-pk-index</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="feeds">
       <compilation-unit name="change-feed-with-meta-with-mixed-index">
         <output-dir compare="Text">change-feed-with-meta-with-mixed-index</output-dir>
       </compilation-unit>
@@ -8597,6 +8952,7 @@
         <output-dir compare="Text">twitter-feed</output-dir>
         <expected-error>Twitter4J library not found!</expected-error>
         <expected-error>Unknown source feed: TwitterFeed</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="feeds">
@@ -8604,6 +8960,7 @@
         <output-dir compare="Text">revised-tweet-parser</output-dir>
         <expected-error>Twitter4J library not found!</expected-error>
         <expected-error>Unknown source feed: TwitterFeed</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="feeds">
@@ -8650,12 +9007,14 @@
       <compilation-unit name="start-started-feed">
         <output-dir compare="Text">start-started-feed</output-dir>
         <expected-error>experiments.TweetFeed(Feed) is already started</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="feeds">
       <compilation-unit name="stop-stopped-feed">
         <output-dir compare="Text">stop-stopped-feed</output-dir>
         <expected-error>new_experiments.TweetFeed(Feed) cannot be stopped because its state is STOPPED</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="feeds">
@@ -9650,6 +10009,11 @@
         <output-dir compare="Text">multiple-secondaries</output-dir>
       </compilation-unit>
     </test-case>
+    <test-case FilePath="upsert">
+      <compilation-unit name="upsert-case-returning">
+        <output-dir compare="Text">upsert-case-returning</output-dir>
+      </compilation-unit>
+    </test-case>
   </test-group>
   <test-group name="json-parser">
     <test-case FilePath="json-parser">
@@ -9661,6 +10025,7 @@
       <compilation-unit name="numeric-tinyint-overflow">
         <output-dir compare="Text">numeric-tinyint</output-dir>
         <expected-error>Numeric value (1000) out of range of Java byte</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
@@ -9682,12 +10047,14 @@
       <compilation-unit name="duplicate-fields">
         <output-dir compare="Text">duplicate-fields</output-dir>
         <expected-error>Duplicate field 'field'</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="malformed-json">
         <output-dir compare="Text">malformed-json</output-dir>
         <expected-error>Unexpected character ('}' (code 125)): was expecting double-quote to start field name</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
@@ -9699,12 +10066,14 @@
       <compilation-unit name="nonoptional-missing">
         <output-dir compare="Text">nonoptional-missing</output-dir>
         <expected-error>ASX3075: Closed field missing_value has null value</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="nonoptional-null">
         <output-dir compare="Text">nonoptional-null</output-dir>
         <expected-error>ASX3075: Closed field null_value has null value</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
@@ -9716,18 +10085,21 @@
       <compilation-unit name="spatial-line-3-points">
         <output-dir compare="Text">spatial-line-3-points</output-dir>
         <expected-error>Line must have 4 coordinates</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="spatial-polygon-unclosed">
         <output-dir compare="Text">spatial-polygon-unclosed</output-dir>
         <expected-error>Unclosed polygon is not supported</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="spatial-polygon-with-hole">
         <output-dir compare="Text">spatial-polygon-with-hole</output-dir>
         <expected-error>Only simple geometries are supported (Point, LineString and Polygon without holes)</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
@@ -9739,48 +10111,56 @@
       <compilation-unit name="type-mismatch">
         <output-dir compare="Text">type-mismatch</output-dir>
         <expected-error>ASX3054: Mismatch Type, expecting a value of type string</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="unsupported-type-circle">
         <output-dir compare="Text">unsupported-type-circle</output-dir>
         <expected-error>ASX0004: Unsupported type: org.apache.asterix.external.parser.factory.JSONDataParserFactory cannot process input type circle</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="unsupported-type-daytimeduration">
         <output-dir compare="Text">unsupported-type-daytimeduration</output-dir>
         <expected-error>ASX0004: Unsupported type: org.apache.asterix.external.parser.factory.JSONDataParserFactory cannot process input type daytimeduration</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="unsupported-type-duration">
         <output-dir compare="Text">unsupported-type-duration</output-dir>
         <expected-error>ASX0004: Unsupported type: org.apache.asterix.external.parser.factory.JSONDataParserFactory cannot process input type duration</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="unsupported-type-interval">
         <output-dir compare="Text">unsupported-type-interval</output-dir>
         <expected-error>ASX0004: Unsupported type: org.apache.asterix.external.parser.factory.JSONDataParserFactory cannot process input type interval</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="unsupported-type-multiset">
         <output-dir compare="Text">unsupported-type-multiset</output-dir>
         <expected-error>ASX0004: Unsupported type: org.apache.asterix.external.parser.factory.JSONDataParserFactory cannot process input type multiset</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="unsupported-type-point3d">
         <output-dir compare="Text">unsupported-type-point3d</output-dir>
         <expected-error>ASX0004: Unsupported type: org.apache.asterix.external.parser.factory.JSONDataParserFactory cannot process input type point3d</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="json-parser">
       <compilation-unit name="unsupported-type-rectangle">
         <output-dir compare="Text">unsupported-type-rectangle</output-dir>
         <expected-error>ASX0004: Unsupported type: org.apache.asterix.external.parser.factory.JSONDataParserFactory cannot process input type rectangle</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -9803,6 +10183,55 @@
     <test-case FilePath="composite-key">
       <compilation-unit name="composite-prefix">
         <output-dir compare="Text">composite-prefix</output-dir>
+      </compilation-unit>
+    </test-case>
+  </test-group>
+  <test-group name="limit">
+    <test-case FilePath="limit">
+      <compilation-unit name="limit_negative_value">
+        <output-dir compare="Text">limit_negative_value</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="limit">
+      <compilation-unit name="limit_type_01">
+        <output-dir compare="Text">limit_type_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="limit">
+      <compilation-unit name="limit_type_02">
+        <output-dir compare="Text">limit_type_01</output-dir>
+        <expected-error>ASX0039: Expected integer value, got 2.75 (in line 28, at column 10)</expected-error>
+        <expected-error>ASX0039: Expected integer value, got 1.75 (in line 28, at column 19)</expected-error>
+        <expected-error>ASX1091: Type mismatch: expected value of type integer, but got the value of type string (in line 28, at column 7)</expected-error>
+        <expected-error>ASX1091: Type mismatch: expected value of type integer, but got the value of type boolean (in line 28, at column 16)</expected-error>
+        <expected-error>ASX0021: Source value 9999999999 is out of range that integer can hold - integer.MAX_VALUE: 2147483647, integer.MIN_VALUE: -2147483648</expected-error>
+        <expected-error>ASX0021: Source value 8888888888 is out of range that integer can hold - integer.MAX_VALUE: 2147483647, integer.MIN_VALUE: -2147483648</expected-error>
+        <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="limit">
+      <compilation-unit name="push-limit-to-primary-scan">
+        <output-dir compare="Text">push-limit-to-primary-scan</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="limit">
+       <compilation-unit name="push-limit-to-primary-scan-select">
+         <output-dir compare="Text">push-limit-to-primary-scan-select</output-dir>
+       </compilation-unit>
+    </test-case>
+    <test-case FilePath="limit">
+       <compilation-unit name="push-limit-to-primary-lookup">
+         <output-dir compare="Text">push-limit-to-primary-lookup</output-dir>
+       </compilation-unit>
+    </test-case>
+    <test-case FilePath="limit">
+       <compilation-unit name="push-limit-to-primary-lookup-select">
+         <output-dir compare="Text">push-limit-to-primary-lookup-select</output-dir>
+       </compilation-unit>
+    </test-case>
+    <test-case FilePath="limit">
+      <compilation-unit name="query-ASTERIXDB-2420">
+        <output-dir compare="Text">query-ASTERIXDB-2420</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>

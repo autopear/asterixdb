@@ -19,17 +19,14 @@
 package org.apache.asterix.transaction.management.resource;
 
 import static org.apache.asterix.common.utils.StorageConstants.INDEX_CHECKPOINT_FILE_PREFIX;
+import static org.apache.asterix.common.utils.StorageConstants.METADATA_FILE_NAME;
 import static org.apache.hyracks.api.exceptions.ErrorCode.CANNOT_CREATE_FILE;
 import static org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager.COMPONENT_FILES_FILTER;
 import static org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager.COMPONENT_TIMESTAMP_FORMAT;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -67,6 +64,7 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.io.IIOManager;
 import org.apache.hyracks.api.io.IODeviceHandle;
+import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.api.replication.IReplicationJob.ReplicationExecutionType;
 import org.apache.hyracks.api.replication.IReplicationJob.ReplicationJobType;
 import org.apache.hyracks.api.replication.IReplicationJob.ReplicationOperation;
@@ -75,15 +73,21 @@ import org.apache.hyracks.storage.am.common.api.ITreeIndexFrame;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
 import org.apache.hyracks.storage.common.ILocalResourceRepository;
 import org.apache.hyracks.storage.common.LocalResource;
+import org.apache.hyracks.util.ExitUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
 public class PersistentLocalResourceRepository implements ILocalResourceRepository {
 
     private static final Logger LOGGER = LogManager.getLogger();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String METADATA_FILE_MASK_NAME =
+            StorageConstants.MASK_FILE_PREFIX + StorageConstants.METADATA_FILE_NAME;
     private static final FilenameFilter LSM_INDEX_FILES_FILTER =
             (dir, name) -> !name.startsWith(INDEX_CHECKPOINT_FILE_PREFIX);
     private static final FilenameFilter MASK_FILES_FILTER =
@@ -93,6 +97,18 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
         @Override
         public boolean accept(File file) {
             return file.getName().equals(StorageConstants.METADATA_FILE_NAME);
+        }
+
+        @Override
+        public boolean accept(File dir, String name) {
+            return false;
+        }
+    };
+
+    private static final IOFileFilter METADATA_MASK_FILES_FILTER = new IOFileFilter() {
+        @Override
+        public boolean accept(File file) {
+            return file.getName().equals(METADATA_FILE_MASK_NAME);
         }
 
         @Override
@@ -125,11 +141,14 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
     private IReplicationManager replicationManager;
     private final Path[] storageRoots;
     private final IIndexCheckpointManagerProvider indexCheckpointManagerProvider;
+    private final IPersistedResourceRegistry persistedResourceRegistry;
 
     public PersistentLocalResourceRepository(IIOManager ioManager,
-            IIndexCheckpointManagerProvider indexCheckpointManagerProvider) {
+            IIndexCheckpointManagerProvider indexCheckpointManagerProvider,
+            IPersistedResourceRegistry persistedResourceRegistry) {
         this.ioManager = ioManager;
         this.indexCheckpointManagerProvider = indexCheckpointManagerProvider;
+        this.persistedResourceRegistry = persistedResourceRegistry;
         storageRoots = new Path[ioManager.getIODevices().size()];
         final List<IODeviceHandle> ioDevices = ioManager.getIODevices();
         for (int i = 0; i < ioDevices.size(); i++) {
@@ -164,6 +183,7 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
         return resource;
     }
 
+    @SuppressWarnings("squid:S1181")
     @Override
     public synchronized void insert(LocalResource resource) throws HyracksDataException {
         String relativePath = getFileName(resource.getPath());
@@ -176,20 +196,37 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
         if (!parent.exists() && !parent.mkdirs()) {
             throw HyracksDataException.create(CANNOT_CREATE_FILE, parent.getAbsolutePath());
         }
-
-        try (FileOutputStream fos = new FileOutputStream(resourceFile.getFile());
-                ObjectOutputStream oosToFos = new ObjectOutputStream(fos)) {
-            oosToFos.writeObject(resource);
-            oosToFos.flush();
-        } catch (IOException e) {
+        // The next block should be all or nothing
+        try {
+            createResourceFileMask(resourceFile);
+            byte[] bytes = OBJECT_MAPPER.writeValueAsBytes(resource.toJson(persistedResourceRegistry));
+            final Path path = Paths.get(resourceFile.getAbsolutePath());
+            Files.write(path, bytes);
+            indexCheckpointManagerProvider.get(DatasetResourceReference.of(resource)).init(null, 0);
+            deleteResourceFileMask(resourceFile);
+        } catch (Exception e) {
+            cleanup(resourceFile);
             throw HyracksDataException.create(e);
+        } catch (Throwable th) {
+            LOGGER.error("Error creating resource {}", resourceFile, th);
+            ExitUtil.halt(ExitUtil.EC_ERROR_CREATING_RESOURCES);
         }
-
         resourceCache.put(resource.getPath(), resource);
-        indexCheckpointManagerProvider.get(DatasetResourceReference.of(resource)).init(0);
         //if replication enabled, send resource metadata info to remote nodes
         if (isReplicationEnabled) {
             createReplicationJob(ReplicationOperation.REPLICATE, resourceFile);
+        }
+    }
+
+    @SuppressWarnings("squid:S1181")
+    private void cleanup(FileReference resourceFile) {
+        if (resourceFile.getFile().exists()) {
+            try {
+                IoUtil.delete(resourceFile);
+            } catch (Throwable th) {
+                LOGGER.error("Error cleaning up corrupted resource {}", resourceFile, th);
+                ExitUtil.halt(ExitUtil.EC_FAILED_TO_DELETE_CORRUPTED_RESOURCES);
+            }
         }
     }
 
@@ -200,13 +237,13 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
             if (isReplicationEnabled) {
                 createReplicationJob(ReplicationOperation.DELETE, resourceFile);
             }
-            // delete all checkpoints
             final LocalResource localResource = readLocalResource(resourceFile.getFile());
-            indexCheckpointManagerProvider.get(DatasetResourceReference.of(localResource)).delete();
             // Invalidate before deleting the file just in case file deletion throws some exception.
             // Since it's just a cache invalidation, it should not affect correctness.
             resourceCache.invalidate(relativePath);
             IoUtil.delete(resourceFile);
+            // delete all checkpoints
+            indexCheckpointManagerProvider.get(DatasetResourceReference.of(localResource)).delete();
         } else {
             throw HyracksDataException.create(org.apache.hyracks.api.exceptions.ErrorCode.RESOURCE_DOES_NOT_EXIST,
                     relativePath);
@@ -226,7 +263,7 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
             final Collection<File> files = FileUtils.listFiles(root.toFile(), METADATA_FILES_FILTER, ALL_DIR_FILTER);
             try {
                 for (File file : files) {
-                    final LocalResource localResource = PersistentLocalResourceRepository.readLocalResource(file);
+                    final LocalResource localResource = readLocalResource(file);
                     if (filter.test(localResource)) {
                         resourcesMap.put(localResource.getId(), localResource);
                     }
@@ -254,10 +291,11 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
                 : (path + File.separator + StorageConstants.METADATA_FILE_NAME);
     }
 
-    public static LocalResource readLocalResource(File file) throws HyracksDataException {
-        try (FileInputStream fis = new FileInputStream(file);
-                ObjectInputStream oisFromFis = new ObjectInputStream(fis)) {
-            LocalResource resource = (LocalResource) oisFromFis.readObject();
+    private LocalResource readLocalResource(File file) throws HyracksDataException {
+        final Path path = Paths.get(file.getAbsolutePath());
+        try {
+            final JsonNode jsonNode = OBJECT_MAPPER.readValue(Files.readAllBytes(path), JsonNode.class);
+            LocalResource resource = (LocalResource) persistedResourceRegistry.deserialize(jsonNode);
             if (resource.getVersion() == ITreeIndexFrame.Constants.VERSION) {
                 return resource;
             } else {
@@ -409,6 +447,20 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
         return resourcesStats;
     }
 
+    public void deleteCorruptedResources() throws HyracksDataException {
+        for (Path root : storageRoots) {
+            final Collection<File> metadataMaskFiles =
+                    FileUtils.listFiles(root.toFile(), METADATA_MASK_FILES_FILTER, ALL_DIR_FILTER);
+            for (File metadataMaskFile : metadataMaskFiles) {
+                final File resourceFile = new File(metadataMaskFile.getParent(), METADATA_FILE_NAME);
+                if (resourceFile.exists()) {
+                    IoUtil.delete(resourceFile);
+                }
+                IoUtil.delete(metadataMaskFile);
+            }
+        }
+    }
+
     private void deleteIndexMaskedFiles(File index) throws IOException {
         File[] masks = index.listFiles(MASK_FILES_FILTER);
         if (masks != null) {
@@ -429,15 +481,20 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
     }
 
     private void deleteIndexInvalidComponents(File index) throws IOException, ParseException {
+        final Format formatter = THREAD_LOCAL_FORMATTER.get();
+        final File[] indexComponentFiles = index.listFiles(COMPONENT_FILES_FILTER);
+        if (indexComponentFiles == null) {
+            throw new IOException(index + " doesn't exist or an IO error occurred");
+        }
         final Optional<String> validComponentTimestamp = getIndexCheckpointManager(index).getValidComponentTimestamp();
         if (!validComponentTimestamp.isPresent()) {
-            // index doesn't have any components
-            return;
-        }
-        final Format formatter = THREAD_LOCAL_FORMATTER.get();
-        final Date validTimestamp = (Date) formatter.parseObject(validComponentTimestamp.get());
-        final File[] indexComponentFiles = index.listFiles(COMPONENT_FILES_FILTER);
-        if (indexComponentFiles != null) {
+            // index doesn't have any valid component, delete all
+            for (File componentFile : indexComponentFiles) {
+                LOGGER.info(() -> "Deleting invalid component file: " + componentFile.getAbsolutePath());
+                Files.delete(componentFile.toPath());
+            }
+        } else {
+            final Date validTimestamp = (Date) formatter.parseObject(validComponentTimestamp.get());
             for (File componentFile : indexComponentFiles) {
                 // delete any file with startTime > validTimestamp
                 final String fileStartTimeStr =
@@ -500,12 +557,31 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
         return null;
     }
 
+    private void createResourceFileMask(FileReference resourceFile) throws HyracksDataException {
+        Path maskFile = getResourceMaskFilePath(resourceFile);
+        try {
+            Files.createFile(maskFile);
+        } catch (IOException e) {
+            throw HyracksDataException.create(e);
+        }
+    }
+
+    private void deleteResourceFileMask(FileReference resourceFile) throws HyracksDataException {
+        Path maskFile = getResourceMaskFilePath(resourceFile);
+        IoUtil.delete(maskFile);
+    }
+
+    private Path getResourceMaskFilePath(FileReference resourceFile) {
+        return Paths.get(resourceFile.getFile().getParentFile().getAbsolutePath(), METADATA_FILE_MASK_NAME);
+    }
+
     /**
      * Gets a component id based on its unique timestamp.
      * e.g. a component file 2018-01-08-01-08-50-439_2018-01-08-01-08-50-439_b
      * will return a component id 2018-01-08-01-08-50-439_2018-01-08-01-08-50-439
      *
-     * @param componentFile any component file
+     * @param componentFile
+     *            any component file
      * @return The component id
      */
     public static String getComponentId(String componentFile) {

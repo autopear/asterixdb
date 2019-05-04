@@ -74,7 +74,8 @@ class ClusterControllerIPCI implements IIPCI {
                 break;
             case NODE_HEARTBEAT:
                 CCNCFunctions.NodeHeartbeatFunction nhf = (CCNCFunctions.NodeHeartbeatFunction) fn;
-                ccs.getExecutor().execute(new NodeHeartbeatWork(ccs, nhf.getNodeId(), nhf.getHeartbeatData()));
+                ccs.getExecutor().execute(
+                        new NodeHeartbeatWork(ccs, nhf.getNodeId(), nhf.getHeartbeatData(), nhf.getNcAddress()));
                 break;
             case NOTIFY_JOBLET_CLEANUP:
                 CCNCFunctions.NotifyJobletCleanupFunction njcf = (CCNCFunctions.NotifyJobletCleanupFunction) fn;
@@ -160,6 +161,10 @@ class ClusterControllerIPCI implements IIPCI {
                 CCNCFunctions.ThreadDumpResponseFunction tdrf = (CCNCFunctions.ThreadDumpResponseFunction) fn;
                 ccs.getWorkQueue()
                         .schedule(new NotifyThreadDumpResponse(ccs, tdrf.getRequestId(), tdrf.getThreadDumpJSON()));
+                break;
+            case PING_RESPONSE:
+                CCNCFunctions.PingResponseFunction prf = (CCNCFunctions.PingResponseFunction) fn;
+                LOGGER.debug("Received ping response from node {}", prf.getNodeId());
                 break;
             default:
                 LOGGER.warn("Unknown function: " + fn.getFunctionId());

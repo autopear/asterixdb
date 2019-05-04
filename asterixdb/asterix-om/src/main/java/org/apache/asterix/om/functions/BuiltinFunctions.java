@@ -43,6 +43,9 @@ import org.apache.asterix.om.typecomputer.impl.AInt64TypeComputer;
 import org.apache.asterix.om.typecomputer.impl.AInt8TypeComputer;
 import org.apache.asterix.om.typecomputer.impl.AIntervalTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ALineTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.AListFirstTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.AListMultiListArgsTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.AListTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.APoint3DTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.APointTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.APolygonTypeComputer;
@@ -53,6 +56,9 @@ import org.apache.asterix.om.typecomputer.impl.ATimeTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.AUUIDTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.AYearMonthDurationTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.AnyTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.ArrayIfNullTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.ArrayRangeTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.ArrayRepeatTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.BooleanFunctionTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.BooleanOnlyTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.BooleanOrMissingTypeComputer;
@@ -62,23 +68,27 @@ import org.apache.asterix.om.typecomputer.impl.ClosedRecordConstructorResultType
 import org.apache.asterix.om.typecomputer.impl.CollectionMemberResultType;
 import org.apache.asterix.om.typecomputer.impl.CollectionToSequenceTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ConcatNonNullTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.DoubleIfTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.FieldAccessByIndexResultType;
 import org.apache.asterix.om.typecomputer.impl.FieldAccessByNameResultType;
 import org.apache.asterix.om.typecomputer.impl.FieldAccessNestedResultType;
 import org.apache.asterix.om.typecomputer.impl.FullTextContainsResultTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.GetOverlappingInvervalTypeComputer;
-import org.apache.asterix.om.typecomputer.impl.IfNanOrInfTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.IfMissingOrNullTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.IfMissingTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.IfNanOrInfTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.IfNullTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.InjectFailureTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.LocalAvgTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.MinMaxAggTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.MissingIfTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.NonTaggedGetItemResultType;
 import org.apache.asterix.om.typecomputer.impl.NotUnknownTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.NullIfTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.NullableDoubleTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.NumericAddSubMulDivTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.NumericAggTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.NumericDivideTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.NumericDoubleOutputFunctionTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.NumericInt8OutputFunctionTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.NumericRound2TypeComputer;
@@ -94,7 +104,6 @@ import org.apache.asterix.om.typecomputer.impl.OrderedListOfAnyTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.PropagateTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.RecordAddFieldsTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.RecordMergeTypeComputer;
-import org.apache.asterix.om.typecomputer.impl.RecordPairsTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.RecordRemoveFieldsTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ScalarVersionOfAggregateResultType;
 import org.apache.asterix.om.typecomputer.impl.SleepTypeComputer;
@@ -112,6 +121,7 @@ import org.apache.asterix.om.typecomputer.impl.ToBigIntTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ToDoubleTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ToNumberTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ToObjectTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.TreatAsTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.UnaryBinaryInt64TypeComputer;
 import org.apache.asterix.om.typecomputer.impl.UnaryMinusTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.UnaryStringInt64TypeComputer;
@@ -131,15 +141,12 @@ public class BuiltinFunctions {
     }
 
     private static final FunctionInfoRepository registeredFunctions = new FunctionInfoRepository();
-
     private static final Map<IFunctionInfo, ATypeHierarchy.Domain> registeredFunctionsDomain = new HashMap<>();
 
     // it is supposed to be an identity mapping
     private static final Map<IFunctionInfo, IFunctionInfo> builtinPublicFunctionsSet = new HashMap<>();
     private static final Map<IFunctionInfo, IFunctionInfo> builtinPrivateFunctionsSet = new HashMap<>();
-
     private static final Map<IFunctionInfo, IResultTypeComputer> funTypeComputer = new HashMap<>();
-
     private static final Set<IFunctionInfo> builtinAggregateFunctions = new HashSet<>();
     private static final Map<IFunctionInfo, IFunctionToDataSourceRewriter> datasourceFunctions = new HashMap<>();
     private static final Set<IFunctionInfo> similarityFunctions = new HashSet<>();
@@ -160,14 +167,12 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "get-handle", 2);
     public static final FunctionIdentifier GET_DATA =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "get-data", 2);
-
     public static final FunctionIdentifier GET_ITEM =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "get-item", 2);
     public static final FunctionIdentifier ANY_COLLECTION_MEMBER =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "any-collection-member", 1);
     public static final FunctionIdentifier LISTIFY = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "listify", 1);
     public static final FunctionIdentifier LEN = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "len", 1);
-
     public static final FunctionIdentifier CONCAT_NON_NULL =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "concat-non-null", FunctionIdentifier.VARARGS);
     public static final FunctionIdentifier EMPTY_STREAM =
@@ -181,6 +186,50 @@ public class BuiltinFunctions {
 
     public static final FunctionIdentifier DEEP_EQUAL =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "deep-equal", 2);
+
+    // array functions
+    public static final FunctionIdentifier ARRAY_REMOVE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-remove", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_PUT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-put", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_PREPEND =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-prepend", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_APPEND =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-append", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_INSERT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-insert", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_POSITION =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-position", 2);
+    public static final FunctionIdentifier ARRAY_REPEAT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-repeat", 2);
+    public static final FunctionIdentifier ARRAY_REVERSE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-reverse", 1);
+    public static final FunctionIdentifier ARRAY_CONTAINS =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-contains", 2);
+    public static final FunctionIdentifier ARRAY_DISTINCT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-distinct", 1);
+    public static final FunctionIdentifier ARRAY_SORT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-sort", 1);
+    public static final FunctionIdentifier ARRAY_UNION =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-union", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_INTERSECT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-intersect", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_IFNULL =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-ifnull", 1);
+    public static final FunctionIdentifier ARRAY_CONCAT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-concat", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_RANGE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-range", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_FLATTEN =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-flatten", 2);
+    public static final FunctionIdentifier ARRAY_REPLACE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-replace", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_SYMDIFF =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-symdiff", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_SYMDIFFN =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-symdiffn", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier ARRAY_STAR =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "array-star", 1);
 
     // objects
     public static final FunctionIdentifier RECORD_MERGE =
@@ -216,6 +265,21 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-pairs", FunctionIdentifier.VARARGS);
     public static final FunctionIdentifier GEOMETRY_CONSTRUCTOR =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "st-geom-from-geojson", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier RECORD_REMOVE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-remove", 2);
+    public static final FunctionIdentifier RECORD_RENAME =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-rename", 3);
+    public static final FunctionIdentifier RECORD_UNWRAP =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-unwrap", 1);
+    public static final FunctionIdentifier RECORD_REPLACE =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-replace", 3);
+    public static final FunctionIdentifier RECORD_ADD =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-add", 3);
+    public static final FunctionIdentifier RECORD_PUT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-put", 3);
+    public static final FunctionIdentifier RECORD_VALUES =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-values", 1);
+    public static final FunctionIdentifier PAIRS = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "pairs", 1);
 
     // numeric
     public static final FunctionIdentifier NUMERIC_UNARY_MINUS =
@@ -228,9 +292,10 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "numeric-divide", 2);
     public static final FunctionIdentifier NUMERIC_MOD =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "numeric-mod", 2);
-    public static final FunctionIdentifier NUMERIC_IDIV =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "numeric-idiv", 2);
-    public static final FunctionIdentifier CARET = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "caret", 2);
+    public static final FunctionIdentifier NUMERIC_DIV =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "numeric-div", 2);
+    public static final FunctionIdentifier NUMERIC_POWER =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "power", 2);
     public static final FunctionIdentifier NUMERIC_ABS = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "abs", 1);
     public static final FunctionIdentifier NUMERIC_ACOS =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "acos", 1);
@@ -240,6 +305,10 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "atan", 1);
     public static final FunctionIdentifier NUMERIC_ATAN2 =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "atan2", 2);
+    public static final FunctionIdentifier NUMERIC_DEGREES =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "degrees", 1);
+    public static final FunctionIdentifier NUMERIC_RADIANS =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "radians", 1);
     public static final FunctionIdentifier NUMERIC_COS = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "cos", 1);
     public static final FunctionIdentifier NUMERIC_SIN = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "sin", 1);
     public static final FunctionIdentifier NUMERIC_TAN = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "tan", 1);
@@ -250,6 +319,8 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "sqrt", 1);
     public static final FunctionIdentifier NUMERIC_SIGN =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "sign", 1);
+    public static final FunctionIdentifier NUMERIC_E = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "e", 0);
+    public static final FunctionIdentifier NUMERIC_PI = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "pi", 0);
 
     public static final FunctionIdentifier NUMERIC_CEILING =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "ceiling", 1);
@@ -281,7 +352,8 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "find-binary", 2);
     public static final FunctionIdentifier FIND_BINARY_FROM =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "find-binary", 3);
-    // String funcitons
+
+    // String functions
     public static final FunctionIdentifier STRING_EQUAL =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "string-equal", 2);
     public static final FunctionIdentifier STRING_MATCHES =
@@ -373,6 +445,7 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier MAKE_FIELD_NAME_HANDLE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "make-field-name-handle", 1);
 
+    // aggregate functions
     public static final FunctionIdentifier AVG = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-avg", 1);
     public static final FunctionIdentifier COUNT = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-count", 1);
     public static final FunctionIdentifier SUM = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-sum", 1);
@@ -425,7 +498,6 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intermediate-avg-serial", 1);
 
     // distinct aggregate functions
-
     public static final FunctionIdentifier COUNT_DISTINCT =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-count-distinct", 1);
     public static final FunctionIdentifier SCALAR_COUNT_DISTINCT =
@@ -524,6 +596,7 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier SCALAR_SQL_MIN_DISTINCT =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "sql-min-distinct", 1);
 
+    // unnesting functions
     public static final FunctionIdentifier SCAN_COLLECTION =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "scan-collection", 1);
     public static final FunctionIdentifier SUBSET_COLLECTION =
@@ -531,7 +604,7 @@ public class BuiltinFunctions {
 
     public static final FunctionIdentifier RANGE = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "range", 2);
 
-    // fuzzy functions:
+    // fuzzy functions
     public static final FunctionIdentifier FUZZY_EQ =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "fuzzy-eq", 2);
 
@@ -738,6 +811,9 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier UUID = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "uuid", 0);
     public static final FunctionIdentifier CREATE_QUERY_UID =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "create-query-uid", 0);
+    public static final FunctionIdentifier RANDOM = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "random", 0);
+    public static final FunctionIdentifier RANDOM_WITH_SEED =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "random", 1);
 
     //Geo
     public static final FunctionIdentifier ST_AREA = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "st-area", 1);
@@ -1001,6 +1077,15 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier IF_NAN_OR_INF =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "if-nan-or-inf", FunctionIdentifier.VARARGS);
 
+    public static final FunctionIdentifier MISSING_IF =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "missing-if", 2);
+    public static final FunctionIdentifier NULL_IF = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "null-if", 2);
+    public static final FunctionIdentifier NAN_IF = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "nan-if", 2);
+    public static final FunctionIdentifier POSINF_IF =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "posinf-if", 2);
+    public static final FunctionIdentifier NEGINF_IF =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "neginf-if", 2);
+
     public static final FunctionIdentifier TO_ATOMIC =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "to-atomic", 1);
     public static final FunctionIdentifier TO_ARRAY =
@@ -1017,6 +1102,9 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "to-object", 1);
     public static final FunctionIdentifier TO_STRING =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "to-string", 1);
+
+    public static final FunctionIdentifier TREAT_AS_INTEGER =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "treat-as-integer", 1);
 
     public static final FunctionIdentifier EXTERNAL_LOOKUP =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "external-lookup", FunctionIdentifier.VARARGS);
@@ -1062,14 +1150,13 @@ public class BuiltinFunctions {
         addPrivateFunction(OR, BooleanFunctionTypeComputer.INSTANCE, true);
         addPrivateFunction(NUMERIC_ADD, NumericAddSubMulDivTypeComputer.INSTANCE, true);
 
-        // Deep equality
+        // deep equality
         addFunction(DEEP_EQUAL, BooleanFunctionTypeComputer.INSTANCE, true);
 
         // and then, Asterix builtin functions
         addPrivateFunction(CHECK_UNKNOWN, NotUnknownTypeComputer.INSTANCE, true);
         addPrivateFunction(ANY_COLLECTION_MEMBER, CollectionMemberResultType.INSTANCE, true);
         addFunction(BOOLEAN_CONSTRUCTOR, ABooleanTypeComputer.INSTANCE, true);
-        addFunction(CARET, NumericAddSubMulDivTypeComputer.INSTANCE, true);
         addFunction(CIRCLE_CONSTRUCTOR, ACircleTypeComputer.INSTANCE, true);
         addPrivateFunction(CONCAT_NON_NULL, ConcatNonNullTypeComputer.INSTANCE, true);
 
@@ -1085,6 +1172,8 @@ public class BuiltinFunctions {
         addFunction(UUID, AUUIDTypeComputer.INSTANCE, false);
         addFunction(CREATE_QUERY_UID, ABinaryTypeComputer.INSTANCE, false);
         addFunction(UUID_CONSTRUCTOR, AUUIDTypeComputer.INSTANCE, true);
+        addFunction(RANDOM, ADoubleTypeComputer.INSTANCE, false);
+        addFunction(RANDOM_WITH_SEED, ADoubleTypeComputer.INSTANCE, false);
 
         addFunction(DATE_CONSTRUCTOR, ADateTypeComputer.INSTANCE, true);
         addFunction(DATETIME_CONSTRUCTOR, ADateTimeTypeComputer.INSTANCE, true);
@@ -1106,9 +1195,6 @@ public class BuiltinFunctions {
         addPrivateFunction(GRAM_TOKENS, OrderedListOfAStringTypeComputer.INSTANCE, true);
         addPrivateFunction(HASHED_GRAM_TOKENS, OrderedListOfAInt32TypeComputer.INSTANCE, true);
         addPrivateFunction(HASHED_WORD_TOKENS, OrderedListOfAInt32TypeComputer.INSTANCE, true);
-        addFunction(IF_MISSING_OR_NULL, IfMissingOrNullTypeComputer.INSTANCE, true);
-        addFunction(IF_MISSING, IfMissingTypeComputer.INSTANCE, true);
-        addFunction(IF_NULL, IfNullTypeComputer.INSTANCE, true);
         addPrivateFunction(INDEX_SEARCH, AnyTypeComputer.INSTANCE, true);
         addFunction(INT8_CONSTRUCTOR, AInt8TypeComputer.INSTANCE, true);
         addFunction(INT16_CONSTRUCTOR, AInt16TypeComputer.INSTANCE, true);
@@ -1123,20 +1209,25 @@ public class BuiltinFunctions {
         addPrivateFunction(NUMERIC_UNARY_MINUS, UnaryMinusTypeComputer.INSTANCE, true);
         addPrivateFunction(NUMERIC_SUBTRACT, NumericAddSubMulDivTypeComputer.INSTANCE, true);
         addPrivateFunction(NUMERIC_MULTIPLY, NumericAddSubMulDivTypeComputer.INSTANCE, true);
-        addPrivateFunction(NUMERIC_DIVIDE, NumericAddSubMulDivTypeComputer.INSTANCE, true);
-        addPrivateFunction(NUMERIC_MOD, NumericAddSubMulDivTypeComputer.INSTANCE, true);
-        addPrivateFunction(NUMERIC_IDIV, AInt64TypeComputer.INSTANCE, true);
+        addPrivateFunction(NUMERIC_DIVIDE, NumericDivideTypeComputer.INSTANCE, true);
+        addPrivateFunction(NUMERIC_MOD, NumericAddSubMulDivTypeComputer.INSTANCE_NULLABLE, true);
+        addPrivateFunction(NUMERIC_DIV, NumericAddSubMulDivTypeComputer.INSTANCE_NULLABLE, true);
         addFunction(NUMERIC_ABS, NumericUnaryFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_ACOS, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_ASIN, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_ATAN, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_ATAN2, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
+        addFunction(NUMERIC_DEGREES, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
+        addFunction(NUMERIC_RADIANS, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_COS, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_SIN, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_TAN, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
+        addFunction(NUMERIC_E, ADoubleTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_EXP, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_LN, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_LOG, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
+        addFunction(NUMERIC_PI, ADoubleTypeComputer.INSTANCE, true);
+        addFunction(NUMERIC_POWER, NumericAddSubMulDivTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_SQRT, NumericDoubleOutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_SIGN, NumericInt8OutputFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_CEILING, NumericUnaryFunctionTypeComputer.INSTANCE, true);
@@ -1145,9 +1236,6 @@ public class BuiltinFunctions {
         addFunction(NUMERIC_ROUND_HALF_TO_EVEN, NumericUnaryFunctionTypeComputer.INSTANCE, true);
         addFunction(NUMERIC_ROUND_HALF_TO_EVEN2, NumericRound2TypeComputer.INSTANCE, true);
         addFunction(NUMERIC_TRUNC, NumericRound2TypeComputer.INSTANCE, true);
-        addFunction(IF_INF, IfNanOrInfTypeComputer.INSTANCE, true);
-        addFunction(IF_NAN, IfNanOrInfTypeComputer.INSTANCE, true);
-        addFunction(IF_NAN_OR_INF, IfNanOrInfTypeComputer.INSTANCE, true);
 
         addFunction(BINARY_LENGTH, UnaryBinaryInt64TypeComputer.INSTANCE, true);
         addFunction(PARSE_BINARY, ABinaryTypeComputer.INSTANCE, true);
@@ -1164,7 +1252,7 @@ public class BuiltinFunctions {
         addFunction(STRING_TO_CODEPOINT, StringToInt64ListTypeComputer.INSTANCE, true);
         addFunction(CODEPOINT_TO_STRING, AStringTypeComputer.INSTANCE, true);
         addFunction(STRING_CONCAT, AStringTypeComputer.INSTANCE, true);
-        addFunction(SUBSTRING2, StringIntToStringTypeComputer.INSTANCE, true);
+        addFunction(SUBSTRING2, StringIntToStringTypeComputer.INSTANCE_NULLABLE, true);
         addFunction(STRING_LENGTH, UnaryStringInt64TypeComputer.INSTANCE, true);
         addFunction(STRING_LOWERCASE, StringStringTypeComputer.INSTANCE, true);
         addFunction(STRING_UPPERCASE, StringStringTypeComputer.INSTANCE, true);
@@ -1185,7 +1273,8 @@ public class BuiltinFunctions {
         addFunction(STRING_REGEXP_POSITION, StringInt32TypeComputer.INSTANCE, true);
         addFunction(STRING_REGEXP_POSITION_WITH_FLAG, StringInt32TypeComputer.INSTANCE, true);
         addFunction(STRING_REGEXP_REPLACE, StringStringTypeComputer.INSTANCE, true);
-        addFunction(STRING_REGEXP_REPLACE_WITH_FLAG, StringStringTypeComputer.INSTANCE, true);
+        addFunction(STRING_REGEXP_REPLACE_WITH_FLAG,
+                StringIntToStringTypeComputer.INSTANCE_STRING_REGEXP_REPLACE_WITH_FLAG, true);
         addFunction(STRING_REPLACE, StringStringTypeComputer.INSTANCE, true);
         addFunction(STRING_REPLACE_WITH_LIMIT, StringIntToStringTypeComputer.INSTANCE_TRIPLE_STRING, true);
         addFunction(STRING_REVERSE, StringStringTypeComputer.INSTANCE, true);
@@ -1212,6 +1301,21 @@ public class BuiltinFunctions {
         addFunction(TO_NUMBER, ToNumberTypeComputer.INSTANCE, true);
         addFunction(TO_OBJECT, ToObjectTypeComputer.INSTANCE, true);
         addFunction(TO_STRING, AStringTypeComputer.INSTANCE, true);
+
+        addPrivateFunction(TREAT_AS_INTEGER, TreatAsTypeComputer.INSTANCE_INTEGER, true);
+
+        addFunction(IF_INF, IfNanOrInfTypeComputer.INSTANCE, true);
+        addFunction(IF_MISSING, IfMissingTypeComputer.INSTANCE, true);
+        addFunction(IF_MISSING_OR_NULL, IfMissingOrNullTypeComputer.INSTANCE, true);
+        addFunction(IF_NULL, IfNullTypeComputer.INSTANCE, true);
+        addFunction(IF_NAN, IfNanOrInfTypeComputer.INSTANCE, true);
+        addFunction(IF_NAN_OR_INF, IfNanOrInfTypeComputer.INSTANCE, true);
+
+        addFunction(MISSING_IF, MissingIfTypeComputer.INSTANCE, true);
+        addFunction(NULL_IF, NullIfTypeComputer.INSTANCE, true);
+        addFunction(NAN_IF, DoubleIfTypeComputer.INSTANCE, true);
+        addFunction(POSINF_IF, DoubleIfTypeComputer.INSTANCE, true);
+        addFunction(NEGINF_IF, DoubleIfTypeComputer.INSTANCE, true);
 
         // Aggregate Functions
         addFunction(MAX, MinMaxAggTypeComputer.INSTANCE, true);
@@ -1407,6 +1511,29 @@ public class BuiltinFunctions {
         addPrivateFunction(UNORDERED_LIST_CONSTRUCTOR, UnorderedListConstructorTypeComputer.INSTANCE, true);
         addFunction(WORD_TOKENS, OrderedListOfAStringTypeComputer.INSTANCE, true);
 
+        // array functions
+        addFunction(ARRAY_REMOVE, AListTypeComputer.INSTANCE_REMOVE, true);
+        addFunction(ARRAY_PUT, AListTypeComputer.INSTANCE_PUT, true);
+        addFunction(ARRAY_PREPEND, AListTypeComputer.INSTANCE_PREPEND, true);
+        addFunction(ARRAY_APPEND, AListTypeComputer.INSTANCE_APPEND, true);
+        addFunction(ARRAY_INSERT, AListTypeComputer.INSTANCE_INSERT, true);
+        addFunction(ARRAY_POSITION, AInt32TypeComputer.INSTANCE, true);
+        addFunction(ARRAY_REPEAT, ArrayRepeatTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_REVERSE, AListFirstTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_CONTAINS, ABooleanTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_SORT, AListFirstTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_DISTINCT, AListFirstTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_UNION, AListMultiListArgsTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_INTERSECT, AListMultiListArgsTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_IFNULL, ArrayIfNullTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_CONCAT, AListMultiListArgsTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_RANGE, ArrayRangeTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_FLATTEN, AListFirstTypeComputer.INSTANCE_FLATTEN, true);
+        addFunction(ARRAY_REPLACE, AListTypeComputer.INSTANCE_REPLACE, true);
+        addFunction(ARRAY_SYMDIFF, AListMultiListArgsTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_SYMDIFFN, AListMultiListArgsTypeComputer.INSTANCE, true);
+        addFunction(ARRAY_STAR, OpenARecordTypeComputer.INSTANCE, true);
+
         // objects
         addFunction(RECORD_MERGE, RecordMergeTypeComputer.INSTANCE, true);
         addFunction(RECORD_CONCAT, OpenARecordTypeComputer.INSTANCE, true);
@@ -1422,8 +1549,16 @@ public class BuiltinFunctions {
         addFunction(GET_RECORD_FIELD_VALUE, FieldAccessNestedResultType.INSTANCE, true);
         addFunction(RECORD_LENGTH, AInt64TypeComputer.INSTANCE_NULLABLE, true);
         addFunction(RECORD_NAMES, OrderedListOfAStringTypeComputer.INSTANCE_NULLABLE, true);
-        addFunction(RECORD_PAIRS, RecordPairsTypeComputer.INSTANCE, true);
+        addFunction(RECORD_PAIRS, OrderedListOfAnyTypeComputer.INSTANCE_NULLABLE, true);
+        addFunction(PAIRS, OrderedListOfAnyTypeComputer.INSTANCE_NULLABLE, true);
         addFunction(GEOMETRY_CONSTRUCTOR, AGeometryTypeComputer.INSTANCE, true);
+        addFunction(RECORD_REMOVE, OpenARecordTypeComputer.INSTANCE, true);
+        addFunction(RECORD_RENAME, OpenARecordTypeComputer.INSTANCE, true);
+        addFunction(RECORD_UNWRAP, AnyTypeComputer.INSTANCE, true);
+        addFunction(RECORD_REPLACE, OpenARecordTypeComputer.INSTANCE, true);
+        addFunction(RECORD_ADD, OpenARecordTypeComputer.INSTANCE, true);
+        addFunction(RECORD_PUT, OpenARecordTypeComputer.INSTANCE, true);
+        addFunction(RECORD_VALUES, OrderedListOfAnyTypeComputer.INSTANCE, true);
 
         // temporal type accessors
         addFunction(ACCESSOR_TEMPORAL_YEAR, AInt64TypeComputer.INSTANCE, true);
@@ -1911,19 +2046,19 @@ public class BuiltinFunctions {
         registeredFunctions.put(fi, functionInfo);
     }
 
-    private static void addAgg(FunctionIdentifier fi) {
+    public static void addAgg(FunctionIdentifier fi) {
         builtinAggregateFunctions.add(getAsterixFunctionInfo(fi));
     }
 
-    private static void addLocalAgg(FunctionIdentifier fi, FunctionIdentifier localfi) {
+    public static void addLocalAgg(FunctionIdentifier fi, FunctionIdentifier localfi) {
         aggregateToLocalAggregate.put(getAsterixFunctionInfo(fi), getAsterixFunctionInfo(localfi));
     }
 
-    private static void addIntermediateAgg(FunctionIdentifier fi, FunctionIdentifier globalfi) {
+    public static void addIntermediateAgg(FunctionIdentifier fi, FunctionIdentifier globalfi) {
         aggregateToIntermediateAggregate.put(getAsterixFunctionInfo(fi), getAsterixFunctionInfo(globalfi));
     }
 
-    private static void addGlobalAgg(FunctionIdentifier fi, FunctionIdentifier globalfi) {
+    public static void addGlobalAgg(FunctionIdentifier fi, FunctionIdentifier globalfi) {
         aggregateToGlobalAggregate.put(getAsterixFunctionInfo(fi), getAsterixFunctionInfo(globalfi));
         globalAggregateFunctions.add(getAsterixFunctionInfo(globalfi));
     }
@@ -1932,15 +2067,15 @@ public class BuiltinFunctions {
         builtinUnnestingFunctions.put(getAsterixFunctionInfo(fi), returnsUniqueValues);
     }
 
-    private static void addSerialAgg(FunctionIdentifier fi, FunctionIdentifier serialfi) {
+    public static void addSerialAgg(FunctionIdentifier fi, FunctionIdentifier serialfi) {
         aggregateToSerializableAggregate.put(getAsterixFunctionInfo(fi), getAsterixFunctionInfo(serialfi));
     }
 
-    private static void addScalarAgg(FunctionIdentifier fi, FunctionIdentifier scalarfi) {
+    public static void addScalarAgg(FunctionIdentifier fi, FunctionIdentifier scalarfi) {
         scalarToAggregateFunctionMap.put(getAsterixFunctionInfo(scalarfi), getAsterixFunctionInfo(fi));
     }
 
-    private static void addDistinctAgg(FunctionIdentifier distinctfi, FunctionIdentifier regularscalarfi) {
+    public static void addDistinctAgg(FunctionIdentifier distinctfi, FunctionIdentifier regularscalarfi) {
         distinctToRegularScalarAggregateFunctionMap.put(getAsterixFunctionInfo(distinctfi),
                 getAsterixFunctionInfo(regularscalarfi));
     }

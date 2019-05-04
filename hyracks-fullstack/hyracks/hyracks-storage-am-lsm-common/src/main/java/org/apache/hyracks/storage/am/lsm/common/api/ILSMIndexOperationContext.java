@@ -19,12 +19,11 @@
 package org.apache.hyracks.storage.am.lsm.common.api;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hyracks.storage.am.common.api.IExtendedModificationOperationCallback;
 import org.apache.hyracks.storage.am.common.api.IIndexOperationContext;
 import org.apache.hyracks.storage.am.common.tuples.PermutingTupleReference;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
-import org.apache.hyracks.storage.common.IModificationOperationCallback;
 import org.apache.hyracks.storage.common.ISearchOperationCallback;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
@@ -96,42 +95,26 @@ public interface ILSMIndexOperationContext extends IIndexOperationContext {
     void setRecovery(boolean recovery);
 
     /**
-     * @return the IO Operation type associated with this context
+     * @return the IO operation associated with this context
      */
-    LSMIOOperationType getIoOperationType();
+    ILSMIOOperation getIoOperation();
 
     /**
-     * Set the IO Operation type associated with this context
+     * Set the IO operation associated with this context
      *
-     * @param ioOpType
+     * @param ioOperation
      */
-    void setIoOperationType(LSMIOOperationType ioOpType);
+    void setIoOperation(ILSMIOOperation ioOperation);
 
     /**
-     * @return the new component produced by this operation if any, null otherwise
-     */
-    ILSMDiskComponent getNewComponent();
-
-    /**
-     * Set the new component produced by this operation
+     * Set a map in the context to pass pairs of keys and values
      *
-     * @param component
+     * @param map
      */
-    void setNewComponent(ILSMDiskComponent component);
+    void setParameters(Map<String, Object> map);
 
     /**
-     * @return the new component produced by this operation if any, null otherwise
+     * @return the key value map of the context
      */
-    List<ILSMDiskComponent> getNewDiskComponentsForNextLevel();
-
-    /**
-     * Set the new component produced by this operation
-     *
-     * @param components
-     */
-    void setNewDiskComponentsForNextLevel(List<ILSMDiskComponent> components);
-
-    void setPartitionPolicy(IComponentPartitionPolicy partitionPolicy);
-    IComponentPartitionPolicy getPartitionPolicy();
-
+    Map<String, Object> getParameters();
 }

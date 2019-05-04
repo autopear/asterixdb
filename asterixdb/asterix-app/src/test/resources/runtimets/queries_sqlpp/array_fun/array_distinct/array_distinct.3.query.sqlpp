@@ -1,0 +1,34 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+use TinySocial;
+
+{
+  "t1": (select array_distinct(array_append(t.`referred-topics`, "verizon", "platform")) from TweetMessages t order by t.tweetid),
+  "t2": (array_distinct([19, 5, 7, 7, 5, 2])),
+  "t3": (array_distinct([19, 5, 7, 7, 5.1, 5.0, 2, 7])),
+  "t4": (array_distinct([19, 5, "a", 7.5, "A", "a", "John", "a"])),
+  "t5": (array_distinct([19, missing, 7, null, 5, null])),
+  "t6": (array_distinct([3])),
+  "t7": (array_distinct("non_array")),
+  "t8": (array_distinct([])),
+  "t9": (array_distinct(missing)),
+  "t10": (array_distinct(null)),
+  "t11": (select array_distinct(d.followers) from d1 d)
+};

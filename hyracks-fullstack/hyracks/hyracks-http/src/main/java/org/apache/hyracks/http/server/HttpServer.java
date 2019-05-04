@@ -28,6 +28,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.netty.util.internal.logging.InternalLoggerFactory;
+import io.netty.util.internal.logging.Log4J2LoggerFactory;
+import io.netty.util.internal.logging.Log4JLoggerFactory;
 import org.apache.hyracks.http.api.IChannelClosedHandler;
 import org.apache.hyracks.http.api.IServlet;
 import org.apache.hyracks.util.MXHelper;
@@ -39,14 +42,18 @@ import org.apache.logging.log4j.Logger;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.WriteBufferWaterMark;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.util.internal.logging.InternalLoggerFactory;
+import io.netty.util.internal.logging.Log4J2LoggerFactory;
 
 public class HttpServer {
     // Constants
@@ -55,8 +62,6 @@ public class HttpServer {
     protected static final WriteBufferWaterMark WRITE_BUFFER_WATER_MARK =
             new WriteBufferWaterMark(LOW_WRITE_BUFFER_WATER_MARK, HIGH_WRITE_BUFFER_WATER_MARK);
     protected static final int RECEIVE_BUFFER_SIZE = 4096;
-    protected static final int DEFAULT_NUM_EXECUTOR_THREADS = 16;
-    protected static final int DEFAULT_REQUEST_QUEUE_SIZE = 256;
     private static final Logger LOGGER = LogManager.getLogger();
     private static final int FAILED = -1;
     private static final int STOPPED = 0;
@@ -79,39 +84,37 @@ public class HttpServer {
     private volatile Thread recoveryThread;
     private volatile Channel channel;
     private Throwable cause;
+    private HttpServerConfig config;
 
-    public HttpServer(EventLoopGroup bossGroup, EventLoopGroup workerGroup, int port) {
-        this(bossGroup, workerGroup, port, DEFAULT_NUM_EXECUTOR_THREADS, DEFAULT_REQUEST_QUEUE_SIZE, null);
+    static {
+        InternalLoggerFactory.setDefaultFactory(Log4J2LoggerFactory.INSTANCE);
     }
 
-    public HttpServer(EventLoopGroup bossGroup, EventLoopGroup workerGroup, int port,
+    public HttpServer(EventLoopGroup bossGroup, EventLoopGroup workerGroup, int port, HttpServerConfig config) {
+        this(bossGroup, workerGroup, port, config, null);
+    }
+
+    public HttpServer(EventLoopGroup bossGroup, EventLoopGroup workerGroup, int port, HttpServerConfig config,
             IChannelClosedHandler closeHandler) {
-        this(bossGroup, workerGroup, port, DEFAULT_NUM_EXECUTOR_THREADS, DEFAULT_REQUEST_QUEUE_SIZE, closeHandler);
-    }
-
-    public HttpServer(EventLoopGroup bossGroup, EventLoopGroup workerGroup, int port, int numExecutorThreads,
-            int requestQueueSize) {
-        this(bossGroup, workerGroup, port, numExecutorThreads, requestQueueSize, null);
-    }
-
-    public HttpServer(EventLoopGroup bossGroup, EventLoopGroup workerGroup, int port, int numExecutorThreads,
-            int requestQueueSize, IChannelClosedHandler closeHandler) {
         this.bossGroup = bossGroup;
         this.workerGroup = workerGroup;
         this.port = port;
         this.closedHandler = closeHandler;
+        this.config = config;
         ctx = new ConcurrentHashMap<>();
         servlets = new ArrayList<>();
-        workQueue = new LinkedBlockingQueue<>(requestQueueSize);
+        workQueue = new LinkedBlockingQueue<>(config.getRequestQueueSize());
+        int numExecutorThreads = config.getThreadCount();
         executor = new ThreadPoolExecutor(numExecutorThreads, numExecutorThreads, 0L, TimeUnit.MILLISECONDS, workQueue,
                 runnable -> new Thread(runnable, "HttpExecutor(port:" + port + ")-" + threadId.getAndIncrement()));
         long directMemoryBudget = numExecutorThreads * (long) HIGH_WRITE_BUFFER_WATER_MARK
-                + numExecutorThreads * HttpServerInitializer.RESPONSE_CHUNK_SIZE;
-        LOGGER.log(Level.INFO, "The output direct memory budget for this server is " + directMemoryBudget + " bytes");
+                + numExecutorThreads * config.getMaxResponseChunkSize();
+        LOGGER.log(Level.DEBUG,
+                "The output direct memory budget for this server " + "is " + directMemoryBudget + " bytes");
         long inputBudgetEstimate =
-                (long) HttpServerInitializer.MAX_REQUEST_INITIAL_LINE_LENGTH * (requestQueueSize + numExecutorThreads);
+                (long) config.getMaxRequestInitialLineLength() * (config.getRequestQueueSize() + numExecutorThreads);
         inputBudgetEstimate = inputBudgetEstimate * 2;
-        LOGGER.log(Level.INFO,
+        LOGGER.log(Level.DEBUG,
                 "The \"estimated\" input direct memory budget for this server is " + inputBudgetEstimate + " bytes");
         // Having multiple arenas, memory fragments, and local thread cached buffers
         // can cause the input memory usage to exceed estimate and custom buffer allocator must be used to avoid this
@@ -242,7 +245,7 @@ public class HttpServer {
                 .childOption(ChannelOption.AUTO_READ, Boolean.FALSE)
                 .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                 .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK, WRITE_BUFFER_WATER_MARK)
-                .handler(new LoggingHandler(LogLevel.DEBUG)).childHandler(new HttpServerInitializer(this));
+                .handler(new LoggingHandler(LogLevel.DEBUG)).childHandler(getChannelInitializer());
         Channel newChannel = b.bind(port).sync().channel();
         newChannel.closeFuture().addListener(f -> {
             // This listener is invoked from within a netty IO thread. Hence, we can never block it
@@ -381,6 +384,10 @@ public class HttpServer {
         return new HttpServerHandler<>(this, chunkSize);
     }
 
+    protected ChannelInitializer<SocketChannel> getChannelInitializer() {
+        return new HttpServerInitializer(this);
+    }
+
     public ThreadPoolExecutor getExecutor(HttpRequestHandler handler) {
         return executor;
     }
@@ -401,5 +408,9 @@ public class HttpServer {
     public String toString() {
         return "{\"class\":\"" + getClass().getSimpleName() + "\",\"port\":" + port + ",\"state\":\"" + getState()
                 + "\"}";
+    }
+
+    public HttpServerConfig getConfig() {
+        return config;
     }
 }

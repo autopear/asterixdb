@@ -40,7 +40,7 @@ import org.apache.hyracks.api.dataflow.IOperatorDescriptor;
 import org.apache.hyracks.api.dataflow.OperatorDescriptorId;
 import org.apache.hyracks.api.dataflow.connectors.IConnectorPolicyAssignmentPolicy;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
-import org.apache.hyracks.api.dataset.ResultSetId;
+import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.api.job.resource.ClusterCapacity;
 import org.apache.hyracks.api.job.resource.IClusterCapacity;
 
@@ -144,9 +144,7 @@ public class JobSpecification implements Serializable, IOperatorDescriptorRegist
         insertIntoIndexedMap(opInputMap, consumerOp.getOperatorId(), consumerPort, conn);
         insertIntoIndexedMap(opOutputMap, producerOp.getOperatorId(), producerPort, conn);
         connectorOpMap.put(conn.getConnectorId(),
-                Pair.<Pair<IOperatorDescriptor, Integer>, Pair<IOperatorDescriptor, Integer>> of(
-                        Pair.<IOperatorDescriptor, Integer> of(producerOp, producerPort),
-                        Pair.<IOperatorDescriptor, Integer> of(consumerOp, consumerPort)));
+                Pair.of(Pair.of(producerOp, producerPort), Pair.of(consumerOp, consumerPort)));
     }
 
     public void setProperty(String name, Serializable value) {

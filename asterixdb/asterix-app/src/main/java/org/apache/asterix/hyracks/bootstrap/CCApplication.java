@@ -29,21 +29,22 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.asterix.api.http.IQueryWebServerRegistrant;
 import org.apache.asterix.api.http.ctx.StatementExecutorContext;
 import org.apache.asterix.api.http.server.ActiveStatsApiServlet;
 import org.apache.asterix.api.http.server.ApiServlet;
+import org.apache.asterix.api.http.server.CcQueryCancellationServlet;
 import org.apache.asterix.api.http.server.ClusterApiServlet;
 import org.apache.asterix.api.http.server.ClusterControllerDetailsApiServlet;
 import org.apache.asterix.api.http.server.ConnectorApiServlet;
 import org.apache.asterix.api.http.server.DiagnosticsApiServlet;
 import org.apache.asterix.api.http.server.NodeControllerDetailsApiServlet;
-import org.apache.asterix.api.http.server.QueryCancellationServlet;
 import org.apache.asterix.api.http.server.QueryResultApiServlet;
 import org.apache.asterix.api.http.server.QueryServiceServlet;
 import org.apache.asterix.api.http.server.QueryStatusApiServlet;
-import org.apache.asterix.api.http.server.QueryWebInterfaceServlet;
 import org.apache.asterix.api.http.server.RebalanceApiServlet;
 import org.apache.asterix.api.http.server.ServletConstants;
 import org.apache.asterix.api.http.server.ShutdownApiServlet;
@@ -54,7 +55,9 @@ import org.apache.asterix.app.external.ExternalLibraryUtils;
 import org.apache.asterix.app.replication.NcLifecycleCoordinator;
 import org.apache.asterix.common.api.AsterixThreadFactory;
 import org.apache.asterix.common.api.INodeJobTracker;
+import org.apache.asterix.common.cluster.IGlobalRecoveryManager;
 import org.apache.asterix.common.config.AsterixExtension;
+import org.apache.asterix.common.config.ExtensionProperties;
 import org.apache.asterix.common.config.ExternalProperties;
 import org.apache.asterix.common.config.GlobalConfig;
 import org.apache.asterix.common.config.MetadataProperties;
@@ -83,6 +86,8 @@ import org.apache.hyracks.api.application.IServiceContext;
 import org.apache.hyracks.api.client.HyracksConnection;
 import org.apache.hyracks.api.client.IHyracksClientConnection;
 import org.apache.hyracks.api.config.IConfigManager;
+import org.apache.hyracks.api.control.IGatekeeper;
+import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.job.resource.IJobCapacityController;
 import org.apache.hyracks.api.lifecycle.LifeCycleComponentManager;
 import org.apache.hyracks.control.cc.BaseCCApplication;
@@ -90,6 +95,8 @@ import org.apache.hyracks.control.cc.ClusterControllerService;
 import org.apache.hyracks.control.common.controllers.CCConfig;
 import org.apache.hyracks.http.api.IServlet;
 import org.apache.hyracks.http.server.HttpServer;
+import org.apache.hyracks.http.server.HttpServerConfig;
+import org.apache.hyracks.http.server.HttpServerConfigBuilder;
 import org.apache.hyracks.http.server.WebManager;
 import org.apache.hyracks.util.LoggingConfigUtil;
 import org.apache.logging.log4j.Level;
@@ -111,9 +118,11 @@ public class CCApplication extends BaseCCApplication {
 
     @Override
     public void init(IServiceContext serviceCtx) throws Exception {
+        super.init(serviceCtx);
         ccServiceCtx = (ICCServiceContext) serviceCtx;
         ccServiceCtx.setThreadFactory(
                 new AsterixThreadFactory(ccServiceCtx.getThreadFactory(), new LifeCycleComponentManager()));
+        validateEnvironment();
     }
 
     @Override
@@ -139,12 +148,13 @@ public class CCApplication extends BaseCCApplication {
         INcLifecycleCoordinator lifecycleCoordinator = createNcLifeCycleCoordinator(repProp.isReplicationEnabled());
         ExternalLibraryUtils.setUpExternaLibraries(libraryManager, false);
         componentProvider = new StorageComponentProvider();
-        GlobalRecoveryManager globalRecoveryManager = createGlobalRecoveryManager();
+
+        List<AsterixExtension> extensions = new ArrayList<>();
+        extensions.addAll(getExtensions());
+        ccExtensionManager = new CCExtensionManager(extensions);
+        IGlobalRecoveryManager globalRecoveryManager = createGlobalRecoveryManager();
         statementExecutorCtx = new StatementExecutorContext();
         appCtx = createApplicationContext(libraryManager, globalRecoveryManager, lifecycleCoordinator);
-        List<AsterixExtension> extensions = new ArrayList<>();
-        extensions.addAll(this.getExtensions());
-        ccExtensionManager = new CCExtensionManager(extensions);
         appCtx.setExtensionManager(ccExtensionManager);
         final CCConfig ccConfig = controllerService.getCCConfig();
         if (System.getProperty("java.rmi.server.hostname") == null) {
@@ -170,15 +180,15 @@ public class CCApplication extends BaseCCApplication {
     }
 
     protected ICcApplicationContext createApplicationContext(ILibraryManager libraryManager,
-            GlobalRecoveryManager globalRecoveryManager, INcLifecycleCoordinator lifecycleCoordinator)
+            IGlobalRecoveryManager globalRecoveryManager, INcLifecycleCoordinator lifecycleCoordinator)
             throws AlgebricksException, IOException {
         return new CcApplicationContext(ccServiceCtx, getHcc(), libraryManager, () -> MetadataManager.INSTANCE,
                 globalRecoveryManager, lifecycleCoordinator, new ActiveNotificationHandler(), componentProvider,
                 new MetadataLockManager());
     }
 
-    protected GlobalRecoveryManager createGlobalRecoveryManager() throws Exception {
-        return new GlobalRecoveryManager(ccServiceCtx, getHcc(), componentProvider);
+    protected IGlobalRecoveryManager createGlobalRecoveryManager() throws Exception {
+        return ccExtensionManager.getGlobalRecoveryManager(ccServiceCtx, getHcc(), componentProvider);
     }
 
     protected INcLifecycleCoordinator createNcLifeCycleCoordinator(boolean replicationEnabled) {
@@ -191,8 +201,8 @@ public class CCApplication extends BaseCCApplication {
         LoggingConfigUtil.defaultIfMissing(GlobalConfig.ASTERIX_LOGGER_NAME, level);
     }
 
-    protected List<AsterixExtension> getExtensions() {
-        return appCtx.getExtensionProperties().getExtensions();
+    protected List<AsterixExtension> getExtensions() throws Exception {
+        return new ExtensionProperties(PropertiesAccessor.getInstance(ccServiceCtx.getAppConfig())).getExtensions();
     }
 
     protected void configureServers() throws Exception {
@@ -211,8 +221,10 @@ public class CCApplication extends BaseCCApplication {
     }
 
     protected HttpServer setupWebServer(ExternalProperties externalProperties) throws Exception {
+        final HttpServerConfig config =
+                HttpServerConfigBuilder.custom().setMaxRequestSize(externalProperties.getMaxWebRequestSize()).build();
         HttpServer webServer = new HttpServer(webManager.getBosses(), webManager.getWorkers(),
-                externalProperties.getWebInterfacePort());
+                externalProperties.getWebInterfacePort(), config);
         webServer.setAttribute(HYRACKS_CONNECTION_ATTR, hcc);
         webServer.addServlet(new ApiServlet(webServer.ctx(), new String[] { "/*" }, appCtx,
                 ccExtensionManager.getCompilationProvider(AQL), ccExtensionManager.getCompilationProvider(SQLPP),
@@ -221,8 +233,10 @@ public class CCApplication extends BaseCCApplication {
     }
 
     protected HttpServer setupJSONAPIServer(ExternalProperties externalProperties) throws Exception {
-        HttpServer jsonAPIServer =
-                new HttpServer(webManager.getBosses(), webManager.getWorkers(), externalProperties.getAPIServerPort());
+        final HttpServerConfig config =
+                HttpServerConfigBuilder.custom().setMaxRequestSize(externalProperties.getMaxWebRequestSize()).build();
+        HttpServer jsonAPIServer = new HttpServer(webManager.getBosses(), webManager.getWorkers(),
+                externalProperties.getAPIServerPort(), config);
         jsonAPIServer.setAttribute(HYRACKS_CONNECTION_ATTR, hcc);
         jsonAPIServer.setAttribute(ASTERIX_APP_CONTEXT_INFO_ATTR, appCtx);
         jsonAPIServer.setAttribute(ServletConstants.EXECUTOR_SERVICE_ATTR,
@@ -253,17 +267,21 @@ public class CCApplication extends BaseCCApplication {
     }
 
     protected HttpServer setupQueryWebServer(ExternalProperties externalProperties) throws Exception {
+        final HttpServerConfig config =
+                HttpServerConfigBuilder.custom().setMaxRequestSize(externalProperties.getMaxWebRequestSize()).build();
         HttpServer queryWebServer = new HttpServer(webManager.getBosses(), webManager.getWorkers(),
-                externalProperties.getQueryWebInterfacePort());
+                externalProperties.getQueryWebInterfacePort(), config);
         queryWebServer.setAttribute(HYRACKS_CONNECTION_ATTR, hcc);
-        queryWebServer.addServlet(new QueryWebInterfaceServlet(appCtx, queryWebServer.ctx(), new String[] { "/*" }));
+        ServiceLoader.load(IQueryWebServerRegistrant.class).iterator()
+                .forEachRemaining(c -> c.register(appCtx, queryWebServer));
+
         return queryWebServer;
     }
 
     protected IServlet createServlet(ConcurrentMap<String, Object> ctx, String key, String... paths) {
         switch (key) {
             case Servlets.RUNNING_REQUESTS:
-                return new QueryCancellationServlet(ctx, paths);
+                return new CcQueryCancellationServlet(ctx, appCtx, paths);
             case Servlets.QUERY_STATUS:
                 return new QueryStatusApiServlet(ctx, appCtx, paths);
             case Servlets.QUERY_RESULT:
@@ -328,5 +346,18 @@ public class CCApplication extends BaseCCApplication {
 
     public IHyracksClientConnection getHcc() {
         return hcc;
+    }
+
+    protected void validateEnvironment() throws HyracksDataException {
+        validateJavaVersion();
+    }
+
+    protected void validateJavaVersion() throws HyracksDataException {
+        ApplicationConfigurator.validateJavaRuntime();
+    }
+
+    @Override
+    public IGatekeeper getGatekeeper() {
+        return getConfigManager().getAppConfig().getNCNames()::contains;
     }
 }
