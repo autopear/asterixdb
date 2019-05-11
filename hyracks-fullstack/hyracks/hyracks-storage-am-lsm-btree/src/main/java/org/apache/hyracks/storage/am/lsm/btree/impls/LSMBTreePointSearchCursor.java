@@ -205,8 +205,8 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             if (lsmHarness != null) {
                 lsmHarness.endSearch(opCtx);
 
-                boolean endFlushing = this.opCtx.getIndex().isFlushing();
-                boolean endMerging = this.opCtx.getIndex().isMerging();
+                boolean endFlushing = lsmHarness.currentFlushes() > 0;
+                boolean endMerging = lsmHarness.currentMerges() > 0;
 
                 long endTime = System.nanoTime();
                 if (LOGGER.isInfoEnabled() && Paths.get(opCtx.getIndex().getIndexIdentifier()).getFileName().toString()
@@ -224,14 +224,14 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     public void doOpen(ICursorInitialState initialState, ISearchPredicate searchPred) throws HyracksDataException {
         diskComponents = "";
         accessTrace = "";
-        startFlushing = this.opCtx.getIndex().isFlushing();
-        startMerging = this.opCtx.getIndex().isMerging();
         startTime = System.nanoTime();
         boolean bfDisabled = false;
 
         LSMBTreeCursorInitialState lsmInitialState = (LSMBTreeCursorInitialState) initialState;
         operationalComponents = lsmInitialState.getOperationalComponents();
         lsmHarness = lsmInitialState.getLSMHarness();
+        startFlushing = lsmHarness.currentFlushes() > 0;
+        startMerging = lsmHarness.currentMerges() > 0;
         searchCallback = lsmInitialState.getSearchOperationCallback();
         predicate = (RangePredicate) lsmInitialState.getSearchPredicate();
         numBTrees = operationalComponents.size();

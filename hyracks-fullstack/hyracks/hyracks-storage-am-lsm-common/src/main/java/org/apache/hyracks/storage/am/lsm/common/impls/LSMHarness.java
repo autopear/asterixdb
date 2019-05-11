@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
@@ -76,6 +77,9 @@ public class LSMHarness implements ILSMHarness {
     protected ITracer tracer;
     protected long traceCategory;
 
+    private AtomicInteger flushCounter;
+    private AtomicInteger mergeCounter;
+
     public LSMHarness(ILSMIndex lsmIndex, ILSMIOOperationScheduler ioScheduler, ILSMMergePolicy mergePolicy,
             ILSMOperationTracker opTracker, boolean replicationEnabled, ITracer tracer) {
         this.lsmIndex = lsmIndex;
@@ -91,6 +95,9 @@ public class LSMHarness implements ILSMHarness {
             this.componentsToBeReplicated = new ArrayList<>();
         }
         componentReplacementCtx = new ComponentReplacementContext(lsmIndex);
+
+        flushCounter = new AtomicInteger(0);
+        mergeCounter = new AtomicInteger(0);
     }
 
     protected boolean getAndEnterComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -507,6 +514,8 @@ public class LSMHarness implements ILSMHarness {
 
         long startTime = System.nanoTime();
 
+        flushCounter.getAndIncrement();
+
         synchronized (opTracker) {
             while (!enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.FLUSH)) {
                 try {
@@ -526,6 +535,8 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
+
+        flushCounter.getAndDecrement();
 
         long endTime = System.nanoTime();
         if (operation.getStatus() == LSMIOOperationStatus.SUCCESS) {
@@ -607,6 +618,8 @@ public class LSMHarness implements ILSMHarness {
         }
         long startTime = System.nanoTime();
 
+        mergeCounter.getAndIncrement();
+
         synchronized (opTracker) {
             enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE);
         }
@@ -619,6 +632,8 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
+
+        mergeCounter.getAndDecrement();
 
         long endTime = System.nanoTime();
         if (!componentsToMerge.isEmpty() && operation.getStatus() == LSMIOOperationStatus.SUCCESS) {
@@ -956,4 +971,13 @@ public class LSMHarness implements ILSMHarness {
         }
     }
 
+    @Override
+    public int currentFlushes() {
+        return flushCounter.get();
+    }
+
+    @Override
+    public int currentMerges() {
+        return mergeCounter.get();
+    }
 }

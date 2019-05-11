@@ -20,10 +20,12 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
@@ -35,20 +37,22 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
 public class SlowMergePolicy implements ILSMMergePolicy {
+    static private double lambda = 1.2f;
+    private int numComponents;
     private int minComponents;
     private int minDelay;
     private int maxDelay;
-    private long interval = 0;
-    private long lastMerge = 0;
+    private AtomicLong interval = new AtomicLong(0);
+    private AtomicLong lastMerge = new AtomicLong(0);
 
     @Override
     public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested, boolean wasMerge)
             throws HyracksDataException {
         if (wasMerge) {
-            lastMerge = System.nanoTime();
-            interval = ThreadLocalRandom.current().nextInt(minDelay, maxDelay + 1) * 1000000;
+            lastMerge.set(System.nanoTime());
+            interval.set(ThreadLocalRandom.current().nextInt(minDelay, maxDelay + 1) * 1000000);
         } else {
-            if (interval == 0 || System.nanoTime() - lastMerge >= interval) {
+            if (interval.get() == 0 || System.nanoTime() - lastMerge.get() >= interval.get()) {
                 List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
                 if (!areComponentsReadableWritableState(immutableComponents)) {
                     return;
@@ -69,11 +73,57 @@ public class SlowMergePolicy implements ILSMMergePolicy {
             return false;
         }
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
-        List<ILSMDiskComponent> mergableComponents = getMergableComponents(immutableComponents);
-        if (mergableComponents != null && mergableComponents.size() > 1) {
-            if (!areComponentsMergable(mergableComponents)) {
-                throw new IllegalStateException();
+        Collections.reverse(immutableComponents);
+        int length = immutableComponents.size();
+        if (length <= minComponents - 1) {
+            return false;
+        }
+        boolean mightBeStuck = (length > numComponents) ? true : false;
+        List<ILSMDiskComponent> bestSelection = new ArrayList<>(0);
+        List<ILSMDiskComponent> smallest = new ArrayList<>(0);
+        List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
+        long bestSize = 0;
+        long smallestSize = Long.MAX_VALUE;
+        int bestStart = -1;
+        int bestEnd = -1;
+        int smallestStart = -1;
+        int smallestEnd = -1;
+        boolean merging = false;
+
+        for (int start = 0; start < length; start++) {
+            for (int currentEnd = start + minComponents - 1; currentEnd < length; currentEnd++) {
+                List<ILSMDiskComponent> potentialMatchFiles = immutableComponents.subList(start, currentEnd + 1);
+                if (potentialMatchFiles.size() < minComponents) {
+                    continue;
+                }
+                long size = getTotalSize(potentialMatchFiles);
+                if (mightBeStuck && size < smallestSize) {
+                    smallest = potentialMatchFiles;
+                    smallestSize = size;
+                    smallestStart = start;
+                    smallestEnd = currentEnd;
+                }
+                if (!fileInRatio(potentialMatchFiles)) {
+                    continue;
+                }
+                if (isBetterSelection(bestSelection, bestSize, potentialMatchFiles, size, mightBeStuck)) {
+                    bestSelection = potentialMatchFiles;
+                    bestSize = size;
+                    bestStart = start;
+                    bestEnd = currentEnd;
+                }
             }
+        }
+        if (bestSelection.size() == 0 && mightBeStuck && smallestStart != -1 && smallestEnd != -1) {
+            merging = true;
+            mergableComponents = new ArrayList<>(smallest);
+        } else if (bestStart != -1 && bestEnd != -1) {
+            merging = true;
+            mergableComponents = new ArrayList<>(bestSelection);
+
+        }
+        if (merging) {
+            Collections.reverse(mergableComponents);
             ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
             accessor.scheduleMerge(mergableComponents);
             return true;
@@ -81,15 +131,36 @@ public class SlowMergePolicy implements ILSMMergePolicy {
         return false;
     }
 
-    private List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> immutableComponents) {
-        int l = immutableComponents.size();
-        if (l < 2 || l < minComponents)
-            return null;
-        int numToMerge = ThreadLocalRandom.current().nextInt(minComponents, l + 1);
-        List<ILSMDiskComponent> componentsToBeMerged = new ArrayList<>();
-        for (int i = 0; i < numToMerge; i++)
-            componentsToBeMerged.add(immutableComponents.get(i));
-        return componentsToBeMerged;
+    private long getTotalSize(List<ILSMDiskComponent> immutableComponents) {
+        long sum = 0;
+        for (int i = 0; i < immutableComponents.size(); i++) {
+            sum = sum + immutableComponents.get(i).getComponentSize();
+        }
+        return sum;
+    }
+
+    public boolean isBetterSelection(List<ILSMDiskComponent> bestSelection, long bestSize,
+            List<ILSMDiskComponent> selection, long size, boolean mightBeStuck) {
+        if (mightBeStuck && bestSize > 0 && size > 0) {
+            double thresholdQuantity = ((double) bestSelection.size() / bestSize);
+            return thresholdQuantity < ((double) selection.size() / size);
+        }
+        return selection.size() > bestSelection.size() || (selection.size() == bestSelection.size() && size < bestSize);
+    }
+
+    public boolean fileInRatio(final List<ILSMDiskComponent> files) {
+        if (files.size() < 2) {
+            return true;
+        }
+        long totalFileSize = getTotalSize(files);
+        for (ILSMDiskComponent file : files) {
+            long singleFileSize = file.getComponentSize();
+            long sumAllOtherFileSizes = totalFileSize - singleFileSize;
+            if (singleFileSize > sumAllOtherFileSizes * lambda) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean areComponentsMergable(List<ILSMDiskComponent> immutableComponents) {
@@ -112,6 +183,7 @@ public class SlowMergePolicy implements ILSMMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
+        numComponents = Integer.parseInt(properties.get(SlowMergePolicyFactory.NUM_COMPONENTS));
         minComponents = Integer.parseInt(properties.get(SlowMergePolicyFactory.MIN_COMPONENTS));
         minDelay = Integer.parseInt(properties.get(SlowMergePolicyFactory.MIN_DELAY));
         maxDelay = Integer.parseInt(properties.get(SlowMergePolicyFactory.MAX_DELAY));
@@ -119,9 +191,11 @@ public class SlowMergePolicy implements ILSMMergePolicy {
 
     @Override
     public boolean isMergeLagging(ILSMIndex index) throws HyracksDataException {
-        // TODO: for now, we simply block the ingestion when there is an ongoing merge
-        List<ILSMDiskComponent> immutableComponents = index.getDiskComponents();
-        return isMergeOngoing(immutableComponents);
+        if (numComponents > 0 && index.getDiskComponents().size() > numComponents) {
+            List<ILSMDiskComponent> immutableComponents = index.getDiskComponents();
+            return isMergeOngoing(immutableComponents);
+        }
+        return false;
     }
 
     private boolean isMergeOngoing(List<ILSMDiskComponent> immutableComponents) {

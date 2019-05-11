@@ -37,11 +37,12 @@ public class SlowMergePolicyFactory implements ILSMMergePolicyFactory {
 
     private static final long serialVersionUID = 1L;
     public static final String NAME = "slow";
+    public static final String NUM_COMPONENTS = "num-components";
     public static final String MIN_COMPONENTS = "min-components";
     public static final String MIN_DELAY = "min-delay";
     public static final String MAX_DELAY = "max-delay";
-    public static final Set<String> PROPERTIES_NAMES =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(MIN_COMPONENTS, MIN_DELAY, MAX_DELAY)));
+    public static final Set<String> PROPERTIES_NAMES = Collections
+            .unmodifiableSet(new HashSet<>(Arrays.asList(NUM_COMPONENTS, MIN_COMPONENTS, MIN_DELAY, MAX_DELAY)));
 
     @Override
     public String getName() {

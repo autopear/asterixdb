@@ -109,9 +109,6 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     protected final ILSMDiskComponentFactory bulkLoadComponentFactory;
     private int numScheduledFlushes = 0;
 
-    private AtomicInteger currentFlushes = new AtomicInteger(0);
-    private AtomicInteger currentMerges = new AtomicInteger(0);
-
     public AbstractLSMIndex(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,
             IBufferCache diskBufferCache, ILSMIndexFileManager fileManager, double bloomFilterFalsePositiveRate,
             ILSMMergePolicy mergePolicy, ILSMOperationTracker opTracker, ILSMIOOperationScheduler ioScheduler,
@@ -838,8 +835,6 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     @Override
     public final ILSMDiskComponent flush(ILSMIOOperation operation) throws HyracksDataException {
-        currentFlushes.getAndIncrement();
-
         ILSMIndexAccessor accessor = operation.getAccessor();
         ILSMIndexOperationContext opCtx = accessor.getOpContext();
         ILSMMemoryComponent memoryComponent = (ILSMMemoryComponent) opCtx.getComponentHolder().get(0);
@@ -856,18 +851,15 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         }
 
         ILSMDiskComponent c = doFlush(operation);
-        currentFlushes.getAndDecrement();
         return c;
     }
 
     @Override
     public final ILSMDiskComponent merge(ILSMIOOperation operation) throws HyracksDataException {
-        currentMerges.getAndIncrement();
         ILSMIndexAccessor accessor = operation.getAccessor();
         ILSMIndexOperationContext opCtx = accessor.getOpContext();
         ILSMDiskComponent c =
                 opCtx.getOperation() == IndexOperation.DELETE_COMPONENTS ? EmptyComponent.INSTANCE : doMerge(operation);
-        currentFlushes.getAndDecrement();
         return c;
     }
 
@@ -907,13 +899,5 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 .orElseThrow(() -> new IllegalStateException("Disk component without any physical files"));
         return Optional
                 .of(IndexComponentFileReference.of(Paths.get(fileName).getFileName().toString()).getSequenceEnd());
-    }
-
-    public boolean isFlushing() {
-        return currentFlushes.get() > 0;
-    }
-
-    public boolean isMerging() {
-        return currentMerges.get() > 0;
     }
 }

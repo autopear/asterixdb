@@ -203,9 +203,4 @@ public interface ILSMIndex extends IIndex {
      * Reset the current memory component id to 0.
      */
     void resetCurrentComponentIndex();
-
-    boolean isFlushing();
-
-    boolean isMerging();
-
 }
