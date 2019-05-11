@@ -17,11 +17,15 @@
  * under the License.
  */
 
-/*
-* Description  : Testing correct number of arguments required
-* Expected Res : Error, 2 or 3 args are required
-*/
+-- param job:string=true
 
-use TinySocial;
+SET `compiler.parallelism` "1";
 
-select array_range(2,6,1,4,5);
+from Metadata.`Dataset` ds
+join Metadata.`Index` idx
+on ds.DataverseName = idx.DataverseName and ds.DatasetName = idx.DatasetName
+where contains(ds.DataverseName, "Metadata")
+  and ds.DatasetName in ["Dataverse", "Dataset", "Index"]
+  and idx.IsPrimary
+group by ds.DataverseName
+select value count(*)

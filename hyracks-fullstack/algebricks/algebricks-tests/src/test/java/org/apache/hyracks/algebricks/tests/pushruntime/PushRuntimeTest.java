@@ -47,7 +47,7 @@ import org.apache.hyracks.algebricks.runtime.operators.aggrun.RunningAggregateRu
 import org.apache.hyracks.algebricks.runtime.operators.group.MicroPreClusteredGroupRuntimeFactory;
 import org.apache.hyracks.algebricks.runtime.operators.meta.AlgebricksMetaOperatorDescriptor;
 import org.apache.hyracks.algebricks.runtime.operators.meta.SubplanRuntimeFactory;
-import org.apache.hyracks.algebricks.runtime.operators.sort.InMemorySortRuntimeFactory;
+import org.apache.hyracks.algebricks.runtime.operators.sort.MicroSortRuntimeFactory;
 import org.apache.hyracks.algebricks.runtime.operators.std.AssignRuntimeFactory;
 import org.apache.hyracks.algebricks.runtime.operators.std.EmptyTupleSourceRuntimeFactory;
 import org.apache.hyracks.algebricks.runtime.operators.std.NestedTupleSourceRuntimeFactory;
@@ -718,9 +718,9 @@ public class PushRuntimeTest {
                 new String[] { AlgebricksHyracksIntegrationUtil.NC1_ID });
 
         // the algebricks op.
-        InMemorySortRuntimeFactory sort =
-                new InMemorySortRuntimeFactory(new int[] { 1 }, (INormalizedKeyComputerFactory) null,
-                        new IBinaryComparatorFactory[] { UTF8StringBinaryComparatorFactory.INSTANCE }, null);
+        MicroSortRuntimeFactory sort =
+                new MicroSortRuntimeFactory(new int[] { 1 }, (INormalizedKeyComputerFactory) null,
+                        new IBinaryComparatorFactory[] { UTF8StringBinaryComparatorFactory.INSTANCE }, null, 50);
         RecordDescriptor sortDesc = scannerDesc;
 
         String fileName = "scanMicroSortWrite.out";
@@ -834,9 +834,9 @@ public class PushRuntimeTest {
 
         // the sort (by nation id)
         RecordDescriptor sortDesc = scannerDesc;
-        InMemorySortRuntimeFactory sort =
-                new InMemorySortRuntimeFactory(new int[] { 3 }, (INormalizedKeyComputerFactory) null,
-                        new IBinaryComparatorFactory[] { IntegerBinaryComparatorFactory.INSTANCE }, null);
+        MicroSortRuntimeFactory sort =
+                new MicroSortRuntimeFactory(new int[] { 3 }, (INormalizedKeyComputerFactory) null,
+                        new IBinaryComparatorFactory[] { IntegerBinaryComparatorFactory.INSTANCE }, null, 50);
 
         // the group-by
         NestedTupleSourceRuntimeFactory nts = new NestedTupleSourceRuntimeFactory();

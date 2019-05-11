@@ -36,7 +36,7 @@ public enum PhysicalOperatorTag {
     HDFS_READER,
     HYBRID_HASH_JOIN,
     IN_MEMORY_HASH_JOIN,
-    IN_MEMORY_STABLE_SORT,
+    MICRO_STABLE_SORT,
     INDEX_BULKLOAD,
     INDEX_INSERT_DELETE,
     INSERT_DELETE,
@@ -78,5 +78,6 @@ public enum PhysicalOperatorTag {
     UPDATE,
     WRITE_RESULT,
     INTERSECT,
-    WINDOW
+    WINDOW,
+    WINDOW_STREAM
 }

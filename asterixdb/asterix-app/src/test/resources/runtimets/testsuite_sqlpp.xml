@@ -2700,7 +2700,6 @@
     <test-case FilePath="array_fun">
       <compilation-unit name="array_concat">
         <output-dir compare="Text">array_concat</output-dir>
-        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="array_fun">
@@ -2716,21 +2715,16 @@
     <test-case FilePath="array_fun">
       <compilation-unit name="array_intersect">
         <output-dir compare="Text">array_intersect</output-dir>
-        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="array_fun">
       <compilation-unit name="array_range">
         <output-dir compare="Text">array_range</output-dir>
-        <expected-error>Invalid number of arguments for function array-range (in line 27, at column 8)</expected-error>
-        <expected-error>Invalid number of arguments for function array-range (in line 27, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="array_fun">
       <compilation-unit name="array_replace">
         <output-dir compare="Text">array_replace</output-dir>
-        <expected-error>Invalid number of arguments for function array-replace (in line 27, at column 8)</expected-error>
-        <expected-error>Invalid number of arguments for function array-replace (in line 27, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="array_fun">
@@ -2741,19 +2735,16 @@
     <test-case FilePath="array_fun">
       <compilation-unit name="array_symdiff">
         <output-dir compare="Text">array_symdiff</output-dir>
-        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="array_fun">
       <compilation-unit name="array_symdiffn">
         <output-dir compare="Text">array_symdiffn</output-dir>
-        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="array_fun">
       <compilation-unit name="array_union">
         <output-dir compare="Text">array_union</output-dir>
-        <expected-error>Input contains different list types (in line 27, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="array_fun">
@@ -2785,6 +2776,20 @@
       <compilation-unit name="array_slice/array_slice_exception_result">
         <output-dir compare="Text">array_slice/array_slice_exception_result</output-dir>
         <expected-error>Compilation error</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="array_fun">
+      <compilation-unit name="array_errors">
+        <output-dir compare="Text">array_errors</output-dir>
+        <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
+        <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
+        <expected-error>Invalid number of arguments for function array-range (in line 25, at column 8)</expected-error>
+        <expected-error>Invalid number of arguments for function array-range (in line 25, at column 8)</expected-error>
+        <expected-error>Invalid number of arguments for function array-replace (in line 25, at column 8)</expected-error>
+        <expected-error>Invalid number of arguments for function array-replace (in line 25, at column 8)</expected-error>
+        <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
+        <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
+        <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -5787,6 +5792,11 @@
         <output-dir compare="Text">dump_index</output-dir>
       </compilation-unit>
     </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="metadata_only_01">
+        <output-dir compare="Text">metadata_only_01</output-dir>
+      </compilation-unit>
+    </test-case>
   </test-group>
   <test-group name="index">
     <test-group name="index/validations">
@@ -7424,7 +7434,7 @@
     <test-case FilePath="open-closed">
       <compilation-unit name="query-issue410">
         <output-dir compare="Text">query-issue410</output-dir>
-        <expected-error>Field type double can't be promoted to type string</expected-error>
+        <expected-error>Field type double cannot be promoted to type string</expected-error>
         <source-location>false</source-location>
       </compilation-unit>
     </test-case>
@@ -8847,6 +8857,18 @@
     </test-case>
   </test-group>
   <test-group name="tpcds">
+    <test-case FilePath="tpcds">
+      <compilation-unit name="datagen_sf_1_invalid_table">
+        <output-dir compare="Text">datagen_sf_1_invalid_table</output-dir>
+        <expected-error>is not a TPC-DS table name</expected-error>
+        <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="tpcds">
+      <compilation-unit name="datagen_sf_1_small_tables">
+        <output-dir compare="Text">datagen_sf_1_small_tables</output-dir>
+      </compilation-unit>
+    </test-case>
     <test-case FilePath="tpcds">
       <compilation-unit name="query-ASTERIXDB-1580">
         <output-dir compare="Text">query-ASTERIXDB-1580</output-dir>

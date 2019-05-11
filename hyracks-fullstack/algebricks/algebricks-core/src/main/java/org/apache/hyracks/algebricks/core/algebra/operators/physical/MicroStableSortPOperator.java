@@ -32,19 +32,19 @@ import org.apache.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
 import org.apache.hyracks.algebricks.data.IBinaryComparatorFactoryProvider;
 import org.apache.hyracks.algebricks.data.INormalizedKeyComputerFactoryProvider;
 import org.apache.hyracks.algebricks.runtime.base.IPushRuntimeFactory;
-import org.apache.hyracks.algebricks.runtime.operators.sort.InMemorySortRuntimeFactory;
+import org.apache.hyracks.algebricks.runtime.operators.sort.MicroSortRuntimeFactory;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.INormalizedKeyComputerFactory;
 import org.apache.hyracks.api.dataflow.value.RecordDescriptor;
 
-public class InMemoryStableSortPOperator extends AbstractStableSortPOperator {
+public class MicroStableSortPOperator extends AbstractStableSortPOperator {
 
-    public InMemoryStableSortPOperator() {
+    public MicroStableSortPOperator() {
     }
 
     @Override
     public PhysicalOperatorTag getOperatorTag() {
-        return PhysicalOperatorTag.IN_MEMORY_STABLE_SORT;
+        return PhysicalOperatorTag.MICRO_STABLE_SORT;
     }
 
     @Override
@@ -79,7 +79,8 @@ public class InMemoryStableSortPOperator extends AbstractStableSortPOperator {
             i++;
         }
 
-        IPushRuntimeFactory runtime = new InMemorySortRuntimeFactory(sortFields, nkcf, comps, null);
+        int maxNumberOfFrames = localMemoryRequirements.getMemoryBudgetInFrames();
+        IPushRuntimeFactory runtime = new MicroSortRuntimeFactory(sortFields, nkcf, comps, null, maxNumberOfFrames);
         builder.contributeMicroOperator(op, runtime, recDescriptor);
         ILogicalOperator src = op.getInputs().get(0).getValue();
         builder.contributeGraphEdge(src, 0, op, 0);

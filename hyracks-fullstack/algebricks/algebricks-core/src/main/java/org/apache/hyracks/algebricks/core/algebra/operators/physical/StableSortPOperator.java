@@ -47,16 +47,13 @@ import org.apache.hyracks.dataflow.std.sort.TopKSorterOperatorDescriptor;
 
 public class StableSortPOperator extends AbstractStableSortPOperator {
 
-    private int maxNumberOfFrames;
-    private int topK;
+    private final int topK;
 
-    public StableSortPOperator(int maxNumberOfFrames) {
-        this(maxNumberOfFrames, -1);
+    public StableSortPOperator() {
+        this(-1);
     }
 
-    public StableSortPOperator(int maxNumberOfFrames, int topK) {
-        super();
-        this.maxNumberOfFrames = maxNumberOfFrames;
+    public StableSortPOperator(int topK) {
         this.topK = topK;
     }
 
@@ -86,6 +83,7 @@ public class StableSortPOperator extends AbstractStableSortPOperator {
 
         IVariableTypeEnvironment env = context.getTypeEnvironment(op);
         int i = 0;
+        // TODO(ali): should refactor common code with micro sort op
         for (OrderColumn oc : sortColumns) {
             LogicalVariable var = oc.getColumn();
             sortFields[i] = opSchema.findVariable(var);
@@ -99,6 +97,7 @@ public class StableSortPOperator extends AbstractStableSortPOperator {
             i++;
         }
 
+        int maxNumberOfFrames = localMemoryRequirements.getMemoryBudgetInFrames();
         AbstractSorterOperatorDescriptor sortOpDesc;
         // topK == -1 means that a topK value is not provided.
         if (topK == -1) {
