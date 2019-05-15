@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -191,7 +192,7 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
     // The subsume merged components is overridden to account for:
     // Maintaining two versions of the index
     @Override
-    public void subsumeMergedComponents(ILSMDiskComponent newComponent, List<ILSMComponent> mergedComponents)
+    public void subsumeMergedComponents(List<ILSMDiskComponent> newComponents, List<ILSMComponent> mergedComponents)
             throws HyracksDataException {
         List<ILSMDiskComponent> newerList;
         List<ILSMDiskComponent> olderList;
@@ -207,13 +208,13 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
         if (olderList.containsAll(mergedComponents)) {
             int swapIndex = olderList.indexOf(mergedComponents.get(0));
             olderList.removeAll(mergedComponents);
-            olderList.add(swapIndex, newComponent);
+            olderList.add(swapIndex, newComponents.get(0));
         }
 
         // The new list will always have all the merged components
         int swapIndex = newerList.indexOf(mergedComponents.get(0));
         newerList.removeAll(mergedComponents);
-        newerList.add(swapIndex, newComponent);
+        newerList.add(swapIndex, newComponents.get(0));
     }
 
     // For initial load
@@ -306,7 +307,7 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
     }
 
     @Override
-    public ILSMDiskComponent doMerge(ILSMIOOperation operation) throws HyracksDataException {
+    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
         LSMBTreeWithBuddyMergeOperation mergeOp = (LSMBTreeWithBuddyMergeOperation) operation;
         IIndexCursor cursor = mergeOp.getCursor();
         ISearchPredicate btreeSearchPred = new RangePredicate(null, null, true, true, null, null);
@@ -359,7 +360,7 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
             cursor.close();
         }
         componentBulkLoader.end();
-        return mergedComponent;
+        return Collections.singletonList(mergedComponent);
     }
 
     @Override
@@ -662,8 +663,8 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
     }
 
     @Override
-    protected LSMComponentFileReferences getMergeFileReferences(ILSMDiskComponent firstComponent,
-            ILSMDiskComponent lastComponent) throws HyracksDataException {
+    protected LSMComponentFileReferences getMergeFileReferences(List<ILSMDiskComponent> components)
+            throws HyracksDataException {
         return null;
     }
 

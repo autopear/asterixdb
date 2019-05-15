@@ -19,6 +19,10 @@
 
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
@@ -28,20 +32,47 @@ import org.apache.hyracks.storage.common.IIndexCursor;
 
 public class LSMBTreeMergeOperation extends MergeOperation {
 
-    private final FileReference bloomFilterMergeTarget;
+    private List<FileReference> bloomFilterMergeTargets;
+
+    public LSMBTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, List<FileReference> targets,
+            List<FileReference> bloomFilterMergeTargets, ILSMIOOperationCallback callback, String indexIdentifier) {
+        super(accessor, targets, callback, indexIdentifier, cursor);
+        this.bloomFilterMergeTargets = bloomFilterMergeTargets;
+    }
 
     public LSMBTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, FileReference target,
             FileReference bloomFilterMergeTarget, ILSMIOOperationCallback callback, String indexIdentifier) {
         super(accessor, target, callback, indexIdentifier, cursor);
-        this.bloomFilterMergeTarget = bloomFilterMergeTarget;
+        this.bloomFilterMergeTargets = Collections.singletonList(bloomFilterMergeTarget);
+    }
+
+    public List<FileReference> getBloomFilterTargets() {
+        return bloomFilterMergeTargets;
     }
 
     public FileReference getBloomFilterTarget() {
-        return bloomFilterMergeTarget;
+        return bloomFilterMergeTargets.isEmpty() ? null : bloomFilterMergeTargets.get(0);
+    }
+
+    public void setBloomFilterTargets(List<FileReference> targets) {
+        this.bloomFilterMergeTargets = targets;
+    }
+
+    public void setBloomFilterTarget(FileReference target) {
+        this.bloomFilterMergeTargets = Collections.singletonList(target);
+    }
+
+    @Override
+    public List<LSMComponentFileReferences> getComponentsFiles() {
+        List<LSMComponentFileReferences> refs = new ArrayList<>();
+        for (int i = 0; i < targets.size(); i++) {
+            refs.add(new LSMComponentFileReferences(targets.get(i), null, bloomFilterMergeTargets.get(i)));
+        }
+        return refs;
     }
 
     @Override
     public LSMComponentFileReferences getComponentFiles() {
-        return new LSMComponentFileReferences(target, null, bloomFilterMergeTarget);
+        return new LSMComponentFileReferences(targets.get(0), null, bloomFilterMergeTargets.get(0));
     }
 }

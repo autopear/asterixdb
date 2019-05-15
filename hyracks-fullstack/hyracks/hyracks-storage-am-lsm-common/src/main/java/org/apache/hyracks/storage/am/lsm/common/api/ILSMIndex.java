@@ -72,7 +72,7 @@ public interface ILSMIndex extends IIndex {
      */
     void search(ILSMIndexOperationContext ictx, IIndexCursor cursor, ISearchPredicate pred) throws HyracksDataException;
 
-    public void scanDiskComponents(ILSMIndexOperationContext ctx, IIndexCursor cursor) throws HyracksDataException;
+    void scanDiskComponents(ILSMIndexOperationContext ctx, IIndexCursor cursor) throws HyracksDataException;
 
     /**
      * Create a flush operation.
@@ -102,11 +102,13 @@ public interface ILSMIndex extends IIndex {
      */
     ILSMIOOperation createMergeOperation(ILSMIndexOperationContext ctx) throws HyracksDataException;
 
-    ILSMDiskComponent merge(ILSMIOOperation operation) throws HyracksDataException;
+    List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException;
 
-    void addDiskComponent(ILSMDiskComponent index) throws HyracksDataException;
+    void addDiskComponent(ILSMDiskComponent component) throws HyracksDataException;
 
-    void subsumeMergedComponents(ILSMDiskComponent newComponent, List<ILSMComponent> mergedComponents)
+    void addDiskComponents(List<ILSMDiskComponent> components) throws HyracksDataException;
+
+    void subsumeMergedComponents(List<ILSMDiskComponent> newComponents, List<ILSMComponent> mergedComponents)
             throws HyracksDataException;
 
     void changeMutableComponent();

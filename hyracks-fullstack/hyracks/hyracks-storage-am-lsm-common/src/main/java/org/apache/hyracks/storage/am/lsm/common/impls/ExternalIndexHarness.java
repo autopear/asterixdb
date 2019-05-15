@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
@@ -103,8 +104,8 @@ public class ExternalIndexHarness extends LSMHarness {
         return true;
     }
 
-    private void exitComponents(ILSMIndexOperationContext ctx, LSMOperationType opType, ILSMDiskComponent newComponent,
-            boolean failedOperation) throws HyracksDataException {
+    private void exitComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
+            List<ILSMDiskComponent> newComponents, boolean failedOperation) throws HyracksDataException {
         /**
          * FLUSH and MERGE operations should always exit the components
          * to notify waiting threads.
@@ -135,13 +136,12 @@ public class ExternalIndexHarness extends LSMHarness {
                 // Then, perform any action that is needed to be taken based on the operation type.
                 switch (opType) {
                     case MERGE:
-                        // newComponent is null if the merge op. was not performed.
-                        if (newComponent != null) {
-                            beforeSubsumeMergedComponents(newComponent, ctx.getComponentHolder());
-                            lsmIndex.subsumeMergedComponents(newComponent, ctx.getComponentHolder());
+                        if (!newComponents.isEmpty()) {
+                            beforeSubsumeMergedComponents(new ArrayList<>(newComponents), ctx.getComponentHolder());
+                            lsmIndex.subsumeMergedComponents(newComponents, ctx.getComponentHolder());
                             if (replicationEnabled) {
                                 componentsToBeReplicated.clear();
-                                componentsToBeReplicated.add(newComponent);
+                                componentsToBeReplicated.addAll(newComponents);
                                 triggerReplication(componentsToBeReplicated, opType);
                             }
                             mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get());
@@ -266,7 +266,7 @@ public class ExternalIndexHarness extends LSMHarness {
         return opTracker;
     }
 
-    public void beforeSubsumeMergedComponents(ILSMComponent newComponent, List<ILSMComponent> mergedComponents)
+    public void beforeSubsumeMergedComponents(List<ILSMComponent> newComponents, List<ILSMComponent> mergedComponents)
             throws HyracksDataException {
         ITwoPCIndex index = (ITwoPCIndex) lsmIndex;
         // check if merge will affect the first list
@@ -275,8 +275,10 @@ public class ExternalIndexHarness extends LSMHarness {
             for (ILSMComponent c : mergedComponents) {
                 exitComponent((ILSMDiskComponent) c);
             }
-            // enter new component
-            enterComponent(newComponent);
+            // enter new components
+            for (ILSMComponent newComponent : newComponents) {
+                enterComponent(newComponent);
+            }
         }
         // check if merge will affect the second list
         if (index.getSecondComponentList().containsAll(mergedComponents)) {
@@ -284,8 +286,10 @@ public class ExternalIndexHarness extends LSMHarness {
             for (ILSMComponent c : mergedComponents) {
                 exitComponent((ILSMDiskComponent) c);
             }
-            // enter new component
-            enterComponent(newComponent);
+            // enter new components
+            for (ILSMComponent newComponent : newComponents) {
+                enterComponent(newComponent);
+            }
         }
     }
 

@@ -20,6 +20,7 @@
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
@@ -224,7 +225,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
     }
 
     @Override
-    public ILSMDiskComponent doMerge(ILSMIOOperation operation) throws HyracksDataException {
+    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
         MergeOperation mergeOp = (MergeOperation) operation;
         IIndexCursor cursor = mergeOp.getCursor();
         ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
@@ -258,7 +259,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
 
         componentBulkLoader.end();
 
-        return component;
+        return Collections.singletonList(component);
     }
 
     @Override

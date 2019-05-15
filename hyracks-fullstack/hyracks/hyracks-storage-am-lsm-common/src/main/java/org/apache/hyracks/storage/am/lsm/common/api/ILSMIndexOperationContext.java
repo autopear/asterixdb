@@ -115,4 +115,61 @@ public interface ILSMIndexOperationContext extends IIndexOperationContext {
      * @return the key value map of the context
      */
     Map<String, Object> getParameters();
+
+    //    /**
+    //     * @return components sorted by freshness (latest first)
+    //     * */
+    //    static List<ILSMComponent> sortComponents(Map<ILSMComponent, Long> components, boolean isLeveledLSM) {
+    //        if (isLeveledLSM) {
+    //            Map<Long, ArrayList<ILSMComponent>> toSort = new HashMap<>();
+    //            for (ILSMComponent component : components.keySet()) {
+    //                ArrayList<ILSMComponent> levelComponents = toSort.getOrDefault(component, new ArrayList<>());
+    //                levelComponents.add(component);
+    //                toSort.put(components.get(component), levelComponents);
+    //            }
+    //            List<Long> levels = new ArrayList<>(toSort.keySet());
+    //            Collections.sort(levels);
+    //            List<ILSMComponent> sorted = new ArrayList<>();
+    //            for (int i=0; i<levels.size(); i++) {
+    //                ArrayList<ILSMComponent> levelComponents = toSort.get(levels.get(i));
+    //                if (levelComponents.size() == 1) {
+    //                    sorted.add(0, levelComponents.get(0));
+    //                } else {
+    //                    Collections.sort(levelComponents, new Comparator<ILSMComponent>() {
+    //                        public int compare(ILSMComponent c1, ILSMComponent c2) {
+    //                            try {
+    //                                long max1 = c1.getId().getMaxId();
+    //                                long max2 = c2.getId().getMaxId();
+    //                                if (max1 == max2) {
+    //                                    return 0;
+    //                                } else if (max1 < max2) {
+    //                                    return -1;
+    //                                } else  {
+    //                                    return 1;
+    //                                }
+    //                            } catch (HyracksDataException ex) {
+    //                                return 0;
+    //                            }
+    //                        }
+    //                    });
+    //                    for (ILSMComponent component : levelComponents) {
+    //                        sorted.add(0, component);
+    //                    }
+    //                }
+    //            }
+    //            return sorted;
+    //        } else {
+    //            List<Map.Entry<ILSMComponent, Long>> list = new LinkedList<>(components.entrySet());
+    //            Collections.sort(list, new Comparator<Map.Entry<ILSMComponent, Long> >() {
+    //                public int compare(Map.Entry<ILSMComponent, Long> o1, Map.Entry<ILSMComponent, Long> o2) {
+    //                    return -(o1.getValue()).compareTo(o2.getValue());
+    //                }
+    //            });
+    //            List<ILSMComponent> sorted = new ArrayList<>();
+    //            for (Map.Entry<ILSMComponent, Long> entry : list) {
+    //                sorted.add(entry.getKey());
+    //            }
+    //            return sorted;
+    //        }
+    //    }
 }

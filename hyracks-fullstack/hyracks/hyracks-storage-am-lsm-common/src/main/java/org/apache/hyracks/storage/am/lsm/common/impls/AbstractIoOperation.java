@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -37,26 +38,34 @@ import org.apache.hyracks.storage.common.buffercache.ICachedPage;
 public abstract class AbstractIoOperation implements ILSMIOOperation {
 
     protected final ILSMIndexAccessor accessor;
-    protected final FileReference target;
+    protected List<FileReference> targets;
     protected final ILSMIOOperationCallback callback;
     protected final String indexIdentifier;
     private volatile Throwable failure;
     private LSMIOOperationStatus status = LSMIOOperationStatus.SUCCESS;
-    private ILSMDiskComponent newComponent;
+    private List<ILSMDiskComponent> newComponents;
     private boolean completed = false;
     private List<IoOperationCompleteListener> completeListeners;
+
+    public AbstractIoOperation(ILSMIndexAccessor accessor, List<FileReference> targets,
+            ILSMIOOperationCallback callback, String indexIdentifier) {
+        this.accessor = accessor;
+        this.targets = targets;
+        this.callback = callback;
+        this.indexIdentifier = indexIdentifier;
+    }
 
     public AbstractIoOperation(ILSMIndexAccessor accessor, FileReference target, ILSMIOOperationCallback callback,
             String indexIdentifier) {
         this.accessor = accessor;
-        this.target = target;
+        this.targets = Collections.singletonList(target);
         this.callback = callback;
         this.indexIdentifier = indexIdentifier;
     }
 
     @Override
     public IODeviceHandle getDevice() {
-        return target.getDeviceHandle();
+        return targets.get(0).getDeviceHandle();
     }
 
     @Override
@@ -65,8 +74,23 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
     }
 
     @Override
+    public List<FileReference> getTargets() {
+        return targets;
+    }
+
+    @Override
     public FileReference getTarget() {
-        return target;
+        return targets.isEmpty() ? null : targets.get(0);
+    }
+
+    @Override
+    public void setTargets(List<FileReference> targets) {
+        this.targets = targets;
+    }
+
+    @Override
+    public void setTarget(FileReference target) {
+        this.targets = Collections.singletonList(target);
     }
 
     @Override
@@ -81,22 +105,26 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
 
     @Override
     public void cleanup(IBufferCache bufferCache) {
-        LSMComponentFileReferences componentFiles = getComponentFiles();
-        if (componentFiles == null) {
+        List<LSMComponentFileReferences> componentsFiles = getComponentsFiles();
+        if (componentsFiles.isEmpty()) {
             return;
         }
-        FileReference[] files = componentFiles.getFileReferences();
-        for (FileReference file : files) {
-            try {
-                if (file != null) {
-                    bufferCache.closeFileIfOpen(file);
-                    bufferCache.deleteFile(file);
+        for (LSMComponentFileReferences componentFiles : componentsFiles) {
+            FileReference[] files = componentFiles.getFileReferences();
+            for (FileReference file : files) {
+                try {
+                    if (file != null) {
+                        bufferCache.closeFileIfOpen(file);
+                        bufferCache.deleteFile(file);
+                    }
+                } catch (HyracksDataException hde) {
+                    getFailure().addSuppressed(hde);
                 }
-            } catch (HyracksDataException hde) {
-                getFailure().addSuppressed(hde);
             }
         }
     }
+
+    protected abstract List<LSMComponentFileReferences> getComponentsFiles();
 
     protected abstract LSMComponentFileReferences getComponentFiles();
 
@@ -122,13 +150,23 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
     }
 
     @Override
+    public List<ILSMDiskComponent> getNewComponents() {
+        return newComponents;
+    }
+
+    @Override
     public ILSMDiskComponent getNewComponent() {
-        return newComponent;
+        return newComponents.isEmpty() ? null : newComponents.get(0);
+    }
+
+    @Override
+    public void setNewComponents(List<ILSMDiskComponent> components) {
+        this.newComponents = components;
     }
 
     @Override
     public void setNewComponent(ILSMDiskComponent component) {
-        this.newComponent = component;
+        this.newComponents = Collections.singletonList(component);
     }
 
     @Override

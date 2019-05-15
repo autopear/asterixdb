@@ -112,7 +112,7 @@ public class ExternalBTree extends LSMBTree implements ITwoPCIndex {
     // The subsume merged components is overridden to account for:
     // Maintaining two versions of the index
     @Override
-    public void subsumeMergedComponents(ILSMDiskComponent newComponent, List<ILSMComponent> mergedComponents)
+    public void subsumeMergedComponents(List<ILSMDiskComponent> newComponents, List<ILSMComponent> mergedComponents)
             throws HyracksDataException {
         List<ILSMDiskComponent> newerList;
         List<ILSMDiskComponent> olderList;
@@ -128,13 +128,13 @@ public class ExternalBTree extends LSMBTree implements ITwoPCIndex {
         if (olderList.containsAll(mergedComponents)) {
             int swapIndex = olderList.indexOf(mergedComponents.get(0));
             olderList.removeAll(mergedComponents);
-            olderList.add(swapIndex, newComponent);
+            olderList.add(swapIndex, newComponents.get(0));
         }
 
         // The new list will always have all the merged components
         int swapIndex = newerList.indexOf(mergedComponents.get(0));
         newerList.removeAll(mergedComponents);
-        newerList.add(swapIndex, newComponent);
+        newerList.add(swapIndex, newComponents.get(0));
     }
 
     // This method is used by the merge policy when it needs to check if a merge

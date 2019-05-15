@@ -18,6 +18,9 @@
  */
 package org.apache.asterix.test.ioopcallbacks;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
@@ -31,26 +34,39 @@ import org.mockito.Mockito;
 
 public class TestFlushOperation extends FlushOperation {
 
-    private final LSMComponentFileReferences files;
-    private final ILSMMemoryComponent flushingComponent;
+    private List<LSMComponentFileReferences> files;
+    private ILSMMemoryComponent flushingComponent;
 
-    public TestFlushOperation(ILSMIndexAccessor accessor, FileReference target, ILSMIOOperationCallback callback,
-            String indexIdentifier, LSMComponentFileReferences files, LSMComponentId componentId)
+    public TestFlushOperation(ILSMIndexAccessor accessor, List<FileReference> targets, ILSMIOOperationCallback callback,
+            String indexIdentifier, List<LSMComponentFileReferences> files, LSMComponentId componentId)
             throws HyracksDataException {
-        super(accessor, target, callback, indexIdentifier);
+        super(accessor, targets, callback, indexIdentifier);
         this.files = files;
         flushingComponent = accessor.getOpContext().getIndex().getCurrentMemoryComponent();
         Mockito.when(flushingComponent.getId()).thenReturn(componentId);
     }
 
+    public TestFlushOperation(ILSMIndexAccessor accessor, FileReference target, ILSMIOOperationCallback callback,
+            String indexIdentifier, LSMComponentFileReferences files, LSMComponentId componentId)
+            throws HyracksDataException {
+        super(accessor, target, callback, indexIdentifier);
+        this.files = Collections.singletonList(files);
+        flushingComponent = accessor.getOpContext().getIndex().getCurrentMemoryComponent();
+        Mockito.when(flushingComponent.getId()).thenReturn(componentId);
+    }
+
+    @Override
+    public List<LSMComponentFileReferences> getComponentsFiles() {
+        return files;
+    }
+
     @Override
     public LSMComponentFileReferences getComponentFiles() {
-        return files;
+        return files.isEmpty() ? null : files.get(0);
     }
 
     @Override
     public ILSMComponent getFlushingComponent() {
         return flushingComponent;
     }
-
 }

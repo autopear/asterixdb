@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.List;
 import java.util.Objects;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -31,6 +32,11 @@ public abstract class FlushOperation extends AbstractIoOperation {
     public FlushOperation(ILSMIndexAccessor accessor, FileReference target, ILSMIOOperationCallback callback,
             String indexIdentifier) {
         super(accessor, target, callback, indexIdentifier);
+    }
+
+    public FlushOperation(ILSMIndexAccessor accessor, List<FileReference> targets, ILSMIOOperationCallback callback,
+            String indexIdentifier) {
+        super(accessor, targets, callback, indexIdentifier);
     }
 
     @Override
@@ -49,6 +55,10 @@ public abstract class FlushOperation extends AbstractIoOperation {
         return accessor;
     }
 
+    public List<ILSMComponent> getFlushingComponents() {
+        return accessor.getOpContext().getComponentHolder();
+    }
+
     public ILSMComponent getFlushingComponent() {
         return accessor.getOpContext().getComponentHolder().get(0);
     }
@@ -65,12 +75,12 @@ public abstract class FlushOperation extends AbstractIoOperation {
 
     @Override
     public boolean equals(Object o) {
-        return (o instanceof FlushOperation)
-                && Objects.equals(target.getFile().getName(), ((FlushOperation) o).target.getFile().getName());
+        return (o instanceof FlushOperation) && Objects.equals(getTarget().getFile().getName(),
+                ((FlushOperation) o).getTarget().getFile().getName());
     }
 
     @Override
     public int hashCode() {
-        return target.getFile().getName().hashCode();
+        return getTarget().getFile().getName().hashCode();
     }
 }

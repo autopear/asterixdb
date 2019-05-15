@@ -18,21 +18,41 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 
 public class LoadOperation extends AbstractIoOperation {
 
-    private final LSMComponentFileReferences fileReferences;
+    private final List<LSMComponentFileReferences> fileReferences;
     private final Map<String, Object> parameters;
+
+    public LoadOperation(List<LSMComponentFileReferences> fileReferences, ILSMIOOperationCallback callback,
+            String indexIdentifier, Map<String, Object> parameters) {
+        super(null, getInsertIndexFileReferences(fileReferences), callback, indexIdentifier);
+        this.fileReferences = fileReferences;
+        this.parameters = parameters;
+
+    }
 
     public LoadOperation(LSMComponentFileReferences fileReferences, ILSMIOOperationCallback callback,
             String indexIdentifier, Map<String, Object> parameters) {
         super(null, fileReferences.getInsertIndexFileReference(), callback, indexIdentifier);
-        this.fileReferences = fileReferences;
+        this.fileReferences = Collections.singletonList(fileReferences);
         this.parameters = parameters;
+    }
+
+    private static List<FileReference> getInsertIndexFileReferences(List<LSMComponentFileReferences> fileReferences) {
+        List<FileReference> refs = new ArrayList<>();
+        for (LSMComponentFileReferences ref : fileReferences) {
+            refs.add(ref.getInsertIndexFileReference());
+        }
+        return refs;
     }
 
     @Override
@@ -46,8 +66,13 @@ public class LoadOperation extends AbstractIoOperation {
     }
 
     @Override
-    public LSMComponentFileReferences getComponentFiles() {
+    public List<LSMComponentFileReferences> getComponentsFiles() {
         return fileReferences;
+    }
+
+    @Override
+    public LSMComponentFileReferences getComponentFiles() {
+        return fileReferences.isEmpty() ? null : fileReferences.get(0);
     }
 
     @Override

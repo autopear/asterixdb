@@ -148,6 +148,11 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         return componentId;
     }
 
+    @Override
+    public long getLevel() throws HyracksDataException {
+        return getId().getMinId();
+    }
+
     /**
      * Mark the component as valid
      *

@@ -20,6 +20,7 @@
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -275,7 +276,7 @@ public class LSMRTree extends AbstractLSMRTree {
     }
 
     @Override
-    public ILSMDiskComponent doMerge(ILSMIOOperation operation) throws HyracksDataException {
+    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
         LSMRTreeMergeOperation mergeOp = (LSMRTreeMergeOperation) operation;
         IIndexCursor cursor = mergeOp.getCursor();
         ILSMDiskComponentBulkLoader componentBulkLoader = null;
@@ -307,7 +308,7 @@ public class LSMRTree extends AbstractLSMRTree {
                 }
             }
         }
-        return mergedComponent;
+        return Collections.singletonList(mergedComponent);
     }
 
     private ILSMDiskComponentBulkLoader loadMergeBulkLoader(LSMRTreeMergeOperation mergeOp, IIndexCursor cursor,

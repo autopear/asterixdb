@@ -155,7 +155,7 @@ public class TestLsmBtree extends LSMBTree {
     }
 
     @Override
-    public ILSMDiskComponent doMerge(ILSMIOOperation operation) throws HyracksDataException {
+    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
         numStartedMerges++;
         synchronized (mergeCallbacks) {
             for (ITestOpCallback<Semaphore> callback : mergeCallbacks) {
@@ -163,14 +163,14 @@ public class TestLsmBtree extends LSMBTree {
             }
         }
         acquire(mergeSemaphore);
-        ILSMDiskComponent c = super.doMerge(operation);
+        List<ILSMDiskComponent> cs = super.doMerge(operation);
         numFinishedMerges++;
         synchronized (mergeCallbacks) {
             for (ITestOpCallback<Semaphore> callback : mergeCallbacks) {
                 callback.after(mergeSemaphore);
             }
         }
-        return c;
+        return cs;
     }
 
     private void acquire(Semaphore semaphore) throws HyracksDataException {

@@ -19,6 +19,10 @@
 
 package org.apache.hyracks.storage.am.lsm.invertedindex.impls;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
@@ -26,27 +30,70 @@ import org.apache.hyracks.storage.am.lsm.common.impls.FlushOperation;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 
 public class LSMInvertedIndexFlushOperation extends FlushOperation {
-    private final FileReference deletedKeysBTreeFlushTarget;
-    private final FileReference bloomFilterFlushTarget;
+    private List<FileReference> deletedKeysBTreeFlushTargets;
+    private List<FileReference> bloomFilterFlushTargets;
+
+    public LSMInvertedIndexFlushOperation(ILSMIndexAccessor accessor, List<FileReference> flushTargets,
+            List<FileReference> deletedKeysBTreeFlushTargets, List<FileReference> bloomFilterFlushTargets,
+            ILSMIOOperationCallback callback, String indexIdentifier) {
+        super(accessor, flushTargets, callback, indexIdentifier);
+        this.deletedKeysBTreeFlushTargets = deletedKeysBTreeFlushTargets;
+        this.bloomFilterFlushTargets = bloomFilterFlushTargets;
+    }
 
     public LSMInvertedIndexFlushOperation(ILSMIndexAccessor accessor, FileReference flushTarget,
             FileReference deletedKeysBTreeFlushTarget, FileReference bloomFilterFlushTarget,
             ILSMIOOperationCallback callback, String indexIdentifier) {
         super(accessor, flushTarget, callback, indexIdentifier);
-        this.deletedKeysBTreeFlushTarget = deletedKeysBTreeFlushTarget;
-        this.bloomFilterFlushTarget = bloomFilterFlushTarget;
+        this.deletedKeysBTreeFlushTargets = Collections.singletonList(deletedKeysBTreeFlushTarget);
+        this.bloomFilterFlushTargets = Collections.singletonList(bloomFilterFlushTarget);
+    }
+
+    public List<FileReference> getDeletedKeysBTreeTargets() {
+        return deletedKeysBTreeFlushTargets;
     }
 
     public FileReference getDeletedKeysBTreeTarget() {
-        return deletedKeysBTreeFlushTarget;
+        return deletedKeysBTreeFlushTargets.isEmpty() ? null : deletedKeysBTreeFlushTargets.get(0);
+    }
+
+    public void setDeletedKeysBTreeTargets(List<FileReference> targets) {
+        deletedKeysBTreeFlushTargets = targets;
+    }
+
+    public void setDeletedKeysBTreeTarget(FileReference target) {
+        deletedKeysBTreeFlushTargets = Collections.singletonList(target);
+    }
+
+    public List<FileReference> getBloomFilterTargets() {
+        return bloomFilterFlushTargets;
     }
 
     public FileReference getBloomFilterTarget() {
-        return bloomFilterFlushTarget;
+        return bloomFilterFlushTargets.isEmpty() ? null : bloomFilterFlushTargets.get(0);
+    }
+
+    public void setBloomFilterTargets(List<FileReference> targets) {
+        bloomFilterFlushTargets = targets;
+    }
+
+    public void setBloomFilterTarget(FileReference target) {
+        bloomFilterFlushTargets = Collections.singletonList(target);
+    }
+
+    @Override
+    public List<LSMComponentFileReferences> getComponentsFiles() {
+        List<LSMComponentFileReferences> refs = new ArrayList<>();
+        for (int i = 0; i < targets.size(); i++) {
+            refs.add(new LSMComponentFileReferences(targets.get(i), deletedKeysBTreeFlushTargets.get(i),
+                    bloomFilterFlushTargets.get(i)));
+        }
+        return refs;
     }
 
     @Override
     public LSMComponentFileReferences getComponentFiles() {
-        return new LSMComponentFileReferences(target, deletedKeysBTreeFlushTarget, bloomFilterFlushTarget);
+        return new LSMComponentFileReferences(targets.get(0), deletedKeysBTreeFlushTargets.get(0),
+                bloomFilterFlushTargets.get(0));
     }
 }

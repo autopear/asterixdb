@@ -19,6 +19,8 @@
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -105,28 +107,30 @@ public class ExternalRTree extends LSMRTree implements ITwoPCIndex {
     // 1. the number of readers of components
     // 2. maintaining two versions of the index
     @Override
-    public void subsumeMergedComponents(ILSMDiskComponent newComponent, List<ILSMComponent> mergedComponents)
+    public void subsumeMergedComponents(List<ILSMDiskComponent> newComponents, List<ILSMComponent> mergedComponents)
             throws HyracksDataException {
-        // determine which list is the new one
-        List<ILSMDiskComponent> newerList;
-        List<ILSMDiskComponent> olderList;
-        if (version == 0) {
-            newerList = diskComponents;
-            olderList = secondDiskComponents;
-        } else {
-            newerList = secondDiskComponents;
-            olderList = diskComponents;
+        if (!isLeveledLSM) {
+            // determine which list is the new one
+            List<ILSMDiskComponent> newerList;
+            List<ILSMDiskComponent> olderList;
+            if (version == 0) {
+                newerList = diskComponents;
+                olderList = secondDiskComponents;
+            } else {
+                newerList = secondDiskComponents;
+                olderList = diskComponents;
+            }
+            // check if merge will affect the older list
+            if (olderList.containsAll(mergedComponents)) {
+                int swapIndex = olderList.indexOf(mergedComponents.get(0));
+                olderList.removeAll(mergedComponents);
+                olderList.add(swapIndex, newComponents.get(0));
+            }
+            // The new list will always have all the merged components
+            int swapIndex = newerList.indexOf(mergedComponents.get(0));
+            newerList.removeAll(mergedComponents);
+            newerList.add(swapIndex, newComponents.get(0));
         }
-        // check if merge will affect the older list
-        if (olderList.containsAll(mergedComponents)) {
-            int swapIndex = olderList.indexOf(mergedComponents.get(0));
-            olderList.removeAll(mergedComponents);
-            olderList.add(swapIndex, newComponent);
-        }
-        // The new list will always have all the merged components
-        int swapIndex = newerList.indexOf(mergedComponents.get(0));
-        newerList.removeAll(mergedComponents);
-        newerList.add(swapIndex, newComponent);
     }
 
     // This method is used by the merge policy when it needs to check if a merge
@@ -245,7 +249,7 @@ public class ExternalRTree extends LSMRTree implements ITwoPCIndex {
     // This can be done in a better way by creating a method boolean
     // keepDeletedTuples(mergedComponents);
     @Override
-    public ILSMDiskComponent doMerge(ILSMIOOperation operation) throws HyracksDataException {
+    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
         LSMRTreeMergeOperation mergeOp = (LSMRTreeMergeOperation) operation;
         IIndexCursor cursor = mergeOp.getCursor();
         ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
@@ -315,7 +319,7 @@ public class ExternalRTree extends LSMRTree implements ITwoPCIndex {
             cursor.destroy();
         }
         bulkLoader.end();
-        return mergedComponent;
+        return Collections.singletonList(mergedComponent);
     }
 
     @Override
@@ -556,11 +560,15 @@ public class ExternalRTree extends LSMRTree implements ITwoPCIndex {
     public ILSMIOOperation createMergeOperation(ILSMIndexOperationContext ctx) throws HyracksDataException {
         ILSMIndexOperationContext rctx = createOpContext(NoOpOperationCallback.INSTANCE, -1);
         rctx.setOperation(IndexOperation.MERGE);
-        List<ILSMComponent> mergingComponents = ctx.getComponentHolder();
+        List<ILSMDiskComponent> mergingComponents = new ArrayList<>();
+        for (int i = ctx.getComponentHolder().size() - 1; i >= 0; i--) {
+            ILSMComponent c = ctx.getComponentHolder().get(i);
+            if (c instanceof ILSMDiskComponent) {
+                mergingComponents.add((ILSMDiskComponent) c);
+            }
+        }
         LSMRTreeSortedCursor cursor = new LSMRTreeSortedCursor(rctx, linearizer, buddyBTreeFields);
-        LSMComponentFileReferences relMergeFileRefs =
-                getMergeFileReferences((ILSMDiskComponent) mergingComponents.get(mergingComponents.size() - 1),
-                        (ILSMDiskComponent) mergingComponents.get(0));
+        LSMComponentFileReferences relMergeFileRefs = getMergeFileReferences(mergingComponents);
         ILSMIndexAccessor accessor = new LSMRTreeAccessor(getHarness(), rctx, buddyBTreeFields);
         // create the merge operation.
         LSMRTreeMergeOperation mergeOp =

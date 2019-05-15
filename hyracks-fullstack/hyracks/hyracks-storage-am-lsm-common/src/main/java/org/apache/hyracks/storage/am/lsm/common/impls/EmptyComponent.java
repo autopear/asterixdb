@@ -91,6 +91,11 @@ public class EmptyComponent implements ILSMDiskComponent {
     }
 
     @Override
+    public long getLevel() {
+        return getId().getMinId();
+    }
+
+    @Override
     public AbstractLSMIndex getLsmIndex() {
         return null;
     }

@@ -19,6 +19,7 @@
 
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -64,8 +65,23 @@ public class NoOpIoOperation implements ILSMIOOperation {
     }
 
     @Override
+    public List<FileReference> getTargets() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public FileReference getTarget() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setTargets(List<FileReference> targets) {
+        // No Op
+    }
+
+    @Override
+    public void setTarget(FileReference target) {
+        // No Op
     }
 
     @Override
@@ -99,8 +115,18 @@ public class NoOpIoOperation implements ILSMIOOperation {
     }
 
     @Override
+    public List<ILSMDiskComponent> getNewComponents() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public ILSMDiskComponent getNewComponent() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setNewComponents(List<ILSMDiskComponent> components) {
+        // No Op
     }
 
     @Override

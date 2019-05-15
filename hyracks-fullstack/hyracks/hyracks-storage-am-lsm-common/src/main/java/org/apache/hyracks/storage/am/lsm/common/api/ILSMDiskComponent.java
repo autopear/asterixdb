@@ -49,6 +49,11 @@ public interface ILSMDiskComponent extends ILSMComponent {
     int getFileReferenceCount();
 
     /**
+     * @return the level of the component
+     */
+    long getLevel() throws HyracksDataException;
+
+    /**
      * @return LsmIndex of the component
      */
     @Override

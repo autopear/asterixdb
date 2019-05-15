@@ -75,6 +75,12 @@ public class LSMBTreeFileManager extends AbstractLSMIndexFileManager {
     }
 
     @Override
+    public LSMComponentFileReferences getRelMergeFileReference(String newName) {
+        return new LSMComponentFileReferences(getFileReference(newName + DELIMITER + BTREE_SUFFIX), null,
+                hasBloomFilter ? getFileReference(newName + DELIMITER + BLOOM_FILTER_SUFFIX) : null);
+    }
+
+    @Override
     public List<LSMComponentFileReferences> cleanupAndGetValidFiles() throws HyracksDataException {
         List<LSMComponentFileReferences> validFiles = new ArrayList<>();
         ArrayList<IndexComponentFileReference> allBTreeFiles = new ArrayList<>();

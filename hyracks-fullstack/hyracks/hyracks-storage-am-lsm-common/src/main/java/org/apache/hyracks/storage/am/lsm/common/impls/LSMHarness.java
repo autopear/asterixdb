@@ -20,6 +20,7 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,7 +44,6 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMHarness;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationStatus;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperationType;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationScheduler;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
@@ -168,7 +168,7 @@ public class LSMHarness implements ILSMHarness {
 
     @CriticalPath
     private void doExitComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
-            ILSMDiskComponent newComponent, boolean failedOperation) throws HyracksDataException {
+            List<ILSMDiskComponent> newComponents, boolean failedOperation) throws HyracksDataException {
         /*
          * FLUSH and MERGE operations should always exit the components
          * to notify waiting threads.
@@ -197,7 +197,7 @@ public class LSMHarness implements ILSMHarness {
                     }
                     exitOperationalComponents(ctx, opType, failedOperation);
                     ctx.setAccessingComponents(false);
-                    exitOperation(ctx, opType, newComponent, failedOperation);
+                    exitOperation(ctx, opType, newComponents, failedOperation);
                 } catch (Throwable e) { // NOSONAR: Log and re-throw
                     LOGGER.warn("Failure exiting components", e);
                     throw e;
@@ -259,12 +259,13 @@ public class LSMHarness implements ILSMHarness {
         }
     }
 
-    private void exitOperation(ILSMIndexOperationContext ctx, LSMOperationType opType, ILSMDiskComponent newComponent,
-            boolean failedOperation) throws HyracksDataException {
+    private void exitOperation(ILSMIndexOperationContext ctx, LSMOperationType opType,
+            List<ILSMDiskComponent> newComponents, boolean failedOperation) throws HyracksDataException {
         // Then, perform any action that is needed to be taken based on the operation type.
         switch (opType) {
             case FLUSH:
                 // newComponent is null if the flush op. was not performed.
+                ILSMDiskComponent newComponent = newComponents.isEmpty() ? null : newComponents.get(0);
                 if (!failedOperation && newComponent != null) {
                     lsmIndex.addDiskComponent(newComponent);
                     // TODO: The following should also replicate component Id
@@ -279,11 +280,19 @@ public class LSMHarness implements ILSMHarness {
                 break;
             case MERGE:
                 // newComponent is null if the merge op. was not performed.
-                if (!failedOperation && newComponent != null) {
-                    lsmIndex.subsumeMergedComponents(newComponent, ctx.getComponentHolder());
-                    if (replicationEnabled && newComponent != EmptyComponent.INSTANCE) {
-                        componentsToBeReplicated.clear();
-                        componentsToBeReplicated.add(newComponent);
+                if (!failedOperation && !newComponents.isEmpty()) {
+                    lsmIndex.subsumeMergedComponents(newComponents, ctx.getComponentHolder());
+                    if (replicationEnabled) {
+                        boolean cleared = false;
+                        for (ILSMDiskComponent component : newComponents) {
+                            if (component != EmptyComponent.INSTANCE) {
+                                if (!cleared) {
+                                    componentsToBeReplicated.clear();
+                                    cleared = true;
+                                }
+                                componentsToBeReplicated.add(component);
+                            }
+                        }
                         triggerReplication(componentsToBeReplicated, opType);
                     }
                     mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get());
@@ -292,6 +301,11 @@ public class LSMHarness implements ILSMHarness {
             default:
                 break;
         }
+    }
+
+    private void exitOperation(ILSMIndexOperationContext ctx, LSMOperationType opType, ILSMDiskComponent newComponent,
+            boolean failedOperation) throws HyracksDataException {
+        exitOperation(ctx, opType, Collections.singletonList(newComponent), failedOperation);
     }
 
     @CriticalPath
@@ -331,14 +345,14 @@ public class LSMHarness implements ILSMHarness {
         }
     }
 
-    private void exitComponents(ILSMIndexOperationContext ctx, LSMOperationType opType, ILSMDiskComponent newComponent,
-            boolean failedOperation) throws HyracksDataException {
+    private void exitComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
+            List<ILSMDiskComponent> newComponents, boolean failedOperation) throws HyracksDataException {
         long before = 0L;
         if (ctx.isTracingEnabled()) {
             before = System.nanoTime();
         }
         try {
-            doExitComponents(ctx, opType, newComponent, failedOperation);
+            doExitComponents(ctx, opType, newComponents, failedOperation);
         } finally {
             if (ctx.isTracingEnabled()) {
                 ctx.incrementEnterExitTime(System.nanoTime() - before);
@@ -514,9 +528,38 @@ public class LSMHarness implements ILSMHarness {
             }
         }
         try {
-            doIo(operation);
+            try {
+                operation.getCallback().beforeOperation(operation);
+                ILSMDiskComponent newComponent = lsmIndex.flush(operation);
+                operation.setNewComponent(newComponent);
+                operation.getCallback().afterOperation(operation);
+                if (newComponent != null) {
+                    newComponent.markAsValid(lsmIndex.isDurable(), operation);
+                }
+            } catch (Throwable e) { // NOSONAR Must catch all
+                operation.setStatus(LSMIOOperationStatus.FAILURE);
+                operation.setFailure(e);
+                if (LOGGER.isErrorEnabled()) {
+                    LOGGER.log(Level.ERROR, "{} operation failed on {}", operation.getIOOpertionType(), lsmIndex, e);
+                }
+            } finally {
+                try {
+                    operation.getCallback().afterFinalize(operation);
+                } catch (Throwable th) {// NOSONAR Must catch all
+                    operation.setStatus(LSMIOOperationStatus.FAILURE);
+                    operation.setFailure(th);
+                    if (LOGGER.isErrorEnabled()) {
+                        LOGGER.log(Level.ERROR, "{} operation.afterFinalize failed on {}",
+                                operation.getIOOpertionType(), lsmIndex, th);
+                    }
+                }
+            }
+            // if the operation failed, we need to cleanup files
+            if (operation.getStatus() == LSMIOOperationStatus.FAILURE) {
+                operation.cleanup(lsmIndex.getBufferCache());
+            }
         } finally {
-            exitComponents(operation.getAccessor().getOpContext(), LSMOperationType.FLUSH, operation.getNewComponent(),
+            exitComponents(operation.getAccessor().getOpContext(), LSMOperationType.FLUSH, operation.getNewComponents(),
                     operation.getStatus() == LSMIOOperationStatus.FAILURE);
             opTracker.completeOperation(lsmIndex, LSMOperationType.FLUSH,
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
@@ -524,40 +567,6 @@ public class LSMHarness implements ILSMHarness {
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the flush operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
-        }
-    }
-
-    public void doIo(ILSMIOOperation operation) {
-        try {
-            operation.getCallback().beforeOperation(operation);
-            ILSMDiskComponent newComponent = operation.getIOOpertionType() == LSMIOOperationType.FLUSH
-                    ? lsmIndex.flush(operation) : lsmIndex.merge(operation);
-            operation.setNewComponent(newComponent);
-            operation.getCallback().afterOperation(operation);
-            if (newComponent != null) {
-                newComponent.markAsValid(lsmIndex.isDurable(), operation);
-            }
-        } catch (Throwable e) { // NOSONAR Must catch all
-            operation.setStatus(LSMIOOperationStatus.FAILURE);
-            operation.setFailure(e);
-            if (LOGGER.isErrorEnabled()) {
-                LOGGER.log(Level.ERROR, "{} operation failed on {}", operation.getIOOpertionType(), lsmIndex, e);
-            }
-        } finally {
-            try {
-                operation.getCallback().afterFinalize(operation);
-            } catch (Throwable th) {// NOSONAR Must catch all
-                operation.setStatus(LSMIOOperationStatus.FAILURE);
-                operation.setFailure(th);
-                if (LOGGER.isErrorEnabled()) {
-                    LOGGER.log(Level.ERROR, "{} operation.afterFinalize failed on {}", operation.getIOOpertionType(),
-                            lsmIndex, th);
-                }
-            }
-        }
-        // if the operation failed, we need to cleanup files
-        if (operation.getStatus() == LSMIOOperationStatus.FAILURE) {
-            operation.cleanup(lsmIndex.getBufferCache());
         }
     }
 
@@ -570,9 +579,40 @@ public class LSMHarness implements ILSMHarness {
             enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE);
         }
         try {
-            doIo(operation);
+            try {
+                operation.getCallback().beforeOperation(operation);
+                List<ILSMDiskComponent> newComponents = lsmIndex.merge(operation);
+                operation.setNewComponents(newComponents);
+                operation.getCallback().afterOperation(operation);
+                if (!newComponents.isEmpty()) {
+                    for (ILSMDiskComponent newComponent : newComponents) {
+                        newComponent.markAsValid(lsmIndex.isDurable(), operation);
+                    }
+                }
+            } catch (Throwable e) { // NOSONAR Must catch all
+                operation.setStatus(LSMIOOperationStatus.FAILURE);
+                operation.setFailure(e);
+                if (LOGGER.isErrorEnabled()) {
+                    LOGGER.log(Level.ERROR, "{} operation failed on {}", operation.getIOOpertionType(), lsmIndex, e);
+                }
+            } finally {
+                try {
+                    operation.getCallback().afterFinalize(operation);
+                } catch (Throwable th) {// NOSONAR Must catch all
+                    operation.setStatus(LSMIOOperationStatus.FAILURE);
+                    operation.setFailure(th);
+                    if (LOGGER.isErrorEnabled()) {
+                        LOGGER.log(Level.ERROR, "{} operation.afterFinalize failed on {}",
+                                operation.getIOOpertionType(), lsmIndex, th);
+                    }
+                }
+            }
+            // if the operation failed, we need to cleanup files
+            if (operation.getStatus() == LSMIOOperationStatus.FAILURE) {
+                operation.cleanup(lsmIndex.getBufferCache());
+            }
         } finally {
-            exitComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE, operation.getNewComponent(),
+            exitComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE, operation.getNewComponents(),
                     operation.getStatus() == LSMIOOperationStatus.FAILURE);
             opTracker.completeOperation(lsmIndex, LSMOperationType.MERGE,
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),

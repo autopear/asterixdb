@@ -19,6 +19,7 @@
 
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -101,8 +102,23 @@ class TracedIOOperation implements ILSMIOOperation {
     }
 
     @Override
+    public List<FileReference> getTargets() {
+        return ioOp.getTargets();
+    }
+
+    @Override
     public FileReference getTarget() {
         return ioOp.getTarget();
+    }
+
+    @Override
+    public void setTargets(List<FileReference> targets) {
+        ioOp.setTargets(targets);
+    }
+
+    @Override
+    public void setTarget(FileReference target) {
+        ioOp.setTarget(target);
     }
 
     @Override
@@ -136,8 +152,18 @@ class TracedIOOperation implements ILSMIOOperation {
     }
 
     @Override
+    public List<ILSMDiskComponent> getNewComponents() {
+        return ioOp.getNewComponents();
+    }
+
+    @Override
     public ILSMDiskComponent getNewComponent() {
         return ioOp.getNewComponent();
+    }
+
+    @Override
+    public void setNewComponents(List<ILSMDiskComponent> components) {
+        ioOp.setNewComponents(components);
     }
 
     @Override

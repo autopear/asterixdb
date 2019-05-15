@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.api;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -78,9 +79,30 @@ public interface ILSMIOOperation extends Callable<LSMIOOperationStatus>, IPageWr
     LSMIOOperationStatus call() throws HyracksDataException;
 
     /**
+     * @return The targets of the io operation
+     */
+    List<FileReference> getTargets();
+
+    /**
      * @return The target of the io operation
      */
     FileReference getTarget();
+
+    /**
+     * set targets of the io operation
+     *
+     * @param targets
+     *           targets
+     */
+    void setTargets(List<FileReference> targets);
+
+    /**
+     * set target of the io operation
+     *
+     * @param target
+     *           target
+     */
+    void setTarget(FileReference target);
 
     /**
      * @return the accessor of the operation
@@ -119,9 +141,21 @@ public interface ILSMIOOperation extends Callable<LSMIOOperationStatus>, IPageWr
     void setStatus(LSMIOOperationStatus status);
 
     /**
-     * @return the new component produced by this operation if any, null otherwise
+     * @return the new components produced by this operation if any, empty list otherwise
+     */
+    List<ILSMDiskComponent> getNewComponents();
+
+    /**
+     * @return the new component produced by this operation if any, empty list otherwise
      */
     ILSMDiskComponent getNewComponent();
+
+    /**
+     * Set the new components produced by this operation
+     *
+     * @param components
+     */
+    void setNewComponents(List<ILSMDiskComponent> components);
 
     /**
      * Set the new component produced by this operation

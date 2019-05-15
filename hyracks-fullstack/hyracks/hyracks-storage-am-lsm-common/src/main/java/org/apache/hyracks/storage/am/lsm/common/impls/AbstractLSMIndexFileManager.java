@@ -220,6 +220,11 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     }
 
     @Override
+    public LSMComponentFileReferences getRelMergeFileReference(String newName) {
+        return new LSMComponentFileReferences(baseDir.getChild(newName), null, null);
+    }
+
+    @Override
     public List<LSMComponentFileReferences> cleanupAndGetValidFiles() throws HyracksDataException {
         List<LSMComponentFileReferences> validFiles = new ArrayList<>();
         ArrayList<IndexComponentFileReference> allFiles = new ArrayList<>();

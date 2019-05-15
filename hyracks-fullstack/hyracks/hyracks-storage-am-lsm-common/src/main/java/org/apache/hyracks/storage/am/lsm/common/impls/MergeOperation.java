@@ -30,6 +30,12 @@ import org.apache.hyracks.storage.common.IIndexCursor;
 public abstract class MergeOperation extends AbstractIoOperation {
     protected final IIndexCursor cursor;
 
+    public MergeOperation(ILSMIndexAccessor accessor, List<FileReference> targets, ILSMIOOperationCallback callback,
+            String indexIdentifier, IIndexCursor cursor) {
+        super(accessor, targets, callback, indexIdentifier);
+        this.cursor = cursor;
+    }
+
     public MergeOperation(ILSMIndexAccessor accessor, FileReference target, ILSMIOOperationCallback callback,
             String indexIdentifier, IIndexCursor cursor) {
         super(accessor, target, callback, indexIdentifier);

@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.invertedindex.impls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
@@ -56,6 +57,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.freepage.VirtualFreePageManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
+import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
@@ -342,7 +344,7 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
     }
 
     @Override
-    public ILSMDiskComponent doMerge(ILSMIOOperation operation) throws HyracksDataException {
+    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
         LSMInvertedIndexMergeOperation mergeOp = (LSMInvertedIndexMergeOperation) operation;
         RangePredicate mergePred = new RangePredicate(null, null, true, true, null, null);
         IIndexCursor cursor = mergeOp.getCursor();
@@ -405,7 +407,7 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         }
         componentBulkLoader.end();
 
-        return component;
+        return Collections.singletonList(component);
     }
 
     private void loadDeleteTuples(ILSMIndexOperationContext opCtx,
@@ -471,13 +473,51 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
     }
 
     @Override
-    protected LSMComponentFileReferences getMergeFileReferences(ILSMDiskComponent firstComponent,
-            ILSMDiskComponent lastComponent) throws HyracksDataException {
-        LSMInvertedIndexDiskComponent first = (LSMInvertedIndexDiskComponent) firstComponent;
-        String firstFileName = first.getMetadataHolder().getFileReference().getFile().getName();
-        LSMInvertedIndexDiskComponent last = (LSMInvertedIndexDiskComponent) lastComponent;
-        String lastFileName = last.getMetadataHolder().getFileReference().getFile().getName();
-        return fileManager.getRelMergeFileReference(firstFileName, lastFileName);
+    protected LSMComponentFileReferences getMergeFileReferences(List<ILSMDiskComponent> components)
+            throws HyracksDataException {
+        if (isLeveledLSM) {
+            if (components.size() == 1) {
+                // Move to the next level
+                String newName = (components.get(0).getLevel() + 1) + AbstractLSMIndexFileManager.DELIMITER + "0";
+                return fileManager.getRelMergeFileReference(newName);
+            } else {
+                long levelFrom = -1L;
+                long levelTo = -1L;
+                for (ILSMDiskComponent component : components) {
+                    long level = component.getLevel();
+                    if (levelFrom == -1L) {
+                        levelFrom = level;
+                    } else if (levelFrom != level) {
+                        if (levelTo == -1L) {
+                            levelTo = level;
+                        } else if (levelTo != level) {
+                            throw HyracksDataException.create(ErrorCode.INVALID_OPERATOR_OPERATION);
+                        }
+                    } else {
+                    }
+                    if (levelFrom == -1L || levelTo == -1L) {
+                        throw HyracksDataException.create(ErrorCode.INVALID_OPERATOR_OPERATION);
+                    }
+                    if (levelFrom > levelTo) {
+                        long tmp = levelFrom;
+                        levelFrom = levelTo;
+                        levelTo = tmp;
+                    }
+                    if (levelTo - levelFrom != 1L) {
+                        throw HyracksDataException.create(ErrorCode.INVALID_OPERATOR_OPERATION);
+                    }
+                }
+                long maxLevelId = getMaxLevelId(levelTo);
+                String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + (maxLevelId + 1);
+                return fileManager.getRelMergeFileReference(newName);
+            }
+        } else {
+            LSMInvertedIndexDiskComponent first = (LSMInvertedIndexDiskComponent) components.get(0);
+            String firstFileName = first.getMetadataHolder().getFileReference().getFile().getName();
+            LSMInvertedIndexDiskComponent last = (LSMInvertedIndexDiskComponent) components.get(components.size() - 1);
+            String lastFileName = last.getMetadataHolder().getFileReference().getFile().getName();
+            return fileManager.getRelMergeFileReference(firstFileName, lastFileName);
+        }
     }
 
     @Override

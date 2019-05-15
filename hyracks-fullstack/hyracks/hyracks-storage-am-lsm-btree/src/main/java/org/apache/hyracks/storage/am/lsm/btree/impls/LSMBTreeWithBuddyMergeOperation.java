@@ -18,6 +18,10 @@
  */
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
@@ -27,25 +31,58 @@ import org.apache.hyracks.storage.common.IIndexCursor;
 
 public class LSMBTreeWithBuddyMergeOperation extends MergeOperation {
 
-    private final FileReference buddyBtreeMergeTarget;
-    private final FileReference bloomFilterMergeTarget;
+    private List<FileReference> buddyBtreeMergeTargets;
+    private List<FileReference> bloomFilterMergeTargets;
     private final boolean keepDeletedTuples;
+
+    public LSMBTreeWithBuddyMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, List<FileReference> targets,
+            List<FileReference> buddyBtreeMergeTargets, List<FileReference> bloomFilterMergeTargets,
+            ILSMIOOperationCallback callback, String indexIdentifier, boolean keepDeletedTuples) {
+        super(accessor, targets, callback, indexIdentifier, cursor);
+        this.buddyBtreeMergeTargets = buddyBtreeMergeTargets;
+        this.bloomFilterMergeTargets = bloomFilterMergeTargets;
+        this.keepDeletedTuples = keepDeletedTuples;
+    }
 
     public LSMBTreeWithBuddyMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, FileReference target,
             FileReference buddyBtreeMergeTarget, FileReference bloomFilterMergeTarget, ILSMIOOperationCallback callback,
             String indexIdentifier, boolean keepDeletedTuples) {
         super(accessor, target, callback, indexIdentifier, cursor);
-        this.buddyBtreeMergeTarget = buddyBtreeMergeTarget;
-        this.bloomFilterMergeTarget = bloomFilterMergeTarget;
+        this.buddyBtreeMergeTargets = Collections.singletonList(buddyBtreeMergeTarget);
+        this.bloomFilterMergeTargets = Collections.singletonList(bloomFilterMergeTarget);
         this.keepDeletedTuples = keepDeletedTuples;
     }
 
+    public List<FileReference> getBuddyBTreeTargets() {
+        return buddyBtreeMergeTargets;
+    }
+
     public FileReference getBuddyBTreeTarget() {
-        return buddyBtreeMergeTarget;
+        return buddyBtreeMergeTargets.isEmpty() ? null : buddyBtreeMergeTargets.get(0);
+    }
+
+    public void setBuddyBTreeTargets(List<FileReference> targets) {
+        this.buddyBtreeMergeTargets = targets;
+    }
+
+    public void setBuddyBTreeTarget(FileReference target) {
+        this.buddyBtreeMergeTargets = Collections.singletonList(target);
+    }
+
+    public List<FileReference> getBloomFilterTargets() {
+        return bloomFilterMergeTargets;
     }
 
     public FileReference getBloomFilterTarget() {
-        return bloomFilterMergeTarget;
+        return buddyBtreeMergeTargets.isEmpty() ? null : bloomFilterMergeTargets.get(0);
+    }
+
+    public void setBloomFilterTargets(List<FileReference> targets) {
+        this.bloomFilterMergeTargets = targets;
+    }
+
+    public void setBloomFilterTarget(FileReference target) {
+        this.bloomFilterMergeTargets = Collections.singletonList(target);
     }
 
     public boolean isKeepDeletedTuples() {
@@ -53,7 +90,18 @@ public class LSMBTreeWithBuddyMergeOperation extends MergeOperation {
     }
 
     @Override
+    public List<LSMComponentFileReferences> getComponentsFiles() {
+        List<LSMComponentFileReferences> refs = new ArrayList<>();
+        for (int i = 0; i < targets.size(); i++) {
+            refs.add(new LSMComponentFileReferences(targets.get(i), buddyBtreeMergeTargets.get(i),
+                    bloomFilterMergeTargets.get(i)));
+        }
+        return refs;
+    }
+
+    @Override
     public LSMComponentFileReferences getComponentFiles() {
-        return new LSMComponentFileReferences(target, buddyBtreeMergeTarget, bloomFilterMergeTarget);
+        return new LSMComponentFileReferences(targets.get(0), buddyBtreeMergeTargets.get(0),
+                bloomFilterMergeTargets.get(0));
     }
 }

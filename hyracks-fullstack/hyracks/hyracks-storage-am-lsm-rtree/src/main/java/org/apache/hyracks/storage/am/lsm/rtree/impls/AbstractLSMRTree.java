@@ -245,10 +245,10 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
     }
 
     @Override
-    protected LSMComponentFileReferences getMergeFileReferences(ILSMDiskComponent firstComponent,
-            ILSMDiskComponent lastComponent) throws HyracksDataException {
-        RTree firstTree = (RTree) firstComponent.getIndex();
-        RTree lastTree = (RTree) lastComponent.getIndex();
+    protected LSMComponentFileReferences getMergeFileReferences(List<ILSMDiskComponent> components)
+            throws HyracksDataException {
+        RTree firstTree = (RTree) components.get(0).getIndex();
+        RTree lastTree = (RTree) components.get(components.size() - 1).getIndex();
         FileReference firstFile = firstTree.getFileReference();
         FileReference lastFile = lastTree.getFileReference();
         return fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
