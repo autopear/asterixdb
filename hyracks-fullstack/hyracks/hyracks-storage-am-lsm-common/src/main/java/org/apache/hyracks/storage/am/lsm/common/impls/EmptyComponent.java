@@ -92,7 +92,12 @@ public class EmptyComponent implements ILSMDiskComponent {
 
     @Override
     public long getLevel() {
-        return getId().getMinId();
+        return -1L;
+    }
+
+    @Override
+    public long getLevelSequence() {
+        return -1L;
     }
 
     @Override

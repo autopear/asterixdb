@@ -27,6 +27,7 @@ import org.apache.hyracks.storage.am.common.api.IMetadataPageManager;
 import org.apache.hyracks.storage.am.lsm.common.api.AbstractLSMWithBuddyDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
+import org.apache.hyracks.storage.am.lsm.common.impls.IndexComponentFileReference;
 import org.apache.hyracks.storage.am.rtree.impls.RTree;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 
@@ -34,6 +35,8 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
     private final RTree rtree;
     private final BTree btree;
     private final BloomFilter bloomFilter;
+    private final long level;
+    private final long levelSequence;
 
     public LSMRTreeDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, BTree btree, BloomFilter bloomFilter,
             ILSMComponentFilter filter) {
@@ -41,6 +44,9 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
         this.rtree = rtree;
         this.btree = btree;
         this.bloomFilter = bloomFilter;
+        IndexComponentFileReference icfr = IndexComponentFileReference.of(rtree.getFileReference().getFile().getName());
+        level = icfr.getSequenceStart();
+        levelSequence = icfr.getSequenceEnd();
     }
 
     @Override
@@ -105,5 +111,15 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
         Set<String> files = new HashSet<>();
         files.add(rtree.getFileReference().getFile().getAbsolutePath());
         return files;
+    }
+
+    @Override
+    public long getLevel() {
+        return level;
+    }
+
+    @Override
+    public long getLevelSequence() {
+        return levelSequence;
     }
 }

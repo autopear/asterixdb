@@ -101,12 +101,14 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
                     ((FlushOperation) operation).getFlushingComponent().getId());
         } else if (operation.getIOOpertionType() == LSMIOOperationType.MERGE) {
             List<ILSMDiskComponent> mergedComponents = operation.getAccessor().getOpContext().getComponentsToBeMerged();
-            putLSNIntoMetadata(operation.getNewComponent(), mergedComponents);
-            putComponentIdIntoMetadata(operation.getNewComponent(), mergedComponents);
             LongPointable markerLsn =
                     LongPointable.FACTORY.createPointable(ComponentUtils.getLong(mergedComponents.get(0).getMetadata(),
                             ComponentUtils.MARKER_LSN_KEY, ComponentUtils.NOT_FOUND, buffer));
-            operation.getNewComponent().getMetadata().put(ComponentUtils.MARKER_LSN_KEY, markerLsn);
+            for (ILSMDiskComponent newComponent : operation.getNewComponents()) {
+                putLSNIntoMetadata(newComponent, mergedComponents);
+                putComponentIdIntoMetadata(newComponent, mergedComponents);
+                newComponent.getMetadata().put(ComponentUtils.MARKER_LSN_KEY, markerLsn);
+            }
         }
     }
 
@@ -203,13 +205,35 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
 
     private void putComponentIdIntoMetadata(ILSMDiskComponent newComponent, List<ILSMDiskComponent> oldComponents)
             throws HyracksDataException {
-        ILSMComponentId componentId = getMergedComponentId(oldComponents);
+        //        ILSMComponentId componentId = getMergedComponentId(oldComponents);
+        ILSMComponentId componentId = new LSMComponentId(newComponent.getLevel(), newComponent.getLevelSequence());
+        //
+        //        ILSMComponentId componentId = null;
+        //        for (String path : newComponent.getLSMComponentPhysicalFiles()) {
+        //            IndexComponentFileReference icfr = IndexComponentFileReference.of(Paths.get(path).getFileName().toString());
+        //            componentId = new LSMComponentId(icfr.getSequenceStart(), icfr.getSequenceEnd());
+        //            break;
+        //        }
+        //        if (componentId == null) {
+        //            componentId = getMergedComponentId(oldComponents);
+        //        }
         putComponentIdIntoMetadata(newComponent, componentId);
     }
 
     private void putComponentIdIntoMetadata(ILSMDiskComponent newComponent, ILSMComponentId componentId)
             throws HyracksDataException {
-        LSMComponentIdUtils.persist(componentId, newComponent.getMetadata());
+        ILSMComponentId newComponentId = new LSMComponentId(newComponent.getLevel(), newComponent.getLevelSequence());
+        LOGGER.info("[putComponentIdIntoMetadata]\t" + newComponentId);
+        //        for (String path : newComponent.getLSMComponentPhysicalFiles()) {
+        //            IndexComponentFileReference icfr = IndexComponentFileReference.of(Paths.get(path).getFileName().toString());
+        //            newComponentId = new LSMComponentId(icfr.getSequenceStart(), icfr.getSequenceEnd());
+        //            break;
+        //        }
+        if (newComponentId == null) {
+            LSMComponentIdUtils.persist(componentId, newComponent.getMetadata());
+        } else {
+            LSMComponentIdUtils.persist(newComponentId, newComponent.getMetadata());
+        }
     }
 
     public synchronized void setFirstLsnForCurrentMemoryComponent(long firstLsn) {

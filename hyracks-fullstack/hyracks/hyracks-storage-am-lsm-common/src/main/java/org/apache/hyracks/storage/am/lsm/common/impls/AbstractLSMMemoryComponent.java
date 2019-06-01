@@ -329,16 +329,29 @@ public abstract class AbstractLSMMemoryComponent extends AbstractLSMComponent im
 
     @Override
     public void resetId(ILSMComponentId componentId, boolean force) throws HyracksDataException {
-        if (!force && this.componentId != null
-                && this.componentId.compareTo(componentId) != IdCompareResult.LESS_THAN) {
-            throw new IllegalStateException(
-                    this + " receives illegal id. Old id " + this.componentId + ", new id " + componentId);
+        ILSMComponentId newId = null;
+        if (componentId != null && lsmIndex.isLeveledLSM()) {
+            newId = new LSMComponentId(0L,
+                    componentId.getMaxId() > componentId.getMinId() ? componentId.getMaxId() : componentId.getMinId());
+            if (!force && this.componentId != null && this.componentId.getMaxId() >= newId.getMaxId()) {
+                throw new IllegalStateException(
+                        this + " receives illegal id. Old id " + this.componentId + ", new id " + newId);
+            }
+        } else {
+            newId = componentId;
+            if (!force && this.componentId != null && this.componentId.compareTo(newId) != IdCompareResult.LESS_THAN) {
+                throw new IllegalStateException(
+                        this + " receives illegal id. Old id " + this.componentId + ", new id " + newId);
+            }
         }
+
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Component Id was reset from " + this.componentId + " to " + componentId);
+            LOGGER.debug("Component Id was reset from " + this.componentId + " to " + newId);
         }
-        this.componentId = componentId;
-        if (componentId != null) {
+        this.componentId = newId;
+
+        if (this.componentId != null) {
+            LOGGER.info("[resetId]\t" + this.componentId);
             LSMComponentIdUtils.persist(this.componentId, metadata);
         }
     }

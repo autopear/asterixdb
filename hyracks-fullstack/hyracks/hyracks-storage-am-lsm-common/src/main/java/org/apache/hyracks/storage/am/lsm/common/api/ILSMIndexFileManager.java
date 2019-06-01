@@ -39,6 +39,8 @@ public interface ILSMIndexFileManager {
 
     void deleteDirs() throws HyracksDataException;
 
+    LSMComponentFileReferences getRelFlushFileReference(boolean isLeveled) throws HyracksDataException;
+
     LSMComponentFileReferences getRelFlushFileReference() throws HyracksDataException;
 
     LSMComponentFileReferences getRelMergeFileReference(String firstFileName, String lastFileName)
@@ -79,5 +81,5 @@ public interface ILSMIndexFileManager {
      * @return a reference to the transaction disk component file reference
      * @throws IOException
      */
-    LSMComponentFileReferences getNewTransactionFileReference() throws IOException;
+    LSMComponentFileReferences getNewTransactionFileReference(boolean isLeveled) throws IOException;
 }

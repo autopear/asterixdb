@@ -135,6 +135,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         }
         synchronized (this) {
             if (componentId == null) {
+                LOGGER.info("[getId]\t" + this.getLSMComponentPhysicalFiles());
                 componentId = LSMComponentIdUtils.readFrom(metadata, buffer);
             }
         }
@@ -146,11 +147,6 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
             LOGGER.warn("Component Id not found from disk component metadata");
         }
         return componentId;
-    }
-
-    @Override
-    public long getLevel() throws HyracksDataException {
-        return getId().getMinId();
     }
 
     /**

@@ -52,6 +52,13 @@ public class TestLsmIndexFileManager extends AbstractLSMIndexFileManager {
     }
 
     @Override
+    public LSMComponentFileReferences getRelFlushFileReference(boolean isLeveled) {
+        String sequence = isLeveled ? IndexComponentFileReference.getLevelFlushSequence(componentSeq++)
+                : IndexComponentFileReference.getFlushSequence(componentSeq++);
+        return new LSMComponentFileReferences(baseDir.getChild(sequence), null, null);
+    }
+
+    @Override
     public LSMComponentFileReferences getRelFlushFileReference() {
         String sequence = IndexComponentFileReference.getFlushSequence(componentSeq++);
         return new LSMComponentFileReferences(baseDir.getChild(sequence), null, null);

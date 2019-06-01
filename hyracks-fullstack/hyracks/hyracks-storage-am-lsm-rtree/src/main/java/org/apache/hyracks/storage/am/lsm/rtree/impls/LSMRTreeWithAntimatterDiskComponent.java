@@ -24,14 +24,20 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
+import org.apache.hyracks.storage.am.lsm.common.impls.IndexComponentFileReference;
 import org.apache.hyracks.storage.am.rtree.impls.RTree;
 
 public class LSMRTreeWithAntimatterDiskComponent extends AbstractLSMDiskComponent {
     private final RTree rtree;
+    private final long level;
+    private final long levelSequence;
 
     public LSMRTreeWithAntimatterDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, ILSMComponentFilter filter) {
         super(lsmIndex, LSMRTreeDiskComponent.getMetadataPageManager(rtree), filter);
         this.rtree = rtree;
+        IndexComponentFileReference icfr = IndexComponentFileReference.of(rtree.getFileReference().getFile().getName());
+        level = icfr.getSequenceStart();
+        levelSequence = icfr.getSequenceEnd();
     }
 
     @Override
@@ -67,5 +73,15 @@ public class LSMRTreeWithAntimatterDiskComponent extends AbstractLSMDiskComponen
     @Override
     public void validate() throws HyracksDataException {
         throw new UnsupportedOperationException("Validation not implemented for LSM R-Trees.");
+    }
+
+    @Override
+    public long getLevel() {
+        return level;
+    }
+
+    @Override
+    public long getLevelSequence() {
+        return levelSequence;
     }
 }

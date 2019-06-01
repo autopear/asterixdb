@@ -425,7 +425,7 @@ public class ExternalBTree extends LSMBTree implements ITwoPCIndex {
             LSMComponentFileReferences componentFileRefs;
             if (isTransaction) {
                 try {
-                    componentFileRefs = fileManager.getNewTransactionFileReference();
+                    componentFileRefs = fileManager.getNewTransactionFileReference(false);
                 } catch (IOException e) {
                     throw HyracksDataException.create(e);
                 }

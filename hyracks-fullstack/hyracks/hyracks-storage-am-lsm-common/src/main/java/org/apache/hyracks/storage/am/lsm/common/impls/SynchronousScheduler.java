@@ -42,6 +42,7 @@ public class SynchronousScheduler implements ILSMIOOperationScheduler {
 
     @Override
     public void scheduleOperation(ILSMIOOperation operation) {
+        LOGGER.info("[scheduleOperation]\t" + operation.getIOOpertionType() + " " + operation.getNewComponents());
         try {
             before(operation);
             if (operation.getStatus() == LSMIOOperationStatus.FAILURE) {

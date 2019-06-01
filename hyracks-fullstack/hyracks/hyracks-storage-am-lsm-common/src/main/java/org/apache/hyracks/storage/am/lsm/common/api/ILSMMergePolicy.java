@@ -19,12 +19,14 @@
 
 package org.apache.hyracks.storage.am.lsm.common.api;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 public interface ILSMMergePolicy {
-    void diskComponentAdded(ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException;
+    void diskComponentAdded(ILSMIndex index, List<ILSMDiskComponent> newComponents, boolean fullMergeIsRequested,
+            boolean wasMerge) throws HyracksDataException;
 
     void configure(Map<String, String> properties);
 
@@ -54,4 +56,6 @@ public interface ILSMMergePolicy {
      * @throws IndexException
      */
     boolean isMergeLagging(ILSMIndex index) throws HyracksDataException;
+
+    List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> components);
 }

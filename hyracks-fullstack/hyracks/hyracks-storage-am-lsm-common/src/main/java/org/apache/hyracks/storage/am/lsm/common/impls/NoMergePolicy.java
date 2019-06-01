@@ -18,23 +18,9 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
-import java.util.Map;
-
-import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
-public class NoMergePolicy implements ILSMMergePolicy {
-
-    @Override
-    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
-        // Do nothing
-    }
-
-    @Override
-    public void configure(Map<String, String> properties) {
-        // Do nothing
-    }
+public class NoMergePolicy extends StackMergePolicy {
 
     @Override
     public boolean isMergeLagging(ILSMIndex index) {

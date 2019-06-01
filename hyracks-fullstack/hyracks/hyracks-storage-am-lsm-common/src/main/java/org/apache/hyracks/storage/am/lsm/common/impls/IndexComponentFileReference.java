@@ -123,9 +123,17 @@ public class IndexComponentFileReference implements Comparable<IndexComponentFil
         return componentSequence + DELIMITER + componentSequence;
     }
 
+    public static String getLevelFlushSequence(long componentSequence) {
+        return "0" + DELIMITER + componentSequence;
+    }
+
     public static String getMergeSequence(String firstComponentName, String lastComponentName) {
-        long mergeSequenceStart = IndexComponentFileReference.of(firstComponentName).getSequenceStart();
-        long mergeSequenceEnd = IndexComponentFileReference.of(lastComponentName).getSequenceEnd();
-        return mergeSequenceStart + DELIMITER + mergeSequenceEnd;
+        IndexComponentFileReference ifr1 = IndexComponentFileReference.of(firstComponentName);
+        IndexComponentFileReference ifr2 = IndexComponentFileReference.of(lastComponentName);
+        long start1 = ifr1.getSequenceStart();
+        long start2 = ifr2.getSequenceStart();
+        long end1 = ifr1.getSequenceStart();
+        long end2 = ifr2.getSequenceEnd();
+        return (start1 < start2 ? start1 : start2) + DELIMITER + (end1 > end2 ? end1 : end2);
     }
 }

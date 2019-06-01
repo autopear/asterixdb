@@ -48,7 +48,8 @@ public class CorrelatedPrefixMergePolicy extends PrefixMergePolicy {
     }
 
     @Override
-    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
+    public void diskComponentAdded(ILSMIndex index, List<ILSMDiskComponent> newComponents, boolean fullMergeIsRequested,
+            boolean wasMerge) throws HyracksDataException {
         // This merge policy will only look at primary indexes in order to evaluate if a merge operation is needed. If it decides that
         // a merge operation is needed, then it will merge *all* the indexes that belong to the dataset. The criteria to decide if a merge
         // is needed is the same as the one that is used in the prefix merge policy:
@@ -58,7 +59,7 @@ public class CorrelatedPrefixMergePolicy extends PrefixMergePolicy {
         // a merge all of the current candidates into a new single component.
 
         if (fullMergeIsRequested || index.isPrimaryIndex()) {
-            super.diskComponentAdded(index, fullMergeIsRequested);
+            super.diskComponentAdded(index, newComponents, fullMergeIsRequested, wasMerge);
         }
     }
 

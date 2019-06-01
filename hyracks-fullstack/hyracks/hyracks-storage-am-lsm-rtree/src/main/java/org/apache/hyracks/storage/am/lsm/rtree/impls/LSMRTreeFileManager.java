@@ -58,8 +58,8 @@ public class LSMRTreeFileManager extends AbstractLSMIndexFileManager {
     }
 
     @Override
-    public LSMComponentFileReferences getRelFlushFileReference() throws HyracksDataException {
-        String baseName = getNextComponentSequence(btreeFilter);
+    public LSMComponentFileReferences getRelFlushFileReference(boolean isLeveled) throws HyracksDataException {
+        String baseName = getNextComponentSequence(btreeFilter, isLeveled);
         return new LSMComponentFileReferences(baseDir.getChild(baseName + DELIMITER + RTREE_SUFFIX),
                 baseDir.getChild(baseName + DELIMITER + BTREE_SUFFIX),
                 baseDir.getChild(baseName + DELIMITER + BLOOM_FILTER_SUFFIX));
@@ -173,8 +173,8 @@ public class LSMRTreeFileManager extends AbstractLSMIndexFileManager {
     }
 
     @Override
-    public LSMComponentFileReferences getNewTransactionFileReference() throws IOException {
-        String baseName = getNextComponentSequence(btreeFilter);
+    public LSMComponentFileReferences getNewTransactionFileReference(boolean isLeveled) throws IOException {
+        String baseName = getNextComponentSequence(btreeFilter, isLeveled);
         // Create transaction lock file
         Files.createFile(Paths.get(baseDir + TXN_PREFIX + baseName));
         return new LSMComponentFileReferences(baseDir.getChild(baseName + DELIMITER + RTREE_SUFFIX),

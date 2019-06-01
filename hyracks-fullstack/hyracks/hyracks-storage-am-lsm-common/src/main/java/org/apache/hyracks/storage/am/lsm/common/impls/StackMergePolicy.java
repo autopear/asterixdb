@@ -19,17 +19,21 @@
 
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
-public class LeveledMergePolicy implements ILSMMergePolicy {
+public class StackMergePolicy implements ILSMMergePolicy {
 
     @Override
-    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
-        // Do nothing
+    public void diskComponentAdded(ILSMIndex index, List<ILSMDiskComponent> newComponents, boolean fullMergeIsRequested,
+            boolean wasMerge) throws HyracksDataException {
     }
 
     @Override
@@ -38,8 +42,24 @@ public class LeveledMergePolicy implements ILSMMergePolicy {
     }
 
     @Override
-    public boolean isMergeLagging(ILSMIndex index) {
+    public boolean isMergeLagging(ILSMIndex index) throws HyracksDataException {
+        // TODO: for now, we simply block the ingestion when there is an ongoing merge
+        List<ILSMDiskComponent> immutableComponents = index.getDiskComponents();
+        return isMergeOngoing(immutableComponents);
+    }
+
+    private boolean isMergeOngoing(List<ILSMDiskComponent> immutableComponents) {
+        int size = immutableComponents.size();
+        for (int i = 0; i < size; i++) {
+            if (immutableComponents.get(i).getState() == ILSMComponent.ComponentState.READABLE_MERGING) {
+                return true;
+            }
+        }
         return false;
     }
 
+    @Override
+    public List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> components) {
+        return Collections.emptyList();
+    }
 }

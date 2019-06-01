@@ -57,8 +57,8 @@ public class LSMInvertedIndexFileManager extends AbstractLSMIndexFileManager imp
     }
 
     @Override
-    public LSMComponentFileReferences getRelFlushFileReference() throws HyracksDataException {
-        String baseName = getNextComponentSequence(deletedKeysBTreeFilter);
+    public LSMComponentFileReferences getRelFlushFileReference(boolean isLeveled) throws HyracksDataException {
+        String baseName = getNextComponentSequence(deletedKeysBTreeFilter, isLeveled);
         return new LSMComponentFileReferences(baseDir.getChild(baseName + DELIMITER + DICT_BTREE_SUFFIX),
                 baseDir.getChild(baseName + DELIMITER + DELETED_KEYS_BTREE_SUFFIX),
                 baseDir.getChild(baseName + DELIMITER + BLOOM_FILTER_SUFFIX));

@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
@@ -144,7 +145,7 @@ public class ExternalIndexHarness extends LSMHarness {
                                 componentsToBeReplicated.addAll(newComponents);
                                 triggerReplication(componentsToBeReplicated, opType);
                             }
-                            mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get());
+                            mergePolicy.diskComponentAdded(lsmIndex, newComponents, fullMergeIsRequested.get(), true);
                         }
                         break;
                     default:
@@ -213,7 +214,7 @@ public class ExternalIndexHarness extends LSMHarness {
             }
             // Enter the component
             enterComponent(c);
-            mergePolicy.diskComponentAdded(lsmIndex, false);
+            mergePolicy.diskComponentAdded(lsmIndex, Collections.singletonList(c), false, false);
         }
     }
 
@@ -247,7 +248,8 @@ public class ExternalIndexHarness extends LSMHarness {
                 enterComponent(newComponent);
             }
             index.commitTransactionDiskComponent(newComponent);
-            mergePolicy.diskComponentAdded(lsmIndex, fullMergeIsRequested.get());
+            mergePolicy.diskComponentAdded(lsmIndex, Collections.singletonList(newComponent),
+                    fullMergeIsRequested.get(), false);
         }
     }
 

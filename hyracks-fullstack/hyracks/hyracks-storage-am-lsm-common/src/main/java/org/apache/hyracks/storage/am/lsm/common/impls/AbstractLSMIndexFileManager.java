@@ -45,6 +45,8 @@ import org.apache.hyracks.storage.common.compression.NoOpCompressorDecompressorF
 import org.apache.hyracks.storage.common.compression.file.CompressedFileReference;
 import org.apache.hyracks.storage.common.file.BufferedFileHandle;
 import org.apache.hyracks.util.annotations.NotThreadSafe;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @NotThreadSafe
 public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManager {
@@ -98,6 +100,8 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     protected final TreeIndexFactory<? extends ITreeIndex> treeFactory;
     private long lastUsedComponentSeq = UNINITALIZED_COMPONENT_SEQ;
     private final ICompressorDecompressorFactory compressorDecompressorFactory;
+
+    private static final Logger LOGGER = LogManager.getLogger();
 
     public AbstractLSMIndexFileManager(IIOManager ioManager, FileReference file,
             TreeIndexFactory<? extends ITreeIndex> treeFactory) {
@@ -208,9 +212,14 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     }
 
     @Override
-    public LSMComponentFileReferences getRelFlushFileReference() throws HyracksDataException {
-        final String sequence = getNextComponentSequence(COMPONENT_FILES_FILTER);
+    public LSMComponentFileReferences getRelFlushFileReference(boolean isLeveled) throws HyracksDataException {
+        final String sequence = getNextComponentSequence(COMPONENT_FILES_FILTER, isLeveled);
         return new LSMComponentFileReferences(baseDir.getChild(sequence), null, null);
+    }
+
+    @Override
+    public LSMComponentFileReferences getRelFlushFileReference() throws HyracksDataException {
+        return getRelFlushFileReference(false);
     }
 
     @Override
@@ -344,7 +353,7 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     }
 
     @Override
-    public LSMComponentFileReferences getNewTransactionFileReference() throws IOException {
+    public LSMComponentFileReferences getNewTransactionFileReference(boolean isLeveled) throws IOException {
         return null;
     }
 
@@ -377,11 +386,16 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
         return (dir, name) -> filter1.accept(dir, name) && filter2.accept(dir, name);
     }
 
-    protected String getNextComponentSequence(FilenameFilter filenameFilter) throws HyracksDataException {
+    protected String getNextComponentSequence(FilenameFilter filenameFilter, boolean isLeveled)
+            throws HyracksDataException {
         if (lastUsedComponentSeq == UNINITALIZED_COMPONENT_SEQ) {
             lastUsedComponentSeq = getOnDiskLastUsedComponentSequence(filenameFilter);
         }
-        return IndexComponentFileReference.getFlushSequence(++lastUsedComponentSeq);
+        if (isLeveled && lastUsedComponentSeq == -1L) {
+            lastUsedComponentSeq = 0L;
+        }
+        return isLeveled ? IndexComponentFileReference.getLevelFlushSequence(++lastUsedComponentSeq)
+                : IndexComponentFileReference.getFlushSequence(++lastUsedComponentSeq);
     }
 
     protected FileReference getFileReference(String name) {

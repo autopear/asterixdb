@@ -29,6 +29,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.AbstractLSMWithBuddyDiskComp
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.IChainedComponentBulkLoader;
+import org.apache.hyracks.storage.am.lsm.common.impls.IndexComponentFileReference;
 import org.apache.hyracks.storage.am.lsm.common.impls.IndexWithBuddyBulkLoader;
 import org.apache.hyracks.storage.am.lsm.common.util.ComponentUtils;
 import org.apache.hyracks.storage.am.lsm.invertedindex.ondisk.OnDiskInvertedIndex;
@@ -41,6 +42,8 @@ public class LSMInvertedIndexDiskComponent extends AbstractLSMWithBuddyDiskCompo
     private final OnDiskInvertedIndex invIndex;
     private final BTree deletedKeysBTree;
     private final BloomFilter bloomFilter;
+    private final long level;
+    private final long levelSequence;
 
     public LSMInvertedIndexDiskComponent(AbstractLSMIndex lsmIndex, OnDiskInvertedIndex invIndex,
             BTree deletedKeysBTree, BloomFilter bloomFilter, ILSMComponentFilter filter) {
@@ -48,6 +51,10 @@ public class LSMInvertedIndexDiskComponent extends AbstractLSMWithBuddyDiskCompo
         this.invIndex = invIndex;
         this.deletedKeysBTree = deletedKeysBTree;
         this.bloomFilter = bloomFilter;
+        IndexComponentFileReference icfr =
+                IndexComponentFileReference.of(invIndex.getBTree().getFileReference().getFile().getName());
+        level = icfr.getSequenceStart();
+        levelSequence = icfr.getSequenceEnd();
     }
 
     @Override
@@ -126,5 +133,15 @@ public class LSMInvertedIndexDiskComponent extends AbstractLSMWithBuddyDiskCompo
         IIndexBulkLoader buddyBulkLoader =
                 getBuddyIndex().createBulkLoader(fillFactor, verifyInput, numElementsHint, checkIfEmptyIndex);
         return new IndexWithBuddyBulkLoader(indexBulkLoader, buddyBulkLoader);
+    }
+
+    @Override
+    public long getLevel() {
+        return level;
+    }
+
+    @Override
+    public long getLevelSequence() {
+        return levelSequence;
     }
 }

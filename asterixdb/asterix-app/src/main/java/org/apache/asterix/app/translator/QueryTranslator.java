@@ -206,6 +206,7 @@ import org.apache.hyracks.control.common.job.profiling.om.JobProfile;
 import org.apache.hyracks.control.common.job.profiling.om.JobletProfile;
 import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -520,7 +521,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     "The correlated-prefix merge policy cannot be used with external dataset.");
         }
         if (compactionPolicyProperties == null) {
-            if (mergePolicyFactory.getName().compareTo("no-merge") != 0) {
+            if (mergePolicyFactory.getName().compareTo("no-merge") != 0
+                    && !(mergePolicyFactory instanceof LevelMergePolicyFactory)) {
                 throw new CompilationException(ErrorCode.COMPILATION_ERROR, sourceLoc,
                         "Compaction policy properties are missing.");
             }

@@ -51,7 +51,12 @@ public interface ILSMDiskComponent extends ILSMComponent {
     /**
      * @return the level of the component
      */
-    long getLevel() throws HyracksDataException;
+    long getLevel();
+
+    /**
+     * @return the level sequence of the component
+     */
+    long getLevelSequence();
 
     /**
      * @return LsmIndex of the component

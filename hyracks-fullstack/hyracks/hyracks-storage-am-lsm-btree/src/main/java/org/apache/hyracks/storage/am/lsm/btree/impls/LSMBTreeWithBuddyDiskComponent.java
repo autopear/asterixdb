@@ -26,12 +26,15 @@ import org.apache.hyracks.storage.am.btree.impls.BTree;
 import org.apache.hyracks.storage.am.lsm.common.api.AbstractLSMWithBuddyDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
+import org.apache.hyracks.storage.am.lsm.common.impls.IndexComponentFileReference;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 
 public class LSMBTreeWithBuddyDiskComponent extends AbstractLSMWithBuddyDiskComponent {
     private final BTree btree;
     private final BloomFilter bloomFilter;
     private final BTree buddyBtree;
+    private final long level;
+    private final long levelSequence;
 
     public LSMBTreeWithBuddyDiskComponent(AbstractLSMIndex lsmIndex, BTree btree, BTree buddyBtree,
             BloomFilter bloomFilter, ILSMComponentFilter filter) {
@@ -39,6 +42,9 @@ public class LSMBTreeWithBuddyDiskComponent extends AbstractLSMWithBuddyDiskComp
         this.btree = btree;
         this.bloomFilter = bloomFilter;
         this.buddyBtree = buddyBtree;
+        IndexComponentFileReference icfr = IndexComponentFileReference.of(btree.getFileReference().getFile().getName());
+        level = icfr.getSequenceStart();
+        levelSequence = icfr.getSequenceEnd();
     }
 
     @Override
@@ -90,4 +96,15 @@ public class LSMBTreeWithBuddyDiskComponent extends AbstractLSMWithBuddyDiskComp
     public IBufferCache getBloomFilterBufferCache() {
         return getMetadataHolder().getBufferCache();
     }
+
+    @Override
+    public long getLevel() {
+        return level;
+    }
+
+    @Override
+    public long getLevelSequence() {
+        return levelSequence;
+    }
+
 }

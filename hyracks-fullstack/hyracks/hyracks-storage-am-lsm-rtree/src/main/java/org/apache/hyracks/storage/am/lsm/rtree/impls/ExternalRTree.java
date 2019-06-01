@@ -109,7 +109,7 @@ public class ExternalRTree extends LSMRTree implements ITwoPCIndex {
     @Override
     public void subsumeMergedComponents(List<ILSMDiskComponent> newComponents, List<ILSMComponent> mergedComponents)
             throws HyracksDataException {
-        if (!isLeveledLSM) {
+        if (!isLeveled) {
             // determine which list is the new one
             List<ILSMDiskComponent> newerList;
             List<ILSMDiskComponent> olderList;
@@ -467,7 +467,7 @@ public class ExternalRTree extends LSMRTree implements ITwoPCIndex {
             LSMComponentFileReferences componentFileRefs;
             if (isTransaction) {
                 try {
-                    componentFileRefs = fileManager.getNewTransactionFileReference();
+                    componentFileRefs = fileManager.getNewTransactionFileReference(false);
                 } catch (IOException e) {
                     throw HyracksDataException.create(e);
                 }

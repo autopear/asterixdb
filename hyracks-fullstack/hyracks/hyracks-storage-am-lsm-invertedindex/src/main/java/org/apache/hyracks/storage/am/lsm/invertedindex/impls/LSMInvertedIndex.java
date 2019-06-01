@@ -475,7 +475,7 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
     @Override
     protected LSMComponentFileReferences getMergeFileReferences(List<ILSMDiskComponent> components)
             throws HyracksDataException {
-        if (isLeveledLSM) {
+        if (isLeveled) {
             if (components.size() == 1) {
                 // Move to the next level
                 String newName = (components.get(0).getLevel() + 1) + AbstractLSMIndexFileManager.DELIMITER + "0";

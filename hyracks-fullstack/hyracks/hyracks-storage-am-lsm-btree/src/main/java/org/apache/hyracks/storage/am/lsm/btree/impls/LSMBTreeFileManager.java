@@ -39,8 +39,11 @@ import org.apache.hyracks.storage.am.lsm.common.impls.IndexComponentFileReferenc
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.TreeIndexFactory;
 import org.apache.hyracks.storage.common.compression.NoOpCompressorDecompressorFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class LSMBTreeFileManager extends AbstractLSMIndexFileManager {
+    private static final Logger LOGGER = LogManager.getLogger();
 
     private static final FilenameFilter btreeFilter =
             (dir, name) -> !name.startsWith(".") && name.endsWith(BTREE_SUFFIX);
@@ -61,8 +64,8 @@ public class LSMBTreeFileManager extends AbstractLSMIndexFileManager {
     }
 
     @Override
-    public LSMComponentFileReferences getRelFlushFileReference() throws HyracksDataException {
-        String baseName = getNextComponentSequence(btreeFilter);
+    public LSMComponentFileReferences getRelFlushFileReference(boolean isLeveled) throws HyracksDataException {
+        String baseName = getNextComponentSequence(btreeFilter, isLeveled);
         return new LSMComponentFileReferences(getFileReference(baseName + DELIMITER + BTREE_SUFFIX), null,
                 hasBloomFilter ? getFileReference(baseName + DELIMITER + BLOOM_FILTER_SUFFIX) : null);
     }
@@ -70,6 +73,8 @@ public class LSMBTreeFileManager extends AbstractLSMIndexFileManager {
     @Override
     public LSMComponentFileReferences getRelMergeFileReference(String firstFileName, String lastFileName) {
         final String baseName = IndexComponentFileReference.getMergeSequence(firstFileName, lastFileName);
+        LOGGER.info("[getRelMergeFileReference]\tfirst: " + firstFileName + ", last: " + lastFileName + ", new: "
+                + baseName);
         return new LSMComponentFileReferences(getFileReference(baseName + DELIMITER + BTREE_SUFFIX), null,
                 hasBloomFilter ? getFileReference(baseName + DELIMITER + BLOOM_FILTER_SUFFIX) : null);
     }
@@ -188,11 +193,11 @@ public class LSMBTreeFileManager extends AbstractLSMIndexFileManager {
     }
 
     @Override
-    public LSMComponentFileReferences getNewTransactionFileReference() throws IOException {
-        String sequence = getNextComponentSequence(btreeFilter);
+    public LSMComponentFileReferences getNewTransactionFileReference(boolean isLeveled) throws IOException {
+        String sequence = getNextComponentSequence(btreeFilter, isLeveled);
         // Create transaction lock file
         IoUtil.create(baseDir.getChild(TXN_PREFIX + sequence));
-        String baseName = getNextComponentSequence(btreeFilter);
+        String baseName = getNextComponentSequence(btreeFilter, isLeveled);
         return new LSMComponentFileReferences(baseDir.getChild(baseName + DELIMITER + BTREE_SUFFIX), null,
                 baseDir.getChild(baseName + DELIMITER + BLOOM_FILTER_SUFFIX));
     }

@@ -112,7 +112,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     protected final ILSMDiskComponentFactory bulkLoadComponentFactory;
     private int numScheduledFlushes = 0;
 
-    protected final boolean isLeveledLSM;
+    protected final boolean isLeveled;
     protected final long level0Tables;
     protected final long level1Tables;
     protected final long levelTableSize;
@@ -151,14 +151,14 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         for (int i = 0; i < virtualBufferCaches.size(); i++) {
             flushRequests[i] = new AtomicBoolean();
         }
-        if (mergePolicy instanceof LeveledMergePolicy) {
-            this.isLeveledLSM = true;
-            this.level0Tables = 4L;
-            this.level1Tables = 10L;
+        if (mergePolicy instanceof LevelMergePolicy) {
+            this.isLeveled = true;
+            this.level0Tables = ((LevelMergePolicy) mergePolicy).getLevel0Components();
+            this.level1Tables = ((LevelMergePolicy) mergePolicy).getLevel1Components();
             this.levelTableSize = level0Tables * diskBufferCache.getPageSize() * (long) diskBufferCache.getPageBudget();
             maxLevels = -1L;
         } else {
-            this.isLeveledLSM = false;
+            this.isLeveled = false;
             this.level0Tables = 0L;
             this.level1Tables = 0L;
             this.levelTableSize = 0L;
@@ -196,14 +196,14 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         treeFields = null;
         filterFields = null;
         maxLevels = -1L;
-        if (mergePolicy instanceof LeveledMergePolicy) {
-            this.isLeveledLSM = true;
-            this.level0Tables = 4L;
-            this.level1Tables = 10L;
+        if (mergePolicy instanceof LevelMergePolicy) {
+            this.isLeveled = true;
+            this.level0Tables = ((LevelMergePolicy) mergePolicy).getLevel0Components();
+            this.level1Tables = ((LevelMergePolicy) mergePolicy).getLevel1Components();
             this.levelTableSize = level0Tables * diskBufferCache.getPageSize() * (long) diskBufferCache.getPageBudget();
             maxLevels = -1L;
         } else {
-            this.isLeveledLSM = false;
+            this.isLeveled = false;
             this.level0Tables = 0L;
             this.level1Tables = 0L;
             this.levelTableSize = 0L;
@@ -231,7 +231,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     private void loadDiskComponents() throws HyracksDataException {
         diskComponents.clear();
         List<LSMComponentFileReferences> validFileReferences = fileManager.cleanupAndGetValidFiles();
-        if (isLeveledLSM) {
+        if (isLeveled) {
             Map<Long, Map<Long, ILSMDiskComponent>> allComponents = new HashMap<>();
             for (LSMComponentFileReferences lsmComponentFileReferences : validFileReferences) {
                 ILSMDiskComponent component =
@@ -240,7 +240,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                                 lsmComponentFileReferences.getBloomFilterFileReference(), false);
                 Map<Long, ILSMDiskComponent> levelComponents =
                         allComponents.getOrDefault(component.getLevel(), new HashMap<>());
-                levelComponents.put(component.getId().getMaxId(), component);
+                levelComponents.put(component.getLevelSequence(), component);
                 allComponents.put(component.getLevel(), levelComponents);
             }
             List<Long> levels = new ArrayList<>(allComponents.keySet());
@@ -423,7 +423,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         // take care of the flush cycling
         ILSMIOOperation flushOp =
                 TracedIOOperation.wrap(createFlushOperation(createOpContext(NoOpIndexAccessParameters.INSTANCE),
-                        fileManager.getRelFlushFileReference(), ioOpCallback), tracer);
+                        fileManager.getRelFlushFileReference(isLeveled), ioOpCallback), tracer);
         // Changing the flush status should *always* precede changing the mutable component.
         flushingComponent.schedule(LSMIOOperationType.FLUSH);
         numScheduledFlushes++;
@@ -444,8 +444,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         List<ILSMDiskComponent> mergingComponents = ctx.getComponentsToBeMerged();
         // Merge operation can fail if another merge is already scheduled on those components
         // This should be guarded against by the merge policy but we still protect against here
-        if (isDeactivating
-                || (mergingComponents.size() < 2 && ctx.getOperation() != IndexOperation.DELETE_COMPONENTS)) {
+        if (isDeactivating || (mergingComponents.size() < (isLeveled ? 1 : 2)
+                && ctx.getOperation() != IndexOperation.DELETE_COMPONENTS)) {
             return NoOpIoOperation.INSTANCE;
         }
         for (ILSMDiskComponent component : mergingComponents) {
@@ -643,21 +643,21 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     private void addLeveledDiskComponent(ILSMDiskComponent component) throws HyracksDataException {
         long targetLevel = component.getLevel();
-        int lastPos = -1;
-        for (int i = 0; i < diskComponents.size(); i++) {
-            long level = diskComponents.get(i).getLevel();
-            if (level < targetLevel) {
-                lastPos = i;
-            } else {
-                break;
-            }
-        }
-        if (lastPos > -1) {
-            diskComponents.add(lastPos + 1, component);
+        if (targetLevel == 0) {
+            diskComponents.add(0, component);
         } else {
-            diskComponents.add(component);
+            int lastPos = -1;
+            for (int i = 0; i < diskComponents.size(); i++) {
+                long level = diskComponents.get(i).getLevel();
+                if (level < targetLevel) {
+                    lastPos = i;
+                } else {
+                    break;
+                }
+            }
+            diskComponents.add(lastPos + 1, component);
         }
-        if (component.getLevel() > maxLevels) {
+        if (targetLevel > maxLevels) {
             maxLevels = component.getLevel();
         }
     }
@@ -665,9 +665,10 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     @Override
     public void addDiskComponent(ILSMDiskComponent component) throws HyracksDataException {
         if (component != EmptyComponent.INSTANCE) {
-            if (isLeveledLSM) {
+            if (isLeveled) {
                 addLeveledDiskComponent(component);
             } else {
+                LOGGER.info("[addDiskComponent]\t" + component.getId().toString());
                 diskComponents.add(0, component);
             }
         }
@@ -676,19 +677,11 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     @Override
     public void addDiskComponents(List<ILSMDiskComponent> components) throws HyracksDataException {
-        if (isLeveledLSM) {
-            List<Long> levelIds = new ArrayList<>();
-            Map<Long, ILSMDiskComponent> toSort = new HashMap<>();
+        if (isLeveled) {
             for (ILSMDiskComponent component : components) {
                 if (component != EmptyComponent.INSTANCE) {
-                    long levelId = component.getId().getMaxId();
-                    levelIds.add(levelId);
-                    toSort.put(levelId, component);
+                    addLeveledDiskComponent(component);
                 }
-            }
-            Collections.sort(levelIds);
-            for (Long levelId : levelIds) {
-                addLeveledDiskComponent(toSort.get(levelId));
             }
         } else {
             for (ILSMDiskComponent component : components) {
@@ -703,23 +696,15 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     @Override
     public void subsumeMergedComponents(List<ILSMDiskComponent> newComponents, List<ILSMComponent> mergedComponents)
             throws HyracksDataException {
-        if (isLeveledLSM) {
-            for (ILSMComponent component : mergedComponents) {
-                diskComponents.remove(component);
+        if (isLeveled) {
+            LOGGER.info("[subsumeMergedComponents]\tdiskComponents=" + printComponents(diskComponents));
+            LOGGER.info("[subsumeMergedComponents]\tnewComponents=" + printComponents(newComponents));
+            LOGGER.info("[subsumeMergedComponents]\tmergedComponents=" + printComponents(mergedComponents));
+            diskComponents.removeAll(mergedComponents);
+            for (ILSMDiskComponent newComponent : newComponents) {
+                addLeveledDiskComponent(newComponent);
             }
-            List<Long> levelIds = new ArrayList<>();
-            Map<Long, ILSMDiskComponent> toSort = new HashMap<>();
-            for (ILSMDiskComponent component : newComponents) {
-                if (component != EmptyComponent.INSTANCE) {
-                    long levelId = component.getId().getMaxId();
-                    levelIds.add(levelId);
-                    toSort.put(levelId, component);
-                }
-            }
-            Collections.sort(levelIds);
-            for (Long levelId : levelIds) {
-                addLeveledDiskComponent(toSort.get(levelId));
-            }
+            LOGGER.info("[subsumeMergedComponents]\tdiskComponents=" + printComponents(diskComponents));
         } else {
             int swapIndex = diskComponents.indexOf(mergedComponents.get(0));
             diskComponents.removeAll(mergedComponents);
@@ -733,6 +718,26 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         validateComponentIds();
     }
 
+    private String printComponents(List<? extends ILSMComponent> components) {
+        String msg = "";
+        for (int i = 0; i < components.size(); i++) {
+            ILSMComponent c = components.get(i);
+            String m = "";
+            if (c instanceof ILSMDiskComponent) {
+                ILSMDiskComponent d = (ILSMDiskComponent) c;
+                m = d.getLevel() + "_" + d.getLevelSequence() + ":" + d.getComponentSize();
+            } else {
+                m = c.toString();
+            }
+            if (i == 0) {
+                msg = m;
+            } else {
+                msg += "; " + m;
+            }
+        }
+        return msg;
+    }
+
     /**
      * A helper method to ensure disk components have proper Ids (non-decreasing)
      * We may get rid of this method once component Id is stablized
@@ -740,19 +745,20 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
      * @throws HyracksDataException
      */
     private void validateComponentIds() throws HyracksDataException {
-        if (isLeveledLSM) {
+        if (isLeveled) {
             for (int i = 0; i < diskComponents.size() - 1; i++) {
                 long level1 = diskComponents.get(i).getLevel();
                 long level2 = diskComponents.get(i + 1).getLevel();
-                long levelId1 = diskComponents.get(i).getId().getMaxId();
-                long levelId2 = diskComponents.get(i + 1).getId().getMaxId();
+                long levelId1 = diskComponents.get(i).getLevelSequence();
+                long levelId2 = diskComponents.get(i + 1).getLevelSequence();
                 if (level1 > level2) {
-                    throw new IllegalStateException(
-                            "found decreasing levels (" + level1 + " -> " + level2 + ") on index " + this);
+                    throw new IllegalStateException("found decreasing levels (" + level1 + " -> " + level2
+                            + ") on index " + this + " " + printComponents(diskComponents));
                 }
                 if (level1 == level2 && levelId1 <= levelId2) {
-                    throw new IllegalStateException("found non-decreasing component ids (" + levelId1 + " -> "
-                            + levelId2 + ") at level " + level1 + " on index " + this);
+                    throw new IllegalStateException(
+                            "found non-decreasing component ids (" + levelId1 + " -> " + levelId2 + ") at level "
+                                    + level1 + " on index " + this + " " + printComponents(diskComponents));
                 }
             }
         } else {
@@ -817,7 +823,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     @Override
     public final String toString() {
-        if (isLeveledLSM) {
+        if (isLeveled) {
             return "{\"class\" : \"" + getClass().getSimpleName() + "\", \"dir\" : \"" + fileManager.getBaseDir()
                     + "\", \"memory\" : " + (memoryComponents == null ? 0 : memoryComponents) + ", \"levels\" : "
                     + maxLevels + ", \"disk\" : " + diskComponents.size() + ", \"num-scheduled-flushes\":"
@@ -1020,6 +1026,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     public final List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException {
         ILSMIndexAccessor accessor = operation.getAccessor();
         ILSMIndexOperationContext opCtx = accessor.getOpContext();
+        LOGGER.info("[merge]\texecuted");
         return opCtx.getOperation() == IndexOperation.DELETE_COMPONENTS ? Collections.emptyList() : doMerge(operation);
     }
 
@@ -1081,16 +1088,24 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         }
     }
 
-    public long getMaxLevelId(long level) throws HyracksDataException {
+    public long getMaxLevelId(long level) {
         long maxLevelId = -1L;
         for (ILSMDiskComponent component : diskComponents) {
             if (component.getLevel() == level) {
-                long levelId = component.getId().getMaxId();
+                long levelId = component.getLevelSequence();
                 if (levelId > maxLevelId) {
                     maxLevelId = levelId;
                 }
             }
         }
         return maxLevelId;
+    }
+
+    public boolean isLeveledLSM() {
+        return isLeveled;
+    }
+
+    public long getMaxLevel() {
+        return maxLevels;
     }
 }

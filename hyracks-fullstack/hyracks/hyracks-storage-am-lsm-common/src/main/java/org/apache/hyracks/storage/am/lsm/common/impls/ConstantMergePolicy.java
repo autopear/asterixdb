@@ -32,35 +32,46 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.ComponentState
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
-public class ConstantMergePolicy implements ILSMMergePolicy {
+public class ConstantMergePolicy extends StackMergePolicy {
     private int numComponents;
 
     private int[][] binomial;
 
     @Override
-    public void diskComponentAdded(final ILSMIndex index, boolean fullMergeIsRequested) throws HyracksDataException {
-        List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
-        if (!areComponentsReadableWritableState(immutableComponents)) {
-            return;
-        }
-        if (fullMergeIsRequested) {
+    public void diskComponentAdded(ILSMIndex index, List<ILSMDiskComponent> newComponents, boolean fullMergeIsRequested,
+            boolean wasMerge) throws HyracksDataException {
+        if (!wasMerge) {
+            List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
+            if (!areComponentsReadableWritableState(immutableComponents)) {
+                return;
+            }
+            if (fullMergeIsRequested) {
+                ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+                accessor.scheduleFullMerge();
+                return;
+            }
+            List<ILSMDiskComponent> mergableComponents = getMergableComponents(index.getDiskComponents());
+            if (mergableComponents.isEmpty()) {
+                return;
+            }
             ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-            accessor.scheduleFullMerge();
-            return;
+            accessor.scheduleMerge(mergableComponents);
         }
-        scheduleMerge(index);
     }
 
-    private boolean scheduleMerge(final ILSMIndex index) throws HyracksDataException {
-        Optional<Long> latestSeq = ((AbstractLSMIndex) index).getLatestDiskComponentSequence();
+    @Override
+    public List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> components) {
+        if (components == null || components.size() < 2) {
+            return Collections.emptyList();
+        }
+        Optional<Long> latestSeq = ((AbstractLSMIndex) components.get(0).getIndex()).getLatestDiskComponentSequence();
         if (!latestSeq.isPresent()) {
-            return false;
+            return Collections.emptyList();
         }
         // sequence number starts from 0, and thus latestSeq + 1 gives the number of flushes
         int numFlushes = latestSeq.get().intValue() + 1;
-        List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
+        List<ILSMDiskComponent> immutableComponents = new ArrayList<>(components);
         Collections.reverse(immutableComponents);
         int size = immutableComponents.size();
         int depth = 0;
@@ -70,7 +81,7 @@ public class ConstantMergePolicy implements ILSMMergePolicy {
         int mergedIndex =
                 binomialIndex(depth, Math.min(depth, numComponents) - 1, numFlushes - treeDepth(depth - 1) - 1);
         if (mergedIndex == size - 1) {
-            return false;
+            return Collections.emptyList();
         }
         long mergeSize = 0;
         List<ILSMDiskComponent> mergableComponents = new ArrayList<ILSMDiskComponent>();
@@ -79,9 +90,7 @@ public class ConstantMergePolicy implements ILSMMergePolicy {
             mergableComponents.add(immutableComponents.get(i));
         }
         Collections.reverse(mergableComponents);
-        ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-        accessor.scheduleMerge(mergableComponents);
-        return true;
+        return mergableComponents;
     }
 
     private int treeDepth(int d) {
@@ -138,22 +147,5 @@ public class ConstantMergePolicy implements ILSMMergePolicy {
     @Override
     public void configure(Map<String, String> properties) {
         numComponents = Integer.parseInt(properties.get(ConstantMergePolicyFactory.NUM_COMPONENTS));
-    }
-
-    @Override
-    public boolean isMergeLagging(ILSMIndex index) throws HyracksDataException {
-        // TODO: for now, we simply block the ingestion when there is an ongoing merge
-        List<ILSMDiskComponent> immutableComponents = index.getDiskComponents();
-        return isMergeOngoing(immutableComponents);
-    }
-
-    private boolean isMergeOngoing(List<ILSMDiskComponent> immutableComponents) {
-        int size = immutableComponents.size();
-        for (int i = 0; i < size; i++) {
-            if (immutableComponents.get(i).getState() == ComponentState.READABLE_MERGING) {
-                return true;
-            }
-        }
-        return false;
     }
 }

@@ -28,14 +28,20 @@ import org.apache.hyracks.storage.am.common.api.IMetadataPageManager;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
+import org.apache.hyracks.storage.am.lsm.common.impls.IndexComponentFileReference;
 import org.apache.hyracks.storage.common.compression.file.CompressedFileReference;
 
 public class LSMBTreeDiskComponent extends AbstractLSMDiskComponent {
     protected final DiskBTree btree;
+    protected final long level;
+    protected final long levelSequence;
 
     public LSMBTreeDiskComponent(AbstractLSMIndex lsmIndex, DiskBTree btree, ILSMComponentFilter filter) {
         super(lsmIndex, getMetadataPageManager(btree), filter);
         this.btree = btree;
+        IndexComponentFileReference icfr = IndexComponentFileReference.of(btree.getFileReference().getFile().getName());
+        level = icfr.getSequenceStart();
+        levelSequence = icfr.getSequenceEnd();
     }
 
     @Override
@@ -89,5 +95,15 @@ public class LSMBTreeDiskComponent extends AbstractLSMDiskComponent {
             files.add(cFileRef.getLAFAbsolutePath());
         }
         return files;
+    }
+
+    @Override
+    public long getLevel() {
+        return level;
+    }
+
+    @Override
+    public long getLevelSequence() {
+        return levelSequence;
     }
 }
