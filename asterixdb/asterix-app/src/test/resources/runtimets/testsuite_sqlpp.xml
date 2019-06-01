@@ -2626,6 +2626,17 @@
   </test-group>
   <test-group name="aggregate-sql-sugar">
     <test-case FilePath="aggregate-sql-sugar">
+      <compilation-unit name="array_agg">
+        <output-dir compare="Text">array_agg</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate-sql-sugar">
+      <compilation-unit name="array_agg_negative">
+        <output-dir compare="Text">array_agg</output-dir>
+        <expected-error>ASX1079: Compilation error: array_agg is a SQL-92 aggregate function. The SQL++ core aggregate function strict_arrayagg could potentially express the intent.</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="aggregate-sql-sugar">
       <compilation-unit name="distinct_mixed">
         <output-dir compare="Text">distinct_mixed</output-dir>
       </compilation-unit>
@@ -2790,6 +2801,126 @@
         <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
         <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
         <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
+      </compilation-unit>
+    </test-case>
+  </test-group>
+  <test-group name="bitwise">
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_and_01">
+        <output-dir compare="Text">bit_and_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_and_02">
+        <output-dir compare="Text">bit_and_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_and_03">
+        <output-dir compare="Text">bit_and_03</output-dir>
+        <expected-error>Invalid number of arguments for function</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_or_01">
+        <output-dir compare="Text">bit_or_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_or_02">
+        <output-dir compare="Text">bit_or_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_or_03">
+        <output-dir compare="Text">bit_or_03</output-dir>
+        <expected-error>Invalid number of arguments for function</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_xor_01">
+        <output-dir compare="Text">bit_xor_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_xor_02">
+        <output-dir compare="Text">bit_xor_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_xor_03">
+        <output-dir compare="Text">bit_xor_03</output-dir>
+        <expected-error>Invalid number of arguments for function</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_not_01">
+        <output-dir compare="Text">bit_not_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_not_02">
+        <output-dir compare="Text">bit_not_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_count_01">
+        <output-dir compare="Text">bit_count_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_count_02">
+        <output-dir compare="Text">bit_count_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_set_01">
+        <output-dir compare="Text">bit_set_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_set_02">
+        <output-dir compare="Text">bit_set_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_clear_01">
+        <output-dir compare="Text">bit_clear_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_clear_02">
+        <output-dir compare="Text">bit_clear_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_shift_01">
+        <output-dir compare="Text">bit_shift_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_shift_02">
+        <output-dir compare="Text">bit_shift_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_test_01">
+        <output-dir compare="Text">bit_test_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_test_02">
+        <output-dir compare="Text">bit_test_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="is_bit_set_01">
+        <output-dir compare="Text">is_bit_set_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="is_bit_set_02">
+        <output-dir compare="Text">is_bit_set_02</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -3701,7 +3832,8 @@
     <test-case FilePath="dml">
       <compilation-unit name="insert-with-autogenerated-pk_adm_02">
         <output-dir compare="Text">insert-with-autogenerated-pk_adm_02</output-dir>
-        <expected-error>Duplicate field name &quot;id&quot;</expected-error>
+        <expected-error>Field type string cannot be promoted to type uuid</expected-error>
+        <source-location>false</source-location>
       </compilation-unit>
     </test-case>
     <test-case FilePath="dml">
@@ -3775,6 +3907,94 @@
     <test-case FilePath="dml">
       <compilation-unit name="insert-returning-fieldname-implicit-2">
         <output-dir compare="Text">insert-returning-fieldname</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="insert_uuid_autogenerate">
+        <output-dir compare="Text">insert_uuid_autogenerate</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="upsert_uuid_autogenerate">
+        <output-dir compare="Text">upsert_uuid_autogenerate</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="insert_uuid_manual">
+        <output-dir compare="Text">insert_uuid_manual</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="upsert_uuid_manual">
+        <output-dir compare="Text">upsert_uuid_manual</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="insert_uuid_manual_exists">
+        <output-dir compare="Text">insert_uuid_manual_exists</output-dir>
+        <expected-error>Inserting duplicate keys into the primary storage</expected-error>
+        <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="upsert_uuid_manual_exists">
+        <output-dir compare="Text">upsert_uuid_manual_exists</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="insert_uuid_manual_exists_select">
+        <output-dir compare="Text">insert_uuid_manual_exists_select</output-dir>
+        <expected-error>Inserting duplicate keys into the primary storage</expected-error>
+        <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="upsert_uuid_manual_exists_select">
+        <output-dir compare="Text">upsert_uuid_manual_exists_select</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="insert_nested_uuid_autogenerate">
+        <output-dir compare="Text">insert_nested_uuid_autogenerate</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="upsert_nested_uuid_autogenerate">
+        <output-dir compare="Text">upsert_nested_uuid_autogenerate</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="insert_nested_uuid_manual">
+        <output-dir compare="Text">insert_nested_uuid_manual</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="upsert_nested_uuid_manual">
+        <output-dir compare="Text">upsert_nested_uuid_manual</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="insert_nested_uuid_manual_exists">
+        <output-dir compare="Text">insert_nested_uuid_manual_exists</output-dir>
+        <expected-error>Inserting duplicate keys into the primary storage</expected-error>
+        <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="upsert_nested_uuid_manual_exists">
+        <output-dir compare="Text">upsert_nested_uuid_manual_exists</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="insert_nested_uuid_manual_exists_select">
+        <output-dir compare="Text">insert_nested_uuid_manual_exists_select</output-dir>
+        <expected-error>Inserting duplicate keys into the primary storage</expected-error>
+        <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="dml">
+      <compilation-unit name="upsert_nested_uuid_manual_exists_select">
+        <output-dir compare="Text">upsert_nested_uuid_manual_exists_select</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="dml">
@@ -5520,6 +5740,16 @@
   </test-group>
   <test-group name="misc">
     <test-case FilePath="misc">
+      <compilation-unit name="record-serialization-ASTERIXDB-2567">
+        <output-dir compare="Text">record-serialization-ASTERIXDB-2567</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="field_access-ASTERIXDB-2289">
+        <output-dir compare="Text">field_access-ASTERIXDB-2289</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
       <compilation-unit name="comp-ASTERIXDB-2415">
         <output-dir compare="Text">query-ASTERIXDB-1671</output-dir>
       </compilation-unit>
@@ -5527,6 +5757,11 @@
     <test-case FilePath="misc">
       <compilation-unit name="comp-ASTERIXDB-2412">
         <output-dir compare="Text">comp-ASTERIXDB-2412</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="field_access_union-ASTERIXDB-2288">
+        <output-dir compare="Text">field_access_union-ASTERIXDB-2288</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="misc">
@@ -5795,6 +6030,11 @@
     <test-case FilePath="misc">
       <compilation-unit name="metadata_only_01">
         <output-dir compare="Text">metadata_only_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="cast-ASTERIXDB-2458">
+        <output-dir compare="Text">cast-ASTERIXDB-2458</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -10115,8 +10355,33 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="window">
+      <compilation-unit name="first_value_01">
+        <output-dir compare="Text">first_value_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
+      <compilation-unit name="lag_01">
+        <output-dir compare="Text">lag_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
+      <compilation-unit name="last_value_01">
+        <output-dir compare="Text">last_value_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
+      <compilation-unit name="lead_01">
+        <output-dir compare="Text">lead_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
       <compilation-unit name="misc_01">
         <output-dir compare="Text">misc_01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="window">
+      <compilation-unit name="nth_value_01">
+        <output-dir compare="Text">nth_value_01</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="window">
@@ -10156,6 +10421,9 @@
         <expected-error>ASX1101: Unexpected ORDER BY clause in window expression</expected-error>
         <expected-error>ASX1037: Invalid query parameter compiler.windowmemory</expected-error>
         <expected-error>ASX1102: Expected window or aggregate function, got: unknown_func</expected-error>
+        <expected-error>ASX1079: Compilation error: count is a SQL-92 aggregate function</expected-error>
+        <expected-error>ASX1104: Invalid modifier RESPECT/IGNORE NULLS for function</expected-error>
+        <expected-error>ASX1104: Invalid modifier RESPECT/IGNORE NULLS for function</expected-error>
         <source-location>false</source-location>
       </compilation-unit>
     </test-case>

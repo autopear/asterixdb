@@ -23,7 +23,6 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.EnumSet;
@@ -46,15 +45,20 @@ import org.apache.asterix.algebra.extension.ExtensionStatement;
 import org.apache.asterix.api.common.APIFramework;
 import org.apache.asterix.api.http.server.AbstractQueryApiServlet;
 import org.apache.asterix.api.http.server.ApiServlet;
-import org.apache.asterix.api.http.server.ResultUtil;
 import org.apache.asterix.app.active.ActiveEntityEventsListener;
 import org.apache.asterix.app.active.ActiveNotificationHandler;
 import org.apache.asterix.app.active.FeedEventsListener;
+import org.apache.asterix.app.result.ExecutionError;
 import org.apache.asterix.app.result.ResultHandle;
 import org.apache.asterix.app.result.ResultReader;
+import org.apache.asterix.app.result.fields.ErrorsPrinter;
+import org.apache.asterix.app.result.fields.ResultHandlePrinter;
+import org.apache.asterix.app.result.fields.ResultsPrinter;
+import org.apache.asterix.app.result.fields.StatusPrinter;
 import org.apache.asterix.common.api.IClientRequest;
 import org.apache.asterix.common.api.IMetadataLockManager;
 import org.apache.asterix.common.api.IRequestTracker;
+import org.apache.asterix.common.api.IResponsePrinter;
 import org.apache.asterix.common.cluster.IClusterStateManager;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.ExternalFilePendingOp;
@@ -195,16 +199,10 @@ import org.apache.hyracks.api.io.UnmanagedFileSplit;
 import org.apache.hyracks.api.job.JobFlag;
 import org.apache.hyracks.api.job.JobId;
 import org.apache.hyracks.api.job.JobSpecification;
-import org.apache.hyracks.api.job.JobStatus;
 import org.apache.hyracks.api.result.IResultSet;
 import org.apache.hyracks.api.result.ResultSetId;
 import org.apache.hyracks.control.cc.ClusterControllerService;
-import org.apache.hyracks.control.cc.job.IJobManager;
-import org.apache.hyracks.control.cc.job.JobRun;
 import org.apache.hyracks.control.common.controllers.CCConfig;
-import org.apache.hyracks.control.common.job.profiling.om.JobProfile;
-import org.apache.hyracks.control.common.job.profiling.om.JobletProfile;
-import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 import org.apache.logging.log4j.Level;
@@ -232,9 +230,11 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     protected final ExecutorService executorService;
     protected final EnumSet<JobFlag> jobFlags = EnumSet.noneOf(JobFlag.class);
     protected final IMetadataLockManager lockManager;
+    protected final IResponsePrinter responsePrinter;
 
     public QueryTranslator(ICcApplicationContext appCtx, List<Statement> statements, SessionOutput output,
-            ILangCompilationProvider compilationProvider, ExecutorService executorService) {
+            ILangCompilationProvider compilationProvider, ExecutorService executorService,
+            IResponsePrinter responsePrinter) {
         this.appCtx = appCtx;
         this.lockManager = appCtx.getMetadataLockManager();
         this.statements = statements;
@@ -246,6 +246,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         rewriterFactory = compilationProvider.getRewriterFactory();
         activeDataverse = MetadataBuiltinEntities.DEFAULT_DATAVERSE;
         this.executorService = executorService;
+        this.responsePrinter = responsePrinter;
         if (appCtx.getServiceContext().getAppConfig().getBoolean(CCConfig.Option.ENFORCE_FRAME_WRITER_PROTOCOL)) {
             this.jobFlags.add(JobFlag.ENFORCE_CONTRACT);
         }
@@ -1840,8 +1841,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                     new CompiledLoadFromFileStatement(dataverseName, loadStmt.getDatasetName().getValue(),
                             loadStmt.getAdapter(), loadStmt.getProperties(), loadStmt.dataIsAlreadySorted());
             cls.setSourceLocation(stmt.getSourceLocation());
-            JobSpecification spec =
-                    apiFramework.compileQuery(hcc, metadataProvider, null, 0, null, sessionOutput, cls, null);
+            JobSpecification spec = apiFramework.compileQuery(hcc, metadataProvider, null, 0, null, sessionOutput, cls,
+                    null, responsePrinter);
             afterCompile();
             MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
             bActiveTxn = false;
@@ -1972,7 +1973,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
 
         // Query Compilation (happens under the same ongoing metadata transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, (Query) rewrittenResult.first,
-                rewrittenResult.second, stmt == null ? null : stmt.getDatasetName(), sessionOutput, stmt, externalVars);
+                rewrittenResult.second, stmt == null ? null : stmt.getDatasetName(), sessionOutput, stmt, externalVars,
+                responsePrinter);
     }
 
     private JobSpecification rewriteCompileInsertUpsert(IClusterInfoCollector clusterInfoCollector,
@@ -2010,7 +2012,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         // Insert/upsert statement compilation (happens under the same ongoing metadata
         // transaction)
         return apiFramework.compileQuery(clusterInfoCollector, metadataProvider, rewrittenInsertUpsert.getQuery(),
-                rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars);
+                rewrittenResult.second, datasetName, sessionOutput, clfrqs, externalVars, responsePrinter);
     }
 
     protected void handleCreateFeedStatement(MetadataProvider metadataProvider, Statement stmt) throws Exception {
@@ -2514,17 +2516,18 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             case IMMEDIATE:
                 createAndRunJob(hcc, jobFlags, null, compiler, locker, resultDelivery, id -> {
                     final ResultReader resultReader = new ResultReader(resultSet, id, resultSetId);
-                    updateJobStats(id, stats);
-                    // stop buffering and allow for streaming result delivery
-                    sessionOutput.release();
-                    ResultUtil.printResults(appCtx, resultReader, sessionOutput, stats,
-                            metadataProvider.findOutputRecordType());
+                    updateJobStats(id, stats, metadataProvider.getResultSetId());
+                    responsePrinter.addResultPrinter(new ResultsPrinter(appCtx, resultReader,
+                            metadataProvider.findOutputRecordType(), stats, sessionOutput));
+                    responsePrinter.printResults();
                 }, requestParameters, cancellable, appCtx, metadataProvider);
                 break;
             case DEFERRED:
                 createAndRunJob(hcc, jobFlags, null, compiler, locker, resultDelivery, id -> {
-                    updateJobStats(id, stats);
-                    ResultUtil.printResultHandle(sessionOutput, new ResultHandle(id, resultSetId));
+                    updateJobStats(id, stats, metadataProvider.getResultSetId());
+                    responsePrinter.addResultPrinter(
+                            new ResultHandlePrinter(sessionOutput, new ResultHandle(id, resultSetId)));
+                    responsePrinter.printResults();
                     if (outMetadata != null) {
                         outMetadata.getResultSets()
                                 .add(Triple.of(id, resultSetId, metadataProvider.findOutputRecordType()));
@@ -2536,23 +2539,13 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         }
     }
 
-    private void updateJobStats(JobId jobId, Stats stats) {
-        final IJobManager jobManager =
-                ((ClusterControllerService) appCtx.getServiceContext().getControllerService()).getJobManager();
-        final JobRun run = jobManager.get(jobId);
-        if (run == null || run.getStatus() != JobStatus.TERMINATED) {
-            return;
-        }
-        final JobProfile jobProfile = run.getJobProfile();
-        final Collection<JobletProfile> jobletProfiles = jobProfile.getJobletProfiles().values();
-        long processedObjects = 0;
-        for (JobletProfile jp : jobletProfiles) {
-            final Collection<TaskProfile> jobletTasksProfile = jp.getTaskProfiles().values();
-            for (TaskProfile tp : jobletTasksProfile) {
-                processedObjects += tp.getStatsCollector().getAggregatedStats().getTupleCounter().get();
-            }
-        }
-        stats.setProcessedObjects(processedObjects);
+    private void updateJobStats(JobId jobId, Stats stats, ResultSetId rsId) throws HyracksDataException {
+        final ClusterControllerService controllerService =
+                (ClusterControllerService) appCtx.getServiceContext().getControllerService();
+        org.apache.asterix.api.common.ResultMetadata resultMetadata =
+                (org.apache.asterix.api.common.ResultMetadata) controllerService.getResultDirectoryService()
+                        .getResultMetadata(jobId, rsId);
+        stats.setProcessedObjects(resultMetadata.getProcessedObjects());
     }
 
     private void asyncCreateAndRunJob(IHyracksClientConnection hcc, IStatementCompiler compiler, IMetadataLocker locker,
@@ -2562,8 +2555,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         try {
             createAndRunJob(hcc, jobFlags, jobId, compiler, locker, resultDelivery, id -> {
                 final ResultHandle handle = new ResultHandle(id, resultSetId);
-                ResultUtil.printStatus(sessionOutput, AbstractQueryApiServlet.ResultStatus.RUNNING);
-                ResultUtil.printResultHandle(sessionOutput, handle);
+                responsePrinter.addResultPrinter(new StatusPrinter(AbstractQueryApiServlet.ResultStatus.RUNNING));
+                responsePrinter.addResultPrinter(new ResultHandlePrinter(sessionOutput, handle));
+                responsePrinter.printResults();
                 synchronized (printed) {
                     printed.setTrue();
                     printed.notify();
@@ -2572,8 +2566,13 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         } catch (Exception e) {
             if (Objects.equals(JobId.INVALID, jobId.getValue())) {
                 // compilation failed
-                ResultUtil.printStatus(sessionOutput, AbstractQueryApiServlet.ResultStatus.FAILED);
-                ResultUtil.printError(sessionOutput.out(), e);
+                responsePrinter.addResultPrinter(new StatusPrinter(AbstractQueryApiServlet.ResultStatus.FAILED));
+                responsePrinter.addResultPrinter(new ErrorsPrinter(Collections.singletonList(ExecutionError.of(e))));
+                try {
+                    responsePrinter.printResults();
+                } catch (HyracksDataException ex) {
+                    LOGGER.error("failed to print result", ex);
+                }
             } else {
                 GlobalConfig.ASTERIX_LOGGER.log(Level.ERROR,
                         resultDelivery.name() + " job with id " + jobId.getValue() + " " + "failed", e);
@@ -2909,6 +2908,11 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     @Override
     public ExecutionPlans getExecutionPlans() {
         return apiFramework.getExecutionPlans();
+    }
+
+    @Override
+    public IResponsePrinter getResponsePrinter() {
+        return responsePrinter;
     }
 
     public String getActiveDataverse(Identifier dataverse) {

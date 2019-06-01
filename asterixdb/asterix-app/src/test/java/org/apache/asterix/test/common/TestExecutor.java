@@ -145,6 +145,7 @@ public class TestExecutor {
     private static final Pattern MAX_RESULT_READS_PATTERN =
             Pattern.compile("maxresultreads=(\\d+)(\\D|$)", Pattern.MULTILINE);
     private static final Pattern HTTP_REQUEST_TYPE = Pattern.compile("requesttype=(.*)", Pattern.MULTILINE);
+    private static final Pattern EXTRACT_RESULT_TYPE = Pattern.compile("extractresult=(.*)", Pattern.MULTILINE);
     private static final String NC_ENDPOINT_PREFIX = "nc:";
     public static final int TRUNCATE_THRESHOLD = 16384;
     public static final Set<String> NON_CANCELLABLE =
@@ -162,6 +163,7 @@ public class TestExecutor {
 
     private static final HashMap<Integer, ITestServer> runningTestServers = new HashMap<>();
     private static Map<String, InetSocketAddress> ncEndPoints;
+    private static List<InetSocketAddress> ncEndPointsList = new ArrayList<>();
     private static Map<String, InetSocketAddress> replicationAddress;
 
     private final List<Charset> allCharsets;
@@ -202,6 +204,7 @@ public class TestExecutor {
 
     public void setNcEndPoints(Map<String, InetSocketAddress> ncEndPoints) {
         this.ncEndPoints = ncEndPoints;
+        ncEndPointsList.addAll(ncEndPoints.values());
     }
 
     public void setNcReplicationAddress(Map<String, InetSocketAddress> replicationAddress) {
@@ -1222,11 +1225,15 @@ public class TestExecutor {
         final List<Parameter> params = extractParameters(statement);
         final Optional<String> body = extractBody(statement);
         final Predicate<Integer> statusCodePredicate = extractStatusCodePredicate(statement);
+        final boolean extracResult = isExtracResult(statement);
         InputStream resultStream;
         if ("http".equals(extension)) {
             resultStream = executeHttp(reqType, variablesReplaced, fmt, params, statusCodePredicate, body);
         } else if ("uri".equals(extension)) {
             resultStream = executeURI(reqType, URI.create(variablesReplaced), fmt, params, statusCodePredicate, body);
+            if (extracResult) {
+                resultStream = ResultExtractor.extract(resultStream, UTF_8);
+            }
         } else {
             throw new IllegalArgumentException("Unexpected format for method " + reqType + ": " + extension);
         }
@@ -1572,6 +1579,11 @@ public class TestExecutor {
         return m.find() ? m.group(1) : null;
     }
 
+    private static boolean isExtracResult(String statement) {
+        Matcher m = EXTRACT_RESULT_TYPE.matcher(statement);
+        return m.find() ? Boolean.valueOf(m.group(1)) : false;
+    }
+
     private static boolean isJsonEncoded(String httpRequestType) throws Exception {
         if (httpRequestType == null || httpRequestType.isEmpty()) {
             return true;
@@ -1799,7 +1811,10 @@ public class TestExecutor {
 
     protected URI createEndpointURI(String path, String query) throws URISyntaxException {
         InetSocketAddress endpoint;
-        if (isCcEndPointPath(path)) {
+        if (!ncEndPointsList.isEmpty() && path.equals(Servlets.QUERY_SERVICE)) {
+            int endpointIdx = Math.abs(endpointSelector++ % ncEndPointsList.size());
+            endpoint = ncEndPointsList.get(endpointIdx);
+        } else if (isCcEndPointPath(path)) {
             int endpointIdx = Math.abs(endpointSelector++ % endpoints.size());
             endpoint = endpoints.get(endpointIdx);
         } else {

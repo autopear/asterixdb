@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.om.functions;
 
+import static org.apache.asterix.om.functions.BuiltinFunctions.WindowFunctionProperty.ALLOW_RESPECT_IGNORE_NULLS;
 import static org.apache.asterix.om.functions.BuiltinFunctions.WindowFunctionProperty.HAS_LIST_ARG;
 import static org.apache.asterix.om.functions.BuiltinFunctions.WindowFunctionProperty.INJECT_ORDER_ARGS;
 import static org.apache.asterix.om.functions.BuiltinFunctions.WindowFunctionProperty.MATERIALIZE_PARTITION;
@@ -67,6 +68,8 @@ import org.apache.asterix.om.typecomputer.impl.AnyTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ArrayIfNullTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ArrayRangeTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ArrayRepeatTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.BitMultipleValuesTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.BitValuePositionFlagTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.BooleanFunctionTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.BooleanOnlyTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.BooleanOrMissingTypeComputer;
@@ -115,6 +118,7 @@ import org.apache.asterix.om.typecomputer.impl.PropagateTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.RecordAddFieldsTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.RecordMergeTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.RecordRemoveFieldsTypeComputer;
+import org.apache.asterix.om.typecomputer.impl.ScalarArrayAggTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.ScalarVersionOfAggregateResultType;
 import org.apache.asterix.om.typecomputer.impl.SleepTypeComputer;
 import org.apache.asterix.om.typecomputer.impl.StringBooleanTypeComputer;
@@ -187,7 +191,6 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "get-item", 2);
     public static final FunctionIdentifier ANY_COLLECTION_MEMBER =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "any-collection-member", 1);
-    public static final FunctionIdentifier LISTIFY = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "listify", 1);
     public static final FunctionIdentifier LEN = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "len", 1);
     public static final FunctionIdentifier CONCAT_NON_NULL =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "concat-non-null", FunctionIdentifier.VARARGS);
@@ -254,6 +257,8 @@ public class BuiltinFunctions {
     // objects
     public static final FunctionIdentifier RECORD_MERGE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-merge", 2);
+    public static final FunctionIdentifier RECORD_MERGE_IGNORE_DUPLICATES =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-merge-ignore-duplicates", 2);
     public static final FunctionIdentifier RECORD_CONCAT =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "object-concat", FunctionIdentifier.VARARGS);
     public static final FunctionIdentifier RECORD_CONCAT_STRICT =
@@ -379,6 +384,32 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier FIND_BINARY_FROM =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "find-binary", 3);
 
+    // bitwise functions
+    public static final FunctionIdentifier BIT_AND =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bitand", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier BIT_OR =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bitor", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier BIT_XOR =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bitxor", FunctionIdentifier.VARARGS);
+    public static final FunctionIdentifier BIT_NOT = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bitnot", 1);
+    public static final FunctionIdentifier BIT_COUNT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bitcount", 1);
+    public static final FunctionIdentifier BIT_SET = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bitset", 2);
+    public static final FunctionIdentifier BIT_CLEAR =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bitclear", 2);
+    public static final FunctionIdentifier BIT_SHIFT_WITHOUT_ROTATE_FLAG =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bitshift", 2);
+    public static final FunctionIdentifier BIT_SHIFT_WITH_ROTATE_FLAG =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bitshift", 3);
+    public static final FunctionIdentifier BIT_TEST_WITHOUT_ALL_FLAG =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bittest", 2);
+    public static final FunctionIdentifier BIT_TEST_WITH_ALL_FLAG =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "bittest", 3);
+    public static final FunctionIdentifier IS_BIT_SET_WITHOUT_ALL_FLAG =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "isbitset", 2);
+    public static final FunctionIdentifier IS_BIT_SET_WITH_ALL_FLAG =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "isbitset", 3);
+
     // String functions
     public static final FunctionIdentifier STRING_EQUAL =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "string-equal", 2);
@@ -472,6 +503,7 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "make-field-name-handle", 1);
 
     // aggregate functions
+    public static final FunctionIdentifier LISTIFY = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "listify", 1);
     public static final FunctionIdentifier AVG = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-avg", 1);
     public static final FunctionIdentifier COUNT = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-count", 1);
     public static final FunctionIdentifier SUM = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-sum", 1);
@@ -554,6 +586,8 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier NULL_WRITER =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-null-writer", 1);
 
+    public static final FunctionIdentifier SCALAR_ARRAYAGG =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "arrayagg", 1);
     public static final FunctionIdentifier SCALAR_AVG = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "avg", 1);
     public static final FunctionIdentifier SCALAR_COUNT =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "count", 1);
@@ -676,6 +710,10 @@ public class BuiltinFunctions {
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "intermediate-kurtosis-serial", 1);
 
     // distinct aggregate functions
+    public static final FunctionIdentifier LISTIFY_DISTINCT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "listify-distinct", 1);
+    public static final FunctionIdentifier SCALAR_ARRAYAGG_DISTINCT =
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "arrayagg-distinct", 1);
     public static final FunctionIdentifier COUNT_DISTINCT =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "agg-count-distinct", 1);
     public static final FunctionIdentifier SCALAR_COUNT_DISTINCT =
@@ -974,7 +1012,7 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier FIRST_VALUE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "first_value", 1);
     public static final FunctionIdentifier FIRST_VALUE_IMPL =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "first-value-impl", 1);
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "first-value-impl", 2);
     public static final FunctionIdentifier LAG =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "lag", FunctionIdentifier.VARARGS);
     public static final FunctionIdentifier LAG_IMPL =
@@ -982,7 +1020,7 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier LAST_VALUE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "last_value", 1);
     public static final FunctionIdentifier LAST_VALUE_IMPL =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "last-value-impl", 1);
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "last-value-impl", 2);
     public static final FunctionIdentifier LEAD =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "lead", FunctionIdentifier.VARARGS);
     public static final FunctionIdentifier LEAD_IMPL =
@@ -990,7 +1028,7 @@ public class BuiltinFunctions {
     public static final FunctionIdentifier NTH_VALUE =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "nth_value", 2);
     public static final FunctionIdentifier NTH_VALUE_IMPL =
-            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "nth-value-impl", 2);
+            new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "nth-value-impl", 3);
     public static final FunctionIdentifier NTILE = new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "ntile", 1);
     public static final FunctionIdentifier NTILE_IMPL =
             new FunctionIdentifier(FunctionConstants.ASTERIX_NS, "ntile-impl", FunctionIdentifier.VARARGS);
@@ -1628,7 +1666,6 @@ public class BuiltinFunctions {
         addFunction(INT64_CONSTRUCTOR, AInt64TypeComputer.INSTANCE, true);
         addFunction(LEN, AInt64TypeComputer.INSTANCE, true);
         addFunction(LINE_CONSTRUCTOR, ALineTypeComputer.INSTANCE, true);
-        addPrivateFunction(LISTIFY, OrderedListConstructorTypeComputer.INSTANCE, true);
         addPrivateFunction(MAKE_FIELD_INDEX_HANDLE, null, true);
         addPrivateFunction(MAKE_FIELD_NAME_HANDLE, null, true);
 
@@ -1674,6 +1711,20 @@ public class BuiltinFunctions {
         addFunction(SUBBINARY_FROM_TO, ABinaryTypeComputer.INSTANCE, true);
         addFunction(FIND_BINARY, AInt64TypeComputer.INSTANCE, true);
         addFunction(FIND_BINARY_FROM, AInt64TypeComputer.INSTANCE, true);
+
+        addFunction(BIT_AND, BitMultipleValuesTypeComputer.INSTANCE_INT64, true);
+        addFunction(BIT_OR, BitMultipleValuesTypeComputer.INSTANCE_INT64, true);
+        addFunction(BIT_XOR, BitMultipleValuesTypeComputer.INSTANCE_INT64, true);
+        addFunction(BIT_NOT, BitMultipleValuesTypeComputer.INSTANCE_INT64, true);
+        addFunction(BIT_COUNT, BitMultipleValuesTypeComputer.INSTANCE_INT32, true);
+        addFunction(BIT_SET, BitValuePositionFlagTypeComputer.INSTANCE_SET_CLEAR, true);
+        addFunction(BIT_CLEAR, BitValuePositionFlagTypeComputer.INSTANCE_SET_CLEAR, true);
+        addFunction(BIT_SHIFT_WITHOUT_ROTATE_FLAG, BitValuePositionFlagTypeComputer.INSTANCE_SHIFT_WITHOUT_FLAG, true);
+        addFunction(BIT_SHIFT_WITH_ROTATE_FLAG, BitValuePositionFlagTypeComputer.INSTANCE_SHIFT_WITH_FLAG, true);
+        addFunction(BIT_TEST_WITHOUT_ALL_FLAG, BitValuePositionFlagTypeComputer.INSTANCE_TEST_WITHOUT_FLAG, true);
+        addFunction(BIT_TEST_WITH_ALL_FLAG, BitValuePositionFlagTypeComputer.INSTANCE_TEST_WITH_FLAG, true);
+        addFunction(IS_BIT_SET_WITHOUT_ALL_FLAG, BitValuePositionFlagTypeComputer.INSTANCE_TEST_WITHOUT_FLAG, true);
+        addFunction(IS_BIT_SET_WITH_ALL_FLAG, BitValuePositionFlagTypeComputer.INSTANCE_TEST_WITH_FLAG, true);
 
         addFunction(STRING_CONSTRUCTOR, AStringTypeComputer.INSTANCE, true);
         addFunction(STRING_LIKE, BooleanFunctionTypeComputer.INSTANCE, true);
@@ -1749,6 +1800,8 @@ public class BuiltinFunctions {
         addFunction(NEGINF_IF, DoubleIfTypeComputer.INSTANCE, true);
 
         // Aggregate Functions
+        addPrivateFunction(LISTIFY, OrderedListConstructorTypeComputer.INSTANCE, true);
+        addFunction(SCALAR_ARRAYAGG, ScalarArrayAggTypeComputer.INSTANCE, true);
         addFunction(MAX, MinMaxAggTypeComputer.INSTANCE, true);
         addPrivateFunction(LOCAL_MAX, MinMaxAggTypeComputer.INSTANCE, true);
         addFunction(MIN, MinMaxAggTypeComputer.INSTANCE, true);
@@ -1961,6 +2014,8 @@ public class BuiltinFunctions {
         addPrivateFunction(SERIAL_INTERMEDIATE_KURTOSIS, LocalSingleVarStatisticsTypeComputer.INSTANCE, true);
 
         // Distinct aggregate functions
+        addFunction(LISTIFY_DISTINCT, OrderedListConstructorTypeComputer.INSTANCE, true);
+        addFunction(SCALAR_ARRAYAGG_DISTINCT, ScalarArrayAggTypeComputer.INSTANCE, true);
 
         addFunction(COUNT_DISTINCT, AInt64TypeComputer.INSTANCE, true);
         addFunction(SCALAR_COUNT_DISTINCT, AInt64TypeComputer.INSTANCE, true);
@@ -2181,6 +2236,7 @@ public class BuiltinFunctions {
 
         // objects
         addFunction(RECORD_MERGE, RecordMergeTypeComputer.INSTANCE, true);
+        addPrivateFunction(RECORD_MERGE_IGNORE_DUPLICATES, RecordMergeTypeComputer.INSTANCE_IGNORE_DUPLICATES, true);
         addFunction(RECORD_CONCAT, OpenARecordTypeComputer.INSTANCE, true);
         addPrivateFunction(RECORD_CONCAT_STRICT, OpenARecordTypeComputer.INSTANCE, true);
         addFunction(ADD_FIELDS, RecordAddFieldsTypeComputer.INSTANCE, true);
@@ -2631,13 +2687,19 @@ public class BuiltinFunctions {
         addIntermediateAgg(SERIAL_GLOBAL_SUM, SERIAL_INTERMEDIATE_SUM);
         addGlobalAgg(SERIAL_SUM, SERIAL_GLOBAL_SUM);
 
-        // SUM Distinct
+        // SUM DISTINCT
         addDistinctAgg(SUM_DISTINCT, SUM);
         addScalarAgg(SUM_DISTINCT, SCALAR_SUM_DISTINCT);
 
-        // LISTIFY
+        // LISTIFY/ARRAY_AGG
 
         addAgg(LISTIFY);
+        addScalarAgg(LISTIFY, SCALAR_ARRAYAGG);
+
+        // LISTIFY/ARRAY_AGG DISTINCT
+
+        addDistinctAgg(LISTIFY_DISTINCT, LISTIFY);
+        addScalarAgg(LISTIFY_DISTINCT, SCALAR_ARRAYAGG_DISTINCT);
 
         // SQL Aggregate Functions
 
@@ -2967,18 +3029,20 @@ public class BuiltinFunctions {
         /** Whether order by expressions must be injected as arguments */
         INJECT_ORDER_ARGS,
         /** Whether a running aggregate requires partition materialization runtime */
-        MATERIALIZE_PARTITION
+        MATERIALIZE_PARTITION,
+        /** Whether (RESPECT | IGNORE) NULLS modifier is allowed */
+        ALLOW_RESPECT_IGNORE_NULLS,
     }
 
     static {
         // Window functions
         addWindowFunction(CUME_DIST, CUME_DIST_IMPL, NO_FRAME_CLAUSE, MATERIALIZE_PARTITION);
         addWindowFunction(DENSE_RANK, DENSE_RANK_IMPL, NO_FRAME_CLAUSE, INJECT_ORDER_ARGS);
-        addWindowFunction(FIRST_VALUE, FIRST_VALUE_IMPL, HAS_LIST_ARG);
-        addWindowFunction(LAG, LAG_IMPL, NO_FRAME_CLAUSE, HAS_LIST_ARG);
-        addWindowFunction(LAST_VALUE, LAST_VALUE_IMPL, HAS_LIST_ARG);
-        addWindowFunction(LEAD, LEAD_IMPL, NO_FRAME_CLAUSE, HAS_LIST_ARG);
-        addWindowFunction(NTH_VALUE, NTH_VALUE_IMPL, HAS_LIST_ARG);
+        addWindowFunction(FIRST_VALUE, FIRST_VALUE_IMPL, HAS_LIST_ARG, ALLOW_RESPECT_IGNORE_NULLS);
+        addWindowFunction(LAG, LAG_IMPL, NO_FRAME_CLAUSE, HAS_LIST_ARG, ALLOW_RESPECT_IGNORE_NULLS);
+        addWindowFunction(LAST_VALUE, LAST_VALUE_IMPL, HAS_LIST_ARG, ALLOW_RESPECT_IGNORE_NULLS);
+        addWindowFunction(LEAD, LEAD_IMPL, NO_FRAME_CLAUSE, HAS_LIST_ARG, ALLOW_RESPECT_IGNORE_NULLS);
+        addWindowFunction(NTH_VALUE, NTH_VALUE_IMPL, HAS_LIST_ARG, ALLOW_RESPECT_IGNORE_NULLS);
         addWindowFunction(NTILE, NTILE_IMPL, NO_FRAME_CLAUSE, MATERIALIZE_PARTITION);
         addWindowFunction(PERCENT_RANK, PERCENT_RANK_IMPL, NO_FRAME_CLAUSE, INJECT_ORDER_ARGS, MATERIALIZE_PARTITION);
         addWindowFunction(RANK, RANK_IMPL, NO_FRAME_CLAUSE, INJECT_ORDER_ARGS);

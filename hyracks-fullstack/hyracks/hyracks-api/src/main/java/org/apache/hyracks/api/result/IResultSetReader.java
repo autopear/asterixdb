@@ -26,4 +26,11 @@ public interface IResultSetReader {
     Status getResultStatus();
 
     int read(IFrame frame) throws HyracksDataException;
+
+    /**
+     * Gets the result metadata
+     *
+     * @return the result metadata
+     */
+    IResultMetadata getResultMetadata();
 }

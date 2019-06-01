@@ -485,7 +485,7 @@ public class LogicalOperatorPrettyPrintVisitor extends AbstractLogicalOperatorPr
 
     @Override
     public Void visitWindowOperator(WindowOperator op, Integer indent) throws AlgebricksException {
-        addIndent(indent).append("window ").append(str(op.getVariables())).append(" <- ");
+        addIndent(indent).append("window-aggregate ").append(str(op.getVariables())).append(" <- ");
         pprintExprList(op.getExpressions(), indent);
         if (!op.getPartitionExpressions().isEmpty()) {
             buffer.append(" partition ");
@@ -536,10 +536,15 @@ public class LogicalOperatorPrettyPrintVisitor extends AbstractLogicalOperatorPr
                     pprintExprList(frameExcludeExpressions, indent);
                 }
             }
-            Mutable<ILogicalExpression> frameOffset = op.getFrameOffset();
-            if (frameOffset.getValue() != null) {
+            Mutable<ILogicalExpression> frameExcludeUnaryExpression = op.getFrameExcludeUnaryExpression();
+            if (frameExcludeUnaryExpression.getValue() != null) {
+                buffer.append(" exclude unary ");
+                buffer.append(frameExcludeUnaryExpression.getValue().accept(exprVisitor, indent));
+            }
+            Mutable<ILogicalExpression> frameOffsetExpression = op.getFrameOffsetExpression();
+            if (frameOffsetExpression.getValue() != null) {
                 buffer.append(" offset ");
-                buffer.append(frameOffset.getValue().accept(exprVisitor, indent));
+                buffer.append(frameOffsetExpression.getValue().accept(exprVisitor, indent));
             }
             int frameMaxObjects = op.getFrameMaxObjects();
             if (frameMaxObjects != -1) {

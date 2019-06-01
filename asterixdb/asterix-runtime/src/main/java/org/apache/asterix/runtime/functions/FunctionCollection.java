@@ -19,12 +19,10 @@
 
 package org.apache.asterix.runtime.functions;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
 
-import org.apache.asterix.common.utils.CodeGenHelper;
 import org.apache.asterix.om.functions.IFunctionCollection;
 import org.apache.asterix.om.functions.IFunctionDescriptorFactory;
 import org.apache.asterix.om.functions.IFunctionRegistrant;
@@ -33,6 +31,8 @@ import org.apache.asterix.runtime.aggregates.collections.LastElementAggregateDes
 import org.apache.asterix.runtime.aggregates.collections.ListifyAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.collections.LocalFirstElementAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.collections.NullWriterAggregateDescriptor;
+import org.apache.asterix.runtime.aggregates.scalar.ScalarArrayAggAggregateDescriptor;
+import org.apache.asterix.runtime.aggregates.scalar.ScalarArrayAggDistinctAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarAvgAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarAvgDistinctAggregateDescriptor;
 import org.apache.asterix.runtime.aggregates.scalar.ScalarCountAggregateDescriptor;
@@ -440,6 +440,19 @@ import org.apache.asterix.runtime.evaluators.functions.binary.ParseBinaryDescrip
 import org.apache.asterix.runtime.evaluators.functions.binary.PrintBinaryDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.binary.SubBinaryFromDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.binary.SubBinaryFromToDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitAndDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitClearDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitCountDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitNotDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitOrDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitSetDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitShiftWithRotateFlagDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitShiftWithoutRotateFlagDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitTestWithAllFlagDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitTestWithoutAllFlagDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.BitXorDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.IsBitSetWithAllFlagDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.bitwise.IsBitSetWithoutAllFlagDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.FieldAccessByIndexDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.FieldAccessByNameDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.FieldAccessNestedDescriptor;
@@ -452,6 +465,7 @@ import org.apache.asterix.runtime.evaluators.functions.records.RecordConcatDescr
 import org.apache.asterix.runtime.evaluators.functions.records.RecordConcatStrictDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.RecordLengthDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.RecordMergeDescriptor;
+import org.apache.asterix.runtime.evaluators.functions.records.RecordMergeIgnoreDuplicatesDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.RecordNamesDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.RecordPairsDescriptor;
 import org.apache.asterix.runtime.evaluators.functions.records.RecordPutDescriptor;
@@ -531,18 +545,11 @@ import org.apache.asterix.runtime.unnestingfunctions.std.SubsetCollectionDescrip
 public final class FunctionCollection implements IFunctionCollection {
     private static final long serialVersionUID = -8308873930697425307L;
 
-    private static final String FACTORY = "FACTORY";
-
     private final ArrayList<IFunctionDescriptorFactory> descriptorFactories = new ArrayList<>();
 
     @Override
     public void add(IFunctionDescriptorFactory descriptorFactory) {
         descriptorFactories.add(descriptorFactory);
-    }
-
-    @Override
-    public void addGenerated(IFunctionDescriptorFactory descriptorFactory) {
-        add(getGeneratedFunctionDescriptorFactory(descriptorFactory.createFunctionDescriptor().getClass()));
     }
 
     public static FunctionCollection createDefaultFunctionCollection() {
@@ -663,6 +670,8 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(SerializableGlobalSkewnessAggregateDescriptor.FACTORY);
 
         // scalar aggregates
+        fc.add(ScalarArrayAggAggregateDescriptor.FACTORY);
+        fc.add(ScalarArrayAggDistinctAggregateDescriptor.FACTORY);
         fc.add(ScalarCountAggregateDescriptor.FACTORY);
         fc.add(ScalarCountDistinctAggregateDescriptor.FACTORY);
         fc.add(ScalarAvgAggregateDescriptor.FACTORY);
@@ -914,6 +923,21 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(FindBinaryDescriptor.FACTORY);
         fc.add(FindBinaryFromDescriptor.FACTORY);
 
+        // Bitwise functions
+        fc.add(BitAndDescriptor.FACTORY);
+        fc.add(BitOrDescriptor.FACTORY);
+        fc.add(BitXorDescriptor.FACTORY);
+        fc.add(BitNotDescriptor.FACTORY);
+        fc.add(BitCountDescriptor.FACTORY);
+        fc.add(BitSetDescriptor.FACTORY);
+        fc.add(BitClearDescriptor.FACTORY);
+        fc.add(BitShiftWithoutRotateFlagDescriptor.FACTORY);
+        fc.add(BitShiftWithRotateFlagDescriptor.FACTORY);
+        fc.add(BitTestWithoutAllFlagDescriptor.FACTORY);
+        fc.add(BitTestWithAllFlagDescriptor.FACTORY);
+        fc.add(IsBitSetWithoutAllFlagDescriptor.FACTORY);
+        fc.add(IsBitSetWithAllFlagDescriptor.FACTORY);
+
         // String functions
         fc.add(StringLikeDescriptor.FACTORY);
         fc.add(StringContainsDescriptor.FACTORY);
@@ -1007,6 +1031,7 @@ public final class FunctionCollection implements IFunctionCollection {
         fc.add(GetRecordFieldValueDescriptor.FACTORY);
         fc.add(DeepEqualityDescriptor.FACTORY);
         fc.add(RecordMergeDescriptor.FACTORY);
+        fc.add(RecordMergeIgnoreDuplicatesDescriptor.FACTORY);
         fc.add(RecordAddFieldsDescriptor.FACTORY);
         fc.add(RecordRemoveFieldsDescriptor.FACTORY);
         fc.add(RecordLengthDescriptor.FACTORY);
@@ -1123,25 +1148,5 @@ public final class FunctionCollection implements IFunctionCollection {
 
     public List<IFunctionDescriptorFactory> getFunctionDescriptorFactories() {
         return descriptorFactories;
-    }
-
-    /**
-     * Gets the generated function descriptor factory from an <code>IFunctionDescriptor</code>
-     * implementation class.
-     *
-     * @param cl,
-     *            the class of an <code>IFunctionDescriptor</code> implementation.
-     * @return the IFunctionDescriptorFactory instance defined in the class.
-     */
-    private static IFunctionDescriptorFactory getGeneratedFunctionDescriptorFactory(Class<?> cl) {
-        try {
-            String className =
-                    CodeGenHelper.getGeneratedClassName(cl.getName(), CodeGenHelper.DEFAULT_SUFFIX_FOR_GENERATED_CLASS);
-            Class<?> generatedCl = cl.getClassLoader().loadClass(className);
-            Field factory = generatedCl.getDeclaredField(FACTORY);
-            return (IFunctionDescriptorFactory) factory.get(null);
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
     }
 }
