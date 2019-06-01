@@ -53,6 +53,14 @@ public interface ILSMDiskComponent extends ILSMComponent {
      */
     long getLevel();
 
+    byte[] getMinKey() throws HyracksDataException;
+
+    void setMinKey(byte[] key) throws HyracksDataException;
+
+    byte[] getMaxKey() throws HyracksDataException;
+
+    void setMaxKey(byte[] key) throws HyracksDataException;
+
     /**
      * @return the level sequence of the component
      */

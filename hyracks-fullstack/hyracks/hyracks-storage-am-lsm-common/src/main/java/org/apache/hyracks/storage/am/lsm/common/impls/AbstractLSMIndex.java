@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.lang.Math;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -1026,7 +1027,6 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     public final List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException {
         ILSMIndexAccessor accessor = operation.getAccessor();
         ILSMIndexOperationContext opCtx = accessor.getOpContext();
-        LOGGER.info("[merge]\texecuted");
         return opCtx.getOperation() == IndexOperation.DELETE_COMPONENTS ? Collections.emptyList() : doMerge(operation);
     }
 
@@ -1107,5 +1107,18 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     public long getMaxLevel() {
         return maxLevels;
+    }
+
+    public static byte[] getTupleKey(ITupleReference tuple) {
+        if (tuple.getFieldCount() < 1) {
+            return null;
+        }
+        int s = tuple.getFieldStart(0);
+        int l = tuple.getFieldLength(0);
+        byte[] data = tuple.getFieldData(0);
+        if (s + l >= data.length) {
+            return null;
+        }
+        return Arrays.copyOfRange(data, s, s + l);
     }
 }

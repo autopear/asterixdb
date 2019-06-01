@@ -59,7 +59,18 @@ public class CorrelatedPrefixMergePolicy extends PrefixMergePolicy {
         // a merge all of the current candidates into a new single component.
 
         if (fullMergeIsRequested || index.isPrimaryIndex()) {
-            super.diskComponentAdded(index, newComponents, fullMergeIsRequested, wasMerge);
+            List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
+
+            if (!areComponentsReadableWritableState(immutableComponents)) {
+                return;
+            }
+
+            if (fullMergeIsRequested) {
+                index.createAccessor(NoOpIndexAccessParameters.INSTANCE).scheduleFullMerge();
+                return;
+            }
+
+            scheduleMerge(index);
         }
     }
 
@@ -78,7 +89,6 @@ public class CorrelatedPrefixMergePolicy extends PrefixMergePolicy {
 
     }
 
-    @Override
     protected boolean scheduleMerge(final ILSMIndex index) throws HyracksDataException {
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
         // Reverse the components order so that we look at components from oldest to newest.

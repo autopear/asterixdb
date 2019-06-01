@@ -27,14 +27,13 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
+import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
-import org.apache.hyracks.storage.common.MultiComparator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -78,7 +77,6 @@ public class LevelMergePolicy implements ILSMMergePolicy {
         Collections.sort(allLevels, Collections.reverseOrder());
         for (Long level : allLevels) {
             ArrayList<ILSMDiskComponent> levelComponents = levels.get(level);
-            LOGGER.info("[check] " + level + ": " + getComponents(levelComponents));
             if (level == 0) {
                 if (levelComponents.size() >= level0Components) {
                     Map<Long, ILSMDiskComponent> level0Map = new HashMap<>();
@@ -101,7 +99,6 @@ public class LevelMergePolicy implements ILSMMergePolicy {
                     } else {
                         pickedComponent = pickOldestComponent(levelComponents);
                     }
-                    LOGGER.info("[picked]\t" + getComponentBaseName(pickedComponent));
                     List<ILSMDiskComponent> componentsToMerge =
                             findOverlappedComponents(pickedComponent, levels.getOrDefault(level + 1, null));
                     return componentsToMerge;
@@ -159,42 +156,66 @@ public class LevelMergePolicy implements ILSMMergePolicy {
         Collections.sort(sids, Collections.reverseOrder());
         ArrayList<ILSMDiskComponent> componentsToMerge = new ArrayList<>();
         componentsToMerge.add(component);
-        if (component.getLSMComponentFilter() == null) {
-            for (int i = 0; i < sids.size(); i++) {
-                ILSMDiskComponent c = levelMap.get(sids.get(i));
+        for (int i = 0; i < sids.size(); i++) {
+            ILSMDiskComponent c = levelMap.get(sids.get(i));
+            if (isOverlapped(component, c)) {
                 componentsToMerge.add(1, c);
             }
-        } else {
-            MultiComparator filterCmp =
-                    MultiComparator.create(component.getLSMComponentFilter().getFilterCmpFactories());
-            for (int i = 0; i < sids.size(); i++) {
-                ILSMDiskComponent c = levelMap.get(sids.get(i));
-                if (isOverlapped(filterCmp, component, c)) {
-                    componentsToMerge.add(1, c);
-                }
-            }
         }
+
+        //        if (component.getLSMComponentFilter() == null) {
+        //            for (int i = 0; i < sids.size(); i++) {
+        //                ILSMDiskComponent c = levelMap.get(sids.get(i));
+        //                componentsToMerge.add(1, c);
+        //            }
+        //        } else {
+        //            MultiComparator filterCmp =
+        //                    MultiComparator.create(component.getLSMComponentFilter().getFilterCmpFactories());
+        //            for (int i = 0; i < sids.size(); i++) {
+        //                ILSMDiskComponent c = levelMap.get(sids.get(i));
+        //                if (isOverlapped(component, c)) {
+        //                    componentsToMerge.add(1, c);
+        //                }
+        //            }
+        //        }
         LOGGER.info(
                 "[LevelMerge]\tOverlapped: " + getComponents(componentsToMerge) + "\tAll " + getComponents(components));
         return componentsToMerge;
     }
 
-    private boolean isOverlapped(MultiComparator filterCmp, ILSMDiskComponent c1, ILSMDiskComponent c2) {
-        ITupleReference minTuple1 = c1.getLSMComponentFilter().getMinTuple();
-        ITupleReference maxTuple1 = c1.getLSMComponentFilter().getMaxTuple();
-        ITupleReference minTuple2 = c2.getLSMComponentFilter().getMinTuple();
-        ITupleReference maxTuple2 = c2.getLSMComponentFilter().getMaxTuple();
+    private boolean isOverlapped(ILSMDiskComponent c1, ILSMDiskComponent c2) {
         try {
-            if (filterCmp.compare(minTuple1, maxTuple1) > 0 || filterCmp.compare(minTuple2, maxTuple2) > 0) {
+            byte[] minKey1 = c1.getMinKey();
+            byte[] maxKey1 = c1.getMaxKey();
+            byte[] minKey2 = c2.getMinKey();
+            byte[] maxKey2 = c2.getMaxKey();
+            if (minKey1 == null || maxKey1 == null || minKey2 == null || maxKey2 == null) {
                 return true;
             }
-            if (filterCmp.compare(minTuple1, maxTuple2) > 0 || filterCmp.compare(minTuple2, maxTuple1) > 0) {
+
+            if (ByteArrayPointable.compare(maxKey1, 0, maxKey1.length, minKey2, 0, minKey2.length) < 0
+                    || ByteArrayPointable.compare(maxKey2, 0, maxKey2.length, minKey1, 0, minKey1.length) < 0) {
                 return false;
             }
         } catch (HyracksDataException ex) {
             return true;
         }
         return true;
+        //        ITupleReference minTuple1 = c1.getLSMComponentFilter().getMinTuple();
+        //        ITupleReference maxTuple1 = c1.getLSMComponentFilter().getMaxTuple();
+        //        ITupleReference minTuple2 = c2.getLSMComponentFilter().getMinTuple();
+        //        ITupleReference maxTuple2 = c2.getLSMComponentFilter().getMaxTuple();
+        //        try {
+        //            if (filterCmp.compare(minTuple1, maxTuple1) > 0 || filterCmp.compare(minTuple2, maxTuple2) > 0) {
+        //                return true;
+        //            }
+        //            if (filterCmp.compare(minTuple1, maxTuple2) > 0 || filterCmp.compare(minTuple2, maxTuple1) > 0) {
+        //                return false;
+        //            }
+        //        } catch (HyracksDataException ex) {
+        //            return true;
+        //        }
+        //        return true;
     }
 
     @Override

@@ -172,4 +172,22 @@ public class EmptyComponent implements ILSMDiskComponent {
     public int getReaderCount() {
         return 0;
     }
+
+    @Override
+    public byte[] getMinKey() throws HyracksDataException {
+        return null;
+    }
+
+    @Override
+    public void setMinKey(byte[] key) throws HyracksDataException {
+    }
+
+    @Override
+    public byte[] getMaxKey() throws HyracksDataException {
+        return null;
+    }
+
+    @Override
+    public void setMaxKey(byte[] key) throws HyracksDataException {
+    }
 }

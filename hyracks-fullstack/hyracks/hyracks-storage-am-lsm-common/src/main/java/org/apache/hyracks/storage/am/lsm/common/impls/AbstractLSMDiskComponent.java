@@ -21,6 +21,7 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.storage.am.common.api.IMetadataPageManager;
+import org.apache.hyracks.storage.am.common.freepage.MutableArrayValueReference;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
@@ -40,17 +41,30 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
 
     private final DiskComponentMetadata metadata;
     private final ArrayBackedValueStorage buffer = new ArrayBackedValueStorage(Long.BYTES);
+    private final ArrayBackedValueStorage minkeyBuf = new ArrayBackedValueStorage();
+    private final ArrayBackedValueStorage maxKeyBuf = new ArrayBackedValueStorage();
 
     // a variable cache of componentId stored in metadata.
     // since componentId is immutable, we do not want to read from metadata every time the componentId
     // is requested.
     private ILSMComponentId componentId;
 
+    private static final MutableArrayValueReference TUPLE_MIN_KEY =
+            new MutableArrayValueReference("Tuple_Key_Min".getBytes());
+
+    private static final MutableArrayValueReference TUPLE_MAX_KEY =
+            new MutableArrayValueReference("Tuple_Key_Max".getBytes());
+
+    private byte[] minKey;
+    private byte[] maxKey;
+
     public AbstractLSMDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
             ILSMComponentFilter filter) {
         super(lsmIndex, filter);
         state = ComponentState.READABLE_UNWRITABLE;
         metadata = new DiskComponentMetadata(mdPageManager);
+        minKey = null;
+        maxKey = null;
     }
 
     @Override
@@ -135,7 +149,6 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         }
         synchronized (this) {
             if (componentId == null) {
-                LOGGER.info("[getId]\t" + this.getLSMComponentPhysicalFiles());
                 componentId = LSMComponentIdUtils.readFrom(metadata, buffer);
             }
         }
@@ -247,5 +260,49 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     @Override
     public String toString() {
         return "{\"class\":" + getClass().getSimpleName() + "\", \"index\":" + getIndex().toString() + "}";
+    }
+
+    @Override
+    public byte[] getMinKey() throws HyracksDataException {
+        if (minKey != null) {
+            return minKey;
+        }
+        synchronized (this) {
+            if (minKey == null) {
+                metadata.get(TUPLE_MIN_KEY, minkeyBuf);
+                minKey = minkeyBuf.getByteArray();
+            }
+        }
+        return minKey;
+    }
+
+    @Override
+    public void setMinKey(byte[] key) throws HyracksDataException {
+        synchronized (this) {
+            metadata.put(TUPLE_MIN_KEY, new MutableArrayValueReference(key));
+            minKey = key;
+        }
+    }
+
+    @Override
+    public byte[] getMaxKey() throws HyracksDataException {
+        if (maxKey != null) {
+            return maxKey;
+        }
+        synchronized (this) {
+            if (maxKey == null) {
+                metadata.get(TUPLE_MAX_KEY, maxKeyBuf);
+                maxKey = maxKeyBuf.getByteArray();
+            }
+        }
+        return minKey;
+    }
+
+    @Override
+    public void setMaxKey(byte[] key) throws HyracksDataException {
+        synchronized (this) {
+            metadata.put(TUPLE_MAX_KEY, new MutableArrayValueReference(key));
+            maxKey = key;
+        }
     }
 }
