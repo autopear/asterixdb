@@ -67,6 +67,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor.ICursorFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicy;
 import org.apache.hyracks.storage.common.IIndexAccessParameters;
 import org.apache.hyracks.storage.common.IIndexAccessor;
 import org.apache.hyracks.storage.common.IIndexCursor;
@@ -74,6 +75,7 @@ import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 import org.apache.hyracks.util.trace.ITracer;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -92,6 +94,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
 
     // Primary and Primary Key LSMBTree has a Bloomfilter, but Secondary one doesn't have.
     private final boolean hasBloomFilter;
+
+    protected final LSMBTreeLevelMergePolicyHelper mergePolicyHelper;
 
     public LSMBTree(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,
             ITreeIndexFrameFactory interiorFrameFactory, ITreeIndexFrameFactory insertLeafFrameFactory,
@@ -123,6 +127,12 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
         this.needKeyDupCheck = needKeyDupCheck;
         this.hasBloomFilter = hasBloomFilter;
+        if (isLeveledLSM()) {
+            mergePolicyHelper = new LSMBTreeLevelMergePolicyHelper(this, levelTableSize);
+            levelMergePolicy.setHelper(mergePolicyHelper);
+        } else {
+            mergePolicyHelper = null;
+        }
     }
 
     // Without memory components
@@ -141,6 +151,12 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         this.needKeyDupCheck = needKeyDupCheck;
         this.hasBloomFilter = true;
         this.updateAware = false;
+        if (isLeveledLSM()) {
+            mergePolicyHelper = new LSMBTreeLevelMergePolicyHelper(this, levelTableSize);
+            levelMergePolicy.setHelper(mergePolicyHelper);
+        } else {
+            mergePolicyHelper = null;
+        }
     }
 
     public boolean hasBloomFilter() {
@@ -257,6 +273,20 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         ((LSMBTreeSearchCursor) cursor).open(ctx.getSearchInitialState(), pred);
     }
 
+    public static int compareBytes(byte[] thisBytes, byte[] thatBytes) {
+        for (int i = 0; i < thisBytes.length; i++) {
+            byte b1 = thisBytes[i];
+            byte b2 = thatBytes[i];
+            if (b1 < b2) {
+                return -1;
+            } else if (b1 > b2) {
+                return 1;
+            } else {
+            }
+        }
+        return 0;
+    }
+
     @Override
     public ILSMDiskComponent doFlush(ILSMIOOperation operation) throws HyracksDataException {
         LSMBTreeFlushOperation flushOp = (LSMBTreeFlushOperation) operation;
@@ -310,14 +340,16 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                         if (minKey == null) {
                             minKey = key;
                         } else {
-                            if (ByteArrayPointable.compare(key, 0, key.length, minKey, 0, minKey.length) < 0) {
+                            if (compareBytes(key, minKey) < 0) {
+                                //                            if (ByteArrayPointable.compare(key, 0, key.length, minKey, 0, minKey.length) < 0) {
                                 minKey = key;
                             }
                         }
                         if (maxKey == null) {
                             maxKey = key;
                         } else {
-                            if (ByteArrayPointable.compare(maxKey, 0, maxKey.length, key, 0, key.length) <= 0) {
+                            if (compareBytes(maxKey, key) <= 0) {
+                                //                            if (ByteArrayPointable.compare(maxKey, 0, maxKey.length, key, 0, key.length) <= 0) {
                                 maxKey = key;
                             }
                         }
@@ -623,6 +655,9 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
 
     @Override
     public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
+        if (isLeveledLSM()) {
+            return mergePolicyHelper.merge(operation);
+        }
         LSMBTreeMergeOperation mergeOp = (LSMBTreeMergeOperation) operation;
         //        if (isLeveled) {
         //            return leveledMerge(mergeOp.getMergingComponents(), mergeOp);
@@ -666,8 +701,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                                     if (minKey == null) {
                                         minKey = key;
                                     } else {
-                                        if (ByteArrayPointable.compare(key, 0, key.length, minKey, 0,
-                                                minKey.length) < 0) {
+                                        if (compareBytes(key, minKey) < 0) {
                                             minKey = key;
                                         }
                                     }
@@ -711,16 +745,14 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                                     if (minKey == null) {
                                         minKey = key;
                                     } else {
-                                        if (ByteArrayPointable.compare(key, 0, key.length, minKey, 0,
-                                                minKey.length) < 0) {
+                                        if (compareBytes(key, minKey) < 0) {
                                             minKey = key;
                                         }
                                     }
                                     if (maxKey == null) {
                                         maxKey = key;
                                     } else {
-                                        if (ByteArrayPointable.compare(maxKey, 0, maxKey.length, key, 0,
-                                                key.length) <= 0) {
+                                        if (compareBytes(maxKey, key) <= 0) {
                                             maxKey = key;
                                         }
                                     }
@@ -777,16 +809,14 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                                     if (minKey == null) {
                                         minKey = key;
                                     } else {
-                                        if (ByteArrayPointable.compare(key, 0, key.length, minKey, 0,
-                                                minKey.length) < 0) {
+                                        if (compareBytes(key, minKey) < 0) {
                                             minKey = key;
                                         }
                                     }
                                     if (maxKey == null) {
                                         maxKey = key;
                                     } else {
-                                        if (ByteArrayPointable.compare(maxKey, 0, maxKey.length, key, 0,
-                                                key.length) <= 0) {
+                                        if (compareBytes(maxKey, key) <= 0) {
                                             maxKey = key;
                                         }
                                     }
@@ -865,14 +895,14 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                                 if (minKey == null) {
                                     minKey = key;
                                 } else {
-                                    if (ByteArrayPointable.compare(key, 0, key.length, minKey, 0, minKey.length) < 0) {
+                                    if (compareBytes(key, minKey) < 0) {
                                         minKey = key;
                                     }
                                 }
                                 if (maxKey == null) {
                                     maxKey = key;
                                 } else {
-                                    if (ByteArrayPointable.compare(maxKey, 0, maxKey.length, key, 0, key.length) <= 0) {
+                                    if (compareBytes(maxKey, key) <= 0) {
                                         maxKey = key;
                                     }
                                 }
@@ -1055,11 +1085,20 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
     }
 
-    protected LSMComponentFileReferences getNextMergeFileReferencesAtLevel(long level, long start)
+    public LSMComponentFileReferences getNextMergeFileReferencesAtLevel(long level, long start)
             throws HyracksDataException {
         long maxId = getMaxLevelId(level);
         String newName = level + AbstractLSMIndexFileManager.DELIMITER + (start > maxId ? start : maxId + 1);
         return fileManager.getRelMergeFileReference(newName);
+    }
+
+    public ILSMDiskComponent createDiskComponent(FileReference insertFileReference,
+                                                    FileReference deleteIndexFileReference, FileReference bloomFilterFileRef, boolean createComponent)
+            throws HyracksDataException {
+        ILSMDiskComponent component = componentFactory.createComponent(this,
+                new LSMComponentFileReferences(insertFileReference, deleteIndexFileReference, bloomFilterFileRef));
+        component.activate(createComponent);
+        return component;
     }
 
     @Override

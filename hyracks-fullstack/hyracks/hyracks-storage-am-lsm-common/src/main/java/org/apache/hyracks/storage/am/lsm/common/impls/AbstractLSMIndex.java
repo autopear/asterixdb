@@ -114,6 +114,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     private int numScheduledFlushes = 0;
 
     protected final boolean isLeveled;
+    protected final LevelMergePolicy levelMergePolicy;
     protected final long level0Tables;
     protected final long level1Tables;
     protected final long levelTableSize;
@@ -154,12 +155,14 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         }
         if (mergePolicy instanceof LevelMergePolicy) {
             this.isLeveled = true;
+            levelMergePolicy = (LevelMergePolicy)mergePolicy;
             this.level0Tables = ((LevelMergePolicy) mergePolicy).getLevel0Components();
             this.level1Tables = ((LevelMergePolicy) mergePolicy).getLevel1Components();
             this.levelTableSize = level0Tables * diskBufferCache.getPageSize() * (long) diskBufferCache.getPageBudget();
             maxLevels = -1L;
         } else {
             this.isLeveled = false;
+            levelMergePolicy = null;
             this.level0Tables = 0L;
             this.level1Tables = 0L;
             this.levelTableSize = 0L;
@@ -199,12 +202,14 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         maxLevels = -1L;
         if (mergePolicy instanceof LevelMergePolicy) {
             this.isLeveled = true;
+            levelMergePolicy = (LevelMergePolicy)mergePolicy;
             this.level0Tables = ((LevelMergePolicy) mergePolicy).getLevel0Components();
             this.level1Tables = ((LevelMergePolicy) mergePolicy).getLevel1Components();
             this.levelTableSize = level0Tables * diskBufferCache.getPageSize() * (long) diskBufferCache.getPageBudget();
             maxLevels = -1L;
         } else {
             this.isLeveled = false;
+            levelMergePolicy = null;
             this.level0Tables = 0L;
             this.level1Tables = 0L;
             this.levelTableSize = 0L;
@@ -1110,7 +1115,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     }
 
     public static byte[] getTupleKey(ITupleReference tuple) {
-        if (tuple.getFieldCount() < 1) {
+        if (tuple == null || tuple.getFieldCount() < 1) {
             return null;
         }
         int s = tuple.getFieldStart(0);

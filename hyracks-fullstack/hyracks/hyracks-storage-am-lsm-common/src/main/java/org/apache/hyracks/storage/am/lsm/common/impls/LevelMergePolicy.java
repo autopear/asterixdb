@@ -34,12 +34,14 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
+import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class LevelMergePolicy implements ILSMMergePolicy {
     private static final Logger LOGGER = LogManager.getLogger();
 
+    protected ILevelMergePolicyHelper helper;
     protected String pickStrategy;
     protected long level0Components;
     protected long level1Components;
@@ -50,6 +52,10 @@ public class LevelMergePolicy implements ILSMMergePolicy {
 
     public long getLevel1Components() {
         return level1Components;
+    }
+
+    public void setHelper(ILevelMergePolicyHelper helper) {
+        this.helper = helper;
     }
 
     @Override
