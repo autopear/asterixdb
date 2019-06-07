@@ -56,7 +56,6 @@ public class LSMComponentIdUtils {
 
     public static void persist(ILSMComponentId id, IComponentMetadata metadata) throws HyracksDataException {
         LSMComponentId componentId = (LSMComponentId) id;
-        LOGGER.info("[persist]\t" + id);
         metadata.put(COMPONENT_ID_MIN_KEY, LongPointable.FACTORY.createPointable(componentId.getMinId()));
         metadata.put(COMPONENT_ID_MAX_KEY, LongPointable.FACTORY.createPointable(componentId.getMaxId()));
     }

@@ -19,6 +19,7 @@
 
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
@@ -32,6 +33,7 @@ import org.apache.hyracks.storage.am.btree.impls.BTree;
 import org.apache.hyracks.storage.am.common.api.IExtendedModificationOperationCallback;
 import org.apache.hyracks.storage.am.common.api.IIndexOperationContext;
 import org.apache.hyracks.storage.am.common.api.IPageManager;
+import org.apache.hyracks.storage.am.common.api.IPrimitiveValueProvider;
 import org.apache.hyracks.storage.am.common.api.ITreeIndex;
 import org.apache.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
@@ -51,6 +53,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
+import org.apache.hyracks.storage.am.rtree.frames.RTreeNSMLeafFrameFactory;
 import org.apache.hyracks.storage.am.rtree.impls.RTree;
 import org.apache.hyracks.storage.common.IIndexAccessParameters;
 import org.apache.hyracks.storage.common.IIndexCursor;
@@ -73,6 +76,10 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
     protected final ITreeIndexFrameFactory btreeInteriorFrameFactory;
     protected final ITreeIndexFrameFactory rtreeLeafFrameFactory;
     protected final ITreeIndexFrameFactory btreeLeafFrameFactory;
+
+    protected final LSMRTreeLevelMergePolicyHelper mergePolicyHelper;
+
+    protected final IPrimitiveValueProvider[] valueProviders;
 
     public AbstractLSMRTree(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,
             RTreeFrameFactory rtreeInteriorFrameFactory, RTreeFrameFactory rtreeLeafFrameFactory,
@@ -113,6 +120,13 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         this.comparatorFields = comparatorFields;
         this.linearizerArray = linearizerArray;
         this.isPointMBR = isPointMBR;
+        this.valueProviders = ((RTreeNSMLeafFrameFactory) rtreeLeafFrameFactory).getKeyValueProviders();
+        if (isLeveled) {
+            mergePolicyHelper = new LSMRTreeLevelMergePolicyHelper(this, levelTableSize);
+            levelMergePolicy.setHelper(mergePolicyHelper);
+        } else {
+            mergePolicyHelper = null;
+        }
     }
 
     /*
@@ -139,6 +153,13 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         this.comparatorFields = comparatorFields;
         this.linearizerArray = linearizerArray;
         this.isPointMBR = isPointMBR;
+        this.valueProviders = ((RTreeNSMLeafFrameFactory) rtreeLeafFrameFactory).getKeyValueProviders();
+        if (isLeveled) {
+            mergePolicyHelper = new LSMRTreeLevelMergePolicyHelper(this, levelTableSize);
+            levelMergePolicy.setHelper(mergePolicyHelper);
+        } else {
+            mergePolicyHelper = null;
+        }
     }
 
     @Override
@@ -252,5 +273,108 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         FileReference firstFile = firstTree.getFileReference();
         FileReference lastFile = lastTree.getFileReference();
         return fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
+    }
+
+    @Override
+    public boolean mayMatchSearchPredicate(ILSMDiskComponent component, ISearchPredicate predicate) {
+        double[] key = bytesToDoubles(getTupleKey(predicate.getLowKey()));
+        if (key == null) {
+            return true;
+        }
+        int dim = key.length / 2;
+        double[] minMBR = new double[dim];
+        double[] maxMBR = new double[dim];
+        System.arraycopy(key, 0, minMBR, 0, dim);
+        System.arraycopy(key, dim, maxMBR, 0, dim);
+
+        try {
+            double[] minCMBR = bytesToDoubles(component.getMinKey());
+            double[] maxCMBR = bytesToDoubles(component.getMaxKey());
+            if (LSMRTreeLevelMergePolicyHelper.isOverlapping(minMBR, maxMBR, minCMBR, maxCMBR)) {
+                return true;
+            }
+        } catch (HyracksDataException ex) {
+            return true;
+        }
+        return false;
+    }
+
+    public double[] getMBRFromTuple(ITupleReference tuple) {
+        if (tuple == null) {
+            return null;
+        }
+        int size = Math.min(tuple.getFieldCount(), valueProviders.length);
+        double[] mbr = new double[size];
+        for (int i = 0; i < size; i++) {
+            mbr[i] = valueProviders[i].getValue(tuple.getFieldData(i), tuple.getFieldStart(i));
+        }
+        return mbr;
+    }
+
+    public static double[] bytesToDoubles(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return null;
+        }
+        int dim = bytes.length / Double.SIZE;
+        double[] values = new double[dim];
+        for (int i = 0; i < dim; i++) {
+            values[i] = ByteBuffer.wrap(bytes, i * Double.SIZE, Double.SIZE).getDouble();
+        }
+        return values;
+    }
+
+    public static byte[] doublesToBytes(double[] values) {
+        if (values == null || values.length == 0) {
+            return null;
+        }
+        byte[] bytes = new byte[values.length * Double.SIZE];
+        for (int i = 0; i < values.length; i++) {
+            ByteBuffer.wrap(bytes, i * Double.SIZE, Double.SIZE).putDouble(values[i]);
+        }
+        return bytes;
+    }
+
+    @Override
+    public String componentToString(ILSMDiskComponent component) {
+        String basename;
+        String minKey;
+        String maxKey;
+        try {
+            basename = component.getId().toString();
+        } catch (HyracksDataException ex) {
+            basename = "Unknown";
+        }
+        try {
+            byte[] minData = component.getMinKey();
+            double[] minMBR = bytesToDoubles(minData);
+            if (minMBR == null) {
+                minKey = "Unknown";
+            } else {
+                minKey = "[ " + minMBR[0];
+                for (int i = 1; i < minMBR.length; i++) {
+                    minKey += ", " + minMBR[i];
+                }
+                minKey += " ]";
+            }
+        } catch (HyracksDataException ex) {
+            minKey = "Unknown";
+        }
+        try {
+            byte[] maxData = component.getMaxKey();
+            double[] maxMBR = bytesToDoubles(maxData);
+            if (maxMBR == null) {
+                maxKey = "Unknown";
+            } else {
+                maxKey = "[ " + maxMBR[0];
+                for (int i = 1; i < maxMBR.length; i++) {
+                    maxKey += ", " + maxMBR[i];
+                }
+                maxKey += " ]";
+            }
+        } catch (HyracksDataException ex) {
+            maxKey = "Unknown";
+        }
+        return "{ name: " + basename + ", size: " + component.getComponentSize() + ", min: " + minKey + ", max: "
+                + maxKey + " }";
     }
 }

@@ -26,7 +26,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper;
 
-
 public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolicyHelper {
     protected final AbstractLSMIndex index;
     protected final long tableSize;
@@ -34,6 +33,17 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
     public AbstractLevelMergePolicyHelper(AbstractLSMIndex index, long tableSize) {
         this.index = index;
         this.tableSize = tableSize;
+    }
+
+    public List<ILSMDiskComponent> getComponents(List<ILSMDiskComponent> components, long level) {
+        List<ILSMDiskComponent> ret = new ArrayList<>();
+        for (int i = 0; i < components.size(); i++) {
+            ILSMDiskComponent c = components.get(i);
+            if (c.getLevel() == level) {
+                ret.add(0, c);
+            }
+        }
+        return ret;
     }
 
     public ILSMDiskComponent getOldestComponent(List<ILSMDiskComponent> components, long level) {
@@ -56,7 +66,40 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
         return oldest;
     }
 
-    public ILSMDiskComponent getRandomComponent(List<ILSMDiskComponent> components, long level, Distribution distribution) {
+    public ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level) {
+        if (level == 0) {
+            return getOldestComponent(components, level);
+        }
+        List<ILSMDiskComponent> srcComponents = new ArrayList<>();
+        List<ILSMDiskComponent> dstComponents = new ArrayList<>();
+        for (ILSMDiskComponent component : components) {
+            if (component.getLevel() == level) {
+                srcComponents.add(component);
+            }
+            if (component.getLevel() == level + 1) {
+                dstComponents.add(component);
+            }
+        }
+        if (srcComponents.size() == 1) {
+            return srcComponents.get(0);
+        }
+        if (dstComponents.isEmpty()) {
+            return getOldestComponent(components, level);
+        }
+        ILSMDiskComponent best = null;
+        int cnt = -1;
+        for (ILSMDiskComponent component : srcComponents) {
+            int t = getOverlappingComponents(component, dstComponents, level + 1).size();
+            if (best == null || t > cnt) {
+                best = component;
+                cnt = t;
+            }
+        }
+        return best == null ? getOldestComponent(srcComponents, level) : best;
+    }
+
+    public ILSMDiskComponent getRandomComponent(List<ILSMDiskComponent> components, long level,
+            Distribution distribution) {
         if (level == 0) {
             return getOldestComponent(components, 0);
         }

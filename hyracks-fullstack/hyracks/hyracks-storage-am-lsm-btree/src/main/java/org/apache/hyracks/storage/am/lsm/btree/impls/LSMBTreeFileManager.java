@@ -73,8 +73,6 @@ public class LSMBTreeFileManager extends AbstractLSMIndexFileManager {
     @Override
     public LSMComponentFileReferences getRelMergeFileReference(String firstFileName, String lastFileName) {
         final String baseName = IndexComponentFileReference.getMergeSequence(firstFileName, lastFileName);
-        LOGGER.info("[getRelMergeFileReference]\tfirst: " + firstFileName + ", last: " + lastFileName + ", new: "
-                + baseName);
         return new LSMComponentFileReferences(getFileReference(baseName + DELIMITER + BTREE_SUFFIX), null,
                 hasBloomFilter ? getFileReference(baseName + DELIMITER + BLOOM_FILTER_SUFFIX) : null);
     }

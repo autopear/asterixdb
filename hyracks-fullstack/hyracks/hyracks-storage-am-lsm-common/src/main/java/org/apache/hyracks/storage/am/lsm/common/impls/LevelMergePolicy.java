@@ -21,13 +21,10 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
@@ -63,8 +60,6 @@ public class LevelMergePolicy implements ILSMMergePolicy {
             boolean wasMerge) throws HyracksDataException {
         List<ILSMDiskComponent> componentsToMerge = getMergableComponents(index.getDiskComponents());
         if (!componentsToMerge.isEmpty()) {
-            LOGGER.info("[LevelMerge]\t" + +Thread.currentThread().getId() + "\tToMerge: "
-                    + getComponents(componentsToMerge) + "\tAll: " + getComponents(index.getDiskComponents()));
             ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
             accessor.scheduleMerge(componentsToMerge);
         }
@@ -72,44 +67,39 @@ public class LevelMergePolicy implements ILSMMergePolicy {
 
     @Override
     public List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> immutableComponents) {
-        Map<Long, ArrayList<ILSMDiskComponent>> levels = new HashMap<>();
+        List<Long> levels = new ArrayList<>();
         for (ILSMDiskComponent component : immutableComponents) {
             long level = component.getLevel();
-            ArrayList<ILSMDiskComponent> levelComponents = levels.getOrDefault(level, new ArrayList<>());
-            levelComponents.add(component);
-            levels.put(level, levelComponents);
+            if (!levels.contains(level)) {
+                levels.add(level);
+            }
         }
-        List<Long> allLevels = new ArrayList<>(levels.keySet());
-        Collections.sort(allLevels, Collections.reverseOrder());
-        for (Long level : allLevels) {
-            ArrayList<ILSMDiskComponent> levelComponents = levels.get(level);
+        levels.sort(Collections.reverseOrder());
+        ILSMDiskComponent picked = null;
+        for (long level : levels) {
+            List<ILSMDiskComponent> components = helper.getComponents(immutableComponents, level);
             if (level == 0) {
-                if (levelComponents.size() >= level0Components) {
-                    Map<Long, ILSMDiskComponent> level0Map = new HashMap<>();
-                    for (ILSMDiskComponent component : levelComponents) {
-                        level0Map.put(component.getLevelSequence(), component);
-                    }
-                    List<Long> sids = new ArrayList<>(level0Map.keySet());
-                    Collections.sort(sids);
-                    List<ILSMDiskComponent> componentsToMerge = new ArrayList<>();
-                    for (int i = 0; i < level0Components; i++) {
-                        componentsToMerge.add(0, level0Map.get(sids.get(i)));
-                    }
-                    return componentsToMerge;
+                if (components.size() > level0Components) {
+                    picked = helper.getOldestComponent(components, 0);
+                    break;
                 }
             } else {
-                if (levelComponents.size() > Math.pow(level1Components, level)) {
-                    ILSMDiskComponent pickedComponent;
+                if (components.size() > Math.pow(level1Components, level)) {
                     if (pickStrategy.compareTo("random") == 0) {
-                        pickedComponent = pickRandomComponent(levelComponents);
+                        picked = helper.getRandomComponent(components, level,
+                                ILevelMergePolicyHelper.Distribution.Uniform);
                     } else {
-                        pickedComponent = pickOldestComponent(levelComponents);
+                        picked = helper.getOldestComponent(immutableComponents, level);
                     }
-                    List<ILSMDiskComponent> componentsToMerge =
-                            findOverlappedComponents(pickedComponent, levels.getOrDefault(level + 1, null));
-                    return componentsToMerge;
+                    break;
                 }
             }
+        }
+        if (picked != null) {
+            List<ILSMDiskComponent> mergableComponents = new ArrayList<>(
+                    helper.getOverlappingComponents(picked, immutableComponents, picked.getLevel() + 1));
+            mergableComponents.add(0, picked);
+            return mergableComponents;
         }
         return Collections.emptyList();
     }
@@ -124,104 +114,6 @@ public class LevelMergePolicy implements ILSMMergePolicy {
             ret += ";" + getComponentBaseName(components.get(i));
         }
         return ret;
-    }
-
-    private ILSMDiskComponent pickOldestComponent(List<ILSMDiskComponent> components) {
-        ILSMDiskComponent oldest = null;
-        long sid = -1L;
-        for (ILSMDiskComponent component : components) {
-            long levelSequence = component.getLevelSequence();
-            if (sid == -1L) {
-                sid = levelSequence;
-                oldest = component;
-            } else {
-                if (levelSequence < sid) {
-                    sid = levelSequence;
-                    oldest = component;
-                }
-            }
-        }
-        return oldest;
-    }
-
-    private ILSMDiskComponent pickRandomComponent(List<ILSMDiskComponent> components) {
-        int r = ThreadLocalRandom.current().nextInt(0, components.size());
-        return components.get(r);
-    }
-
-    private List<ILSMDiskComponent> findOverlappedComponents(ILSMDiskComponent component,
-            List<ILSMDiskComponent> components) {
-        if (components == null) {
-            return Collections.singletonList(component);
-        }
-        Map<Long, ILSMDiskComponent> levelMap = new HashMap<>();
-        for (ILSMDiskComponent c : components) {
-            levelMap.put(c.getLevelSequence(), c);
-        }
-        List<Long> sids = new ArrayList<>(levelMap.keySet());
-        Collections.sort(sids, Collections.reverseOrder());
-        ArrayList<ILSMDiskComponent> componentsToMerge = new ArrayList<>();
-        componentsToMerge.add(component);
-        for (int i = 0; i < sids.size(); i++) {
-            ILSMDiskComponent c = levelMap.get(sids.get(i));
-            if (isOverlapped(component, c)) {
-                componentsToMerge.add(1, c);
-            }
-        }
-
-        //        if (component.getLSMComponentFilter() == null) {
-        //            for (int i = 0; i < sids.size(); i++) {
-        //                ILSMDiskComponent c = levelMap.get(sids.get(i));
-        //                componentsToMerge.add(1, c);
-        //            }
-        //        } else {
-        //            MultiComparator filterCmp =
-        //                    MultiComparator.create(component.getLSMComponentFilter().getFilterCmpFactories());
-        //            for (int i = 0; i < sids.size(); i++) {
-        //                ILSMDiskComponent c = levelMap.get(sids.get(i));
-        //                if (isOverlapped(component, c)) {
-        //                    componentsToMerge.add(1, c);
-        //                }
-        //            }
-        //        }
-        LOGGER.info(
-                "[LevelMerge]\tOverlapped: " + getComponents(componentsToMerge) + "\tAll " + getComponents(components));
-        return componentsToMerge;
-    }
-
-    private boolean isOverlapped(ILSMDiskComponent c1, ILSMDiskComponent c2) {
-        try {
-            byte[] minKey1 = c1.getMinKey();
-            byte[] maxKey1 = c1.getMaxKey();
-            byte[] minKey2 = c2.getMinKey();
-            byte[] maxKey2 = c2.getMaxKey();
-            if (minKey1 == null || maxKey1 == null || minKey2 == null || maxKey2 == null) {
-                return true;
-            }
-
-            if (ByteArrayPointable.compare(maxKey1, 0, maxKey1.length, minKey2, 0, minKey2.length) < 0
-                    || ByteArrayPointable.compare(maxKey2, 0, maxKey2.length, minKey1, 0, minKey1.length) < 0) {
-                return false;
-            }
-        } catch (HyracksDataException ex) {
-            return true;
-        }
-        return true;
-        //        ITupleReference minTuple1 = c1.getLSMComponentFilter().getMinTuple();
-        //        ITupleReference maxTuple1 = c1.getLSMComponentFilter().getMaxTuple();
-        //        ITupleReference minTuple2 = c2.getLSMComponentFilter().getMinTuple();
-        //        ITupleReference maxTuple2 = c2.getLSMComponentFilter().getMaxTuple();
-        //        try {
-        //            if (filterCmp.compare(minTuple1, maxTuple1) > 0 || filterCmp.compare(minTuple2, maxTuple2) > 0) {
-        //                return true;
-        //            }
-        //            if (filterCmp.compare(minTuple1, maxTuple2) > 0 || filterCmp.compare(minTuple2, maxTuple1) > 0) {
-        //                return false;
-        //            }
-        //        } catch (HyracksDataException ex) {
-        //            return true;
-        //        }
-        //        return true;
     }
 
     @Override

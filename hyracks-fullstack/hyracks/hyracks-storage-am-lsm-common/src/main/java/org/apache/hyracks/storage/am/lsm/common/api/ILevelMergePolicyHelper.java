@@ -18,9 +18,9 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.api;
 
-import org.apache.hyracks.api.exceptions.HyracksDataException;
-
 import java.util.List;
+
+import org.apache.hyracks.api.exceptions.HyracksDataException;
 
 public interface ILevelMergePolicyHelper {
 
@@ -31,13 +31,16 @@ public interface ILevelMergePolicyHelper {
         Binomial
     }
 
+    List<ILSMDiskComponent> getComponents(List<ILSMDiskComponent> components, long level);
+
     ILSMDiskComponent getOldestComponent(List<ILSMDiskComponent> components, long level);
 
     ILSMDiskComponent getRandomComponent(List<ILSMDiskComponent> components, long level, Distribution distribution);
 
     ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level);
 
-    List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component, List<ILSMDiskComponent> components, long level);
+    List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component, List<ILSMDiskComponent> components,
+            long level);
 
     List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException;
 }

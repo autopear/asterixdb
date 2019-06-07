@@ -223,7 +223,6 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
     private void putComponentIdIntoMetadata(ILSMDiskComponent newComponent, ILSMComponentId componentId)
             throws HyracksDataException {
         ILSMComponentId newComponentId = new LSMComponentId(newComponent.getLevel(), newComponent.getLevelSequence());
-        LOGGER.info("[putComponentIdIntoMetadata]\t" + newComponentId);
         //        for (String path : newComponent.getLSMComponentPhysicalFiles()) {
         //            IndexComponentFileReference icfr = IndexComponentFileReference.of(Paths.get(path).getFileName().toString());
         //            newComponentId = new LSMComponentId(icfr.getSequenceStart(), icfr.getSequenceEnd());

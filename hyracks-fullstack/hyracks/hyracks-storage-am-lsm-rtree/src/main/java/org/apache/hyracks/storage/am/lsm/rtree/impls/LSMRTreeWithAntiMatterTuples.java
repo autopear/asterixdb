@@ -56,7 +56,6 @@ import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMIndexSearchCursor;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor.ICursorFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.MergeOperation;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
 import org.apache.hyracks.storage.am.rtree.impls.RTree.RTreeAccessor;
 import org.apache.hyracks.storage.am.rtree.impls.RTreeSearchCursor;
@@ -158,6 +157,8 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             }
             LSMRTreeWithAntiMatterTuplesFlushCursor cursor = new LSMRTreeWithAntiMatterTuplesFlushCursor(
                     rTreeTupleSorter, bTreeTupleSorter, comparatorFields, linearizerArray);
+            double[] minMBR = null;
+            double[] maxMBR = null;
             try {
                 cursor.open(null, null);
                 try {
@@ -165,6 +166,28 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                         cursor.next();
                         ITupleReference frameTuple = cursor.getTuple();
                         componentBulkLoader.add(frameTuple);
+                        double[] mbr = getMBRFromTuple(frameTuple);
+                        int dim = mbr.length / 2;
+                        if (minMBR == null) {
+                            minMBR = new double[dim];
+                            System.arraycopy(mbr, 0, minMBR, 0, dim);
+                        } else {
+                            for (int i = 0; i < dim; i++) {
+                                if (mbr[i] < minMBR[i]) {
+                                    minMBR[i] = mbr[i];
+                                }
+                            }
+                        }
+                        if (maxMBR == null) {
+                            maxMBR = new double[dim];
+                            System.arraycopy(mbr, dim, maxMBR, 0, dim);
+                        } else {
+                            for (int i = 0; i < dim; i++) {
+                                if (mbr[dim + i] > maxMBR[i]) {
+                                    maxMBR[i] = mbr[dim + i];
+                                }
+                            }
+                        }
                     }
                 } finally {
                     cursor.close();
@@ -172,6 +195,8 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             } finally {
                 cursor.destroy();
             }
+            component.setMinKey(doublesToBytes(minMBR));
+            component.setMaxKey(doublesToBytes(maxMBR));
             if (component.getLSMComponentFilter() != null) {
                 List<ITupleReference> filterTuples = new ArrayList<>();
                 filterTuples.add(flushingComponent.getLSMComponentFilter().getMinTuple());
@@ -224,9 +249,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         return isEmpty;
     }
 
-    @Override
-    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
-        MergeOperation mergeOp = (MergeOperation) operation;
+    private ILSMDiskComponent stackedMerge(LSMRTreeMergeOperation mergeOp) throws HyracksDataException {
         IIndexCursor cursor = mergeOp.getCursor();
         ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
         ILSMIndexOperationContext opCtx = ((LSMIndexSearchCursor) cursor).getOpCtx();
@@ -236,16 +259,42 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         ILSMDiskComponent component = createDiskComponent(componentFactory, mergeOp.getTarget(), null, null, true);
 
         ILSMDiskComponentBulkLoader componentBulkLoader =
-                component.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
+                component.createBulkLoader(mergeOp, 1.0f, false, 0L, false, false, false);
+        double[] minMBR = null;
+        double[] maxMBR = null;
         try {
             while (cursor.hasNext()) {
                 cursor.next();
                 ITupleReference frameTuple = cursor.getTuple();
                 componentBulkLoader.add(frameTuple);
+                double[] mbr = getMBRFromTuple(frameTuple);
+                int dim = mbr.length / 2;
+                if (minMBR == null) {
+                    minMBR = new double[dim];
+                    System.arraycopy(mbr, 0, minMBR, 0, dim);
+                } else {
+                    for (int i = 0; i < dim; i++) {
+                        if (mbr[i] < minMBR[i]) {
+                            minMBR[i] = mbr[i];
+                        }
+                    }
+                }
+                if (maxMBR == null) {
+                    maxMBR = new double[dim];
+                    System.arraycopy(mbr, dim, maxMBR, 0, dim);
+                } else {
+                    for (int i = 0; i < dim; i++) {
+                        if (mbr[dim + i] > maxMBR[i]) {
+                            maxMBR[i] = mbr[dim + i];
+                        }
+                    }
+                }
             }
         } finally {
             cursor.close();
         }
+        component.setMinKey(doublesToBytes(minMBR));
+        component.setMaxKey(doublesToBytes(maxMBR));
         if (component.getLSMComponentFilter() != null) {
             List<ITupleReference> filterTuples = new ArrayList<>();
             for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
@@ -259,7 +308,16 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
 
         componentBulkLoader.end();
 
-        return Collections.singletonList(component);
+        return component;
+    }
+
+    @Override
+    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
+        if (isLeveled) {
+            return mergePolicyHelper.merge(operation);
+        } else {
+            return Collections.singletonList(stackedMerge((LSMRTreeMergeOperation) operation));
+        }
     }
 
     @Override
@@ -290,5 +348,16 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         ILSMIndexAccessor accessor = new LSMTreeIndexAccessor(getHarness(), opCtx, cursorFactory);
         return new LSMRTreeMergeOperation(accessor, cursor, mergeFileRefs.getInsertIndexFileReference(), null, null,
                 callback, getIndexIdentifier());
+    }
+
+    public static String doubles2Str(double[] ds) {
+        if (ds == null || ds.length == 0) {
+            return "";
+        }
+        String m = Double.toString(ds[0]);
+        for (int i = 1; i < ds.length; i++) {
+            m += "," + Double.toString(ds[i]);
+        }
+        return m;
     }
 }

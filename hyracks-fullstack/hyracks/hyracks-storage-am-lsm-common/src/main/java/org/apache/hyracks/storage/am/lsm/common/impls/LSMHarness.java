@@ -257,6 +257,10 @@ public class LSMHarness implements ILSMHarness {
                 }
             }
         }
+
+        if (opType == LSMOperationType.FLUSH) {
+            LOGGER.info("[COMPONENTS]\t" + ((AbstractLSMIndex) lsmIndex).componentsToString());
+        }
     }
 
     private void exitOperation(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -577,7 +581,6 @@ public class LSMHarness implements ILSMHarness {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Started a merge operation for index: {}", lsmIndex);
         }
-        LOGGER.info("Started a merge operation for index: {}", lsmIndex);
         synchronized (opTracker) {
             enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE);
         }
@@ -625,7 +628,6 @@ public class LSMHarness implements ILSMHarness {
                 mergePolicy.diskComponentAdded(lsmIndex, newComponents, false, true);
             }
         }
-        LOGGER.info("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }
@@ -638,9 +640,6 @@ public class LSMHarness implements ILSMHarness {
             operation = lsmIndex.createMergeOperation(ctx);
         }
         ioScheduler.scheduleOperation(operation);
-        LOGGER.info("[scheduleMerge]\t" + Thread.currentThread().getId() + "\t" + ioScheduler + "\t"
-                + ctx.getComponentsToBeMerged().get(0).getLevel() + "_"
-                + ctx.getComponentsToBeMerged().get(0).getLevelSequence());
         return operation;
     }
 

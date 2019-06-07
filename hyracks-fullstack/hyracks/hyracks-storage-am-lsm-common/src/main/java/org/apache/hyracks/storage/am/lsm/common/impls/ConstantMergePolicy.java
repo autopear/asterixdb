@@ -65,7 +65,7 @@ public class ConstantMergePolicy extends StackMergePolicy {
         if (components == null || components.size() < 2) {
             return Collections.emptyList();
         }
-        Optional<Long> latestSeq = ((AbstractLSMIndex) components.get(0).getIndex()).getLatestDiskComponentSequence();
+        Optional<Long> latestSeq = (components.get(0).getLsmIndex()).getLatestDiskComponentSequence();
         if (!latestSeq.isPresent()) {
             return Collections.emptyList();
         }

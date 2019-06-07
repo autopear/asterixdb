@@ -69,6 +69,7 @@ import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 import org.apache.hyracks.util.trace.ITracer;
 
 public class LSMRTree extends AbstractLSMRTree {
+
     protected final int[] buddyBTreeFields;
 
     public LSMRTree(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,

@@ -35,12 +35,15 @@ public class RTreeNSMLeafFrameFactory extends RTreeFrameFactory {
 
     @Override
     public IRTreeLeafFrame createFrame() {
+        return new RTreeNSMLeafFrame(tupleWriterFactory.createTupleWriter(), getKeyValueProviders(), rtreePolicyType,
+                isPointMBR);
+    }
+
+    public IPrimitiveValueProvider[] getKeyValueProviders() {
         IPrimitiveValueProvider[] keyValueProviders = new IPrimitiveValueProvider[keyValueProviderFactories.length];
         for (int i = 0; i < keyValueProviders.length; i++) {
             keyValueProviders[i] = keyValueProviderFactories[i].createPrimitiveValueProvider();
         }
-        return new RTreeNSMLeafFrame(tupleWriterFactory.createTupleWriter(), keyValueProviders, rtreePolicyType,
-                isPointMBR);
+        return keyValueProviders;
     }
-
 }

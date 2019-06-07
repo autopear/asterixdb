@@ -19,8 +19,10 @@
 
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
@@ -28,7 +30,6 @@ import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.io.IIOManager;
-import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 import org.apache.hyracks.data.std.primitive.IntegerPointable;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.btree.impls.BTree;
@@ -67,7 +68,6 @@ import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor.ICursorFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicy;
 import org.apache.hyracks.storage.common.IIndexAccessParameters;
 import org.apache.hyracks.storage.common.IIndexAccessor;
 import org.apache.hyracks.storage.common.IIndexCursor;
@@ -75,13 +75,8 @@ import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 import org.apache.hyracks.util.trace.ITracer;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
-
-    private static final Logger LOGGER = LogManager.getLogger();
 
     private static final ICursorFactory cursorFactory = LSMBTreeSearchCursor::new;
     // Common for in-memory and on-disk components.
@@ -127,7 +122,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
         this.needKeyDupCheck = needKeyDupCheck;
         this.hasBloomFilter = hasBloomFilter;
-        if (isLeveledLSM()) {
+        if (isLeveled) {
             mergePolicyHelper = new LSMBTreeLevelMergePolicyHelper(this, levelTableSize);
             levelMergePolicy.setHelper(mergePolicyHelper);
         } else {
@@ -151,7 +146,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         this.needKeyDupCheck = needKeyDupCheck;
         this.hasBloomFilter = true;
         this.updateAware = false;
-        if (isLeveledLSM()) {
+        if (isLeveled) {
             mergePolicyHelper = new LSMBTreeLevelMergePolicyHelper(this, levelTableSize);
             levelMergePolicy.setHelper(mergePolicyHelper);
         } else {
@@ -248,6 +243,37 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
         ctx.getCurrentMutableBTreeAccessor().upsertIfConditionElseInsert(tuple, AntimatterAwareTupleAcceptor.INSTANCE);
         return true;
+    }
+
+    @Override
+    public boolean mayMatchSearchPredicate(ILSMDiskComponent component, ISearchPredicate predicate) {
+        RangePredicate rp = (RangePredicate) predicate;
+        byte[] minKey = getTupleKey(rp.getLowKey());
+        byte[] maxKey = getTupleKey(rp.getHighKey());
+        if (minKey == null && maxKey == null) {
+            return true;
+        }
+        try {
+            byte[] minCKey = component.getMinKey();
+            byte[] maxCKey = component.getMaxKey();
+
+            if (minKey == null) {
+                if (LSMBTree.compareBytes(maxKey, minCKey) >= 0) {
+                    return true;
+                }
+            } else if (maxKey == null) {
+                if (LSMBTree.compareBytes(minKey, maxCKey) <= 0) {
+                    return true;
+                }
+            } else {
+                if (!(LSMBTree.compareBytes(minKey, maxCKey) > 0 || LSMBTree.compareBytes(maxKey, minCKey) < 0)) {
+                    return true;
+                }
+            }
+        } catch (HyracksDataException ex) {
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -394,284 +420,12 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return "";
     }
 
-    //    private ILSMDiskComponent stackedMerge(List<ILSMComponent> components, LSMBTreeMergeOperation mergeOp)
-    //            throws HyracksDataException {
-    //        IIndexCursor cursor = mergeOp.getCursor();
-    //        ILSMDiskComponent newComponent = null;
-    //        ILSMDiskComponentBulkLoader componentBulkLoader = null;
-    //        ITupleReference minTuple = null;
-    //        ITupleReference maxTuple = null;
-    //        try {
-    //            try {
-    //                RangePredicate rangePred = new RangePredicate(null, null, true, true, null, null);
-    //                search(mergeOp.getAccessor().getOpContext(), cursor, rangePred);
-    //                try {
-    //                    long numElements = getNumberOfElements(components);
-    //                    newComponent = createDiskComponent(componentFactory, mergeOp.getTarget(), null,
-    //                            mergeOp.getBloomFilterTarget(), true);
-    //                    componentBulkLoader =
-    //                            newComponent.createBulkLoader(mergeOp, 1.0f, false, numElements, false, false, false);
-    //                    while (cursor.hasNext()) {
-    //                        cursor.next();
-    //                        ITupleReference frameTuple = cursor.getTuple();
-    //                        componentBulkLoader.add(frameTuple);
-    //                    }
-    //                    if (newComponent.getLSMComponentFilter() != null) {
-    //                        MultiComparator filterCmp =
-    //                                MultiComparator.create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
-    //                        for (ILSMComponent component : components) {
-    //                            ITupleReference minMergeTuple = component.getLSMComponentFilter().getMinTuple();
-    //                            ITupleReference maxMergeTuple = component.getLSMComponentFilter().getMaxTuple();
-    //                            if (minTuple == null) {
-    //                                minTuple = minMergeTuple;
-    //                            } else {
-    //                                if (filterCmp.compare(minMergeTuple, minTuple) < 0) {
-    //                                    minTuple = minMergeTuple;
-    //                                }
-    //                            }
-    //                            if (maxTuple == null) {
-    //                                maxTuple = maxMergeTuple;
-    //                            } else {
-    //                                if (filterCmp.compare(maxMergeTuple, maxTuple) > 0) {
-    //                                    maxTuple = maxMergeTuple;
-    //                                }
-    //                            }
-    //                        }
-    //                    }
-    //                } finally {
-    //                    cursor.close();
-    //                }
-    //            } finally {
-    //                cursor.destroy();
-    //            }
-    //            if (newComponent != null && newComponent.getLSMComponentFilter() != null) {
-    //                List<ITupleReference> filterTuples = Arrays.asList(minTuple, maxTuple);
-    //                //                    for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
-    //                //                        filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMinTuple());
-    //                //                        filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMaxTuple());
-    //                //                    }
-    //                getFilterManager().updateFilter(newComponent.getLSMComponentFilter(), filterTuples,
-    //                        NoOpOperationCallback.INSTANCE);
-    //                getFilterManager().writeFilter(newComponent.getLSMComponentFilter(), newComponent.getMetadataHolder());
-    //            }
-    //        } catch (Throwable e) { // NOSONAR.. As per the contract, we should either abort or end
-    //            try {
-    //                if (componentBulkLoader != null) {
-    //                    componentBulkLoader.abort();
-    //                }
-    //            } catch (Throwable th) { // NOSONAR Don't lose the root failure
-    //                e.addSuppressed(th);
-    //            }
-    //            throw e;
-    //        }
-    //        if (componentBulkLoader != null) {
-    //            componentBulkLoader.end();
-    //        }
-    //        return newComponent;
-    //    }
-    //
-    //    private List<ILSMDiskComponent> leveledMerge(List<ILSMComponent> components, LSMBTreeMergeOperation mergeOp)
-    //            throws HyracksDataException {
-    //        LSMBTreeMergeOperation mergeOp = (LSMBTreeMergeOperation) operation;
-    //        if (isLeveled) {
-    //            return leveledMerge(mergeOp.getMergingComponents(), mergeOp);
-    //        } else {
-    //            ILSMDiskComponent newComponent = stackedMerge(mergeOp.getMergingComponents(), mergeOp);
-    //            return newComponent == null ? Collections.emptyList() : Collections.singletonList(newComponent);
-    //        }
-    //
-    //        IIndexCursor cursor = mergeOp.getCursor();
-    //        List<ILSMDiskComponent> newComponents = new ArrayList<>();
-    //        List<ILSMDiskComponentBulkLoader> componentBulkLoaders = new ArrayList<>();
-    //        Map<ILSMDiskComponent, Pair<ITupleReference, ITupleReference>> tuples = new HashMap<>();
-    //        String oldMsg = "";
-    //        try {
-    //            try {
-    //                RangePredicate rangePred = new RangePredicate(null, null, true, true, null, null);
-    //                search(mergeOp.getAccessor().getOpContext(), cursor, rangePred);
-    //                try {
-    //                    List<ILSMComponent> mergedComponents = mergeOp.getMergingComponents();
-    //                    oldMsg = diskComponentToString(mergedComponents.get(0));
-    //                    for (int i = 1; i < mergedComponents.size(); i++) {
-    //                        oldMsg += "; " + diskComponentToString(mergedComponents.get(i));
-    //                    }
-    //                    long numElements = getNumberOfElements(mergedComponents);
-    //                    if (isLeveled) {
-    //                        ILSMDiskComponent newComponent = null;
-    //                        ILSMDiskComponentBulkLoader componentBulkLoader = null;
-    //                        if (mergedComponents.size() == 1) {
-    //                            LSMComponentFileReferences refs = getNextMergeFileReferencesAtLevel(maxLevels + 1, 0);
-    //                            newComponent = createDiskComponent(componentFactory, refs.getInsertIndexFileReference(),
-    //                                    null, refs.getBloomFilterFileReference(), true);
-    //                            componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false, numElements,
-    //                                    false, false, false);
-    //                            componentBulkLoaders.add(componentBulkLoader);
-    //                            while (cursor.hasNext()) {
-    //                                cursor.next();
-    //                                ITupleReference frameTuple = cursor.getTuple();
-    //                                componentBulkLoader.add(frameTuple);
-    //                            }
-    //                            newComponents.add(newComponent);
-    //                            ITupleReference minTuple = mergedComponents.get(0).getLSMComponentFilter().getMinTuple();
-    //                            ITupleReference maxTuple = mergedComponents.get(0).getLSMComponentFilter().getMaxTuple();
-    //                            tuples.put(newComponent, Pair.of(minTuple, maxTuple));
-    //                        } else if (((ILSMDiskComponent) (mergedComponents.get(mergedComponents.size() - 1)))
-    //                                .getLevel() == 0L) {
-    //                            LSMComponentFileReferences refs = getNextMergeFileReferencesAtLevel(1L, 1);
-    //                            newComponent = createDiskComponent(componentFactory, refs.getInsertIndexFileReference(),
-    //                                    null, refs.getBloomFilterFileReference(), true);
-    //                            componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false, numElements,
-    //                                    false, false, false);
-    //                            componentBulkLoaders.add(componentBulkLoader);
-    //                            while (cursor.hasNext()) {
-    //                                cursor.next();
-    //                                ITupleReference frameTuple = cursor.getTuple();
-    //                                componentBulkLoader.add(frameTuple);
-    //                            }
-    //                            newComponents.add(newComponent);
-    //                            if (newComponent.getLSMComponentFilter() != null) {
-    //                                ITupleReference minTuple = null;
-    //                                ITupleReference maxTuple = null;
-    //                                MultiComparator filterCmp = MultiComparator
-    //                                        .create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
-    //                                for (ILSMComponent component : mergedComponents) {
-    //                                    ITupleReference minMergeTuple = component.getLSMComponentFilter().getMinTuple();
-    //                                    ITupleReference maxMergeTuple = component.getLSMComponentFilter().getMaxTuple();
-    //                                    if (minTuple == null) {
-    //                                        minTuple = minMergeTuple;
-    //                                    } else {
-    //                                        if (filterCmp.compare(minMergeTuple, minTuple) < 0) {
-    //                                            minTuple = minMergeTuple;
-    //                                        }
-    //                                    }
-    //                                    if (maxTuple == null) {
-    //                                        maxTuple = maxMergeTuple;
-    //                                    } else {
-    //                                        if (filterCmp.compare(maxMergeTuple, maxTuple) > 0) {
-    //                                            maxTuple = maxMergeTuple;
-    //                                        }
-    //                                    }
-    //                                }
-    //                                tuples.put(newComponent, Pair.of(minTuple, maxTuple));
-    //                            }
-    //                        } else {
-    //                            ITupleReference minTuple = null;
-    //                            ITupleReference maxTuple = null;
-    //                            MultiComparator filterCmp = null;
-    //                            long levelTo =
-    //                                    ((ILSMDiskComponent) mergedComponents.get(mergedComponents.size() - 1)).getLevel();
-    //                            long start = getMaxLevelId(levelTo) + 1;
-    //                            List<FileReference> mergeFileTargets = new ArrayList<>();
-    //                            List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
-    //                            while (cursor.hasNext()) {
-    //                                cursor.next();
-    //                                ITupleReference frameTuple = cursor.getTuple();
-    //                                if (newComponent == null) {
-    //                                    LSMComponentFileReferences refs =
-    //                                            getNextMergeFileReferencesAtLevel(levelTo, start++);
-    //                                    mergeFileTargets.add(refs.getInsertIndexFileReference());
-    //                                    mergeBloomFilterTargets.add(refs.getBloomFilterFileReference());
-    //                                    newComponent =
-    //                                            createDiskComponent(componentFactory, refs.getInsertIndexFileReference(),
-    //                                                    null, refs.getBloomFilterFileReference(), true);
-    //                                    componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false,
-    //                                            numElements, false, false, false);
-    //                                    newComponents.add(newComponent);
-    //                                    componentBulkLoaders.add(componentBulkLoader);
-    //                                    filterCmp = MultiComparator
-    //                                            .create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
-    //                                    minTuple = null;
-    //                                    maxTuple = null;
-    //                                }
-    //                                if (minTuple == null) {
-    //                                    minTuple = frameTuple;
-    //                                } else {
-    //                                    if (filterCmp.compare(frameTuple, minTuple) < 0) {
-    //                                        minTuple = frameTuple;
-    //                                    }
-    //                                }
-    //                                if (maxTuple == null) {
-    //                                    maxTuple = frameTuple;
-    //                                } else {
-    //                                    if (filterCmp.compare(frameTuple, maxTuple) > 0) {
-    //                                        maxTuple = frameTuple;
-    //                                    }
-    //                                }
-    //                                componentBulkLoader.add(frameTuple);
-    //                                if (newComponent.getComponentSize() >= levelTableSize) {
-    //                                    tuples.put(newComponent, Pair.of(minTuple, maxTuple));
-    //                                    newComponent = null;
-    //                                    componentBulkLoader = null;
-    //                                    minTuple = null;
-    //                                    maxTuple = null;
-    //                                    filterCmp = null;
-    //                                }
-    //                            }
-    //                            if (newComponent != null) {
-    //                                tuples.put(newComponent, Pair.of(minTuple, maxTuple));
-    //                            }
-    //                            mergeOp.setTargets(mergeFileTargets);
-    //                            mergeOp.setBloomFilterTargets(mergeBloomFilterTargets);
-    //                        }
-    //                    } else {
-    //                    }
-    //                } finally {
-    //                    cursor.close();
-    //                }
-    //            } finally {
-    //                cursor.destroy();
-    //            }
-    //            for (ILSMDiskComponent newComponent : newComponents) {
-    //                if (newComponent.getLSMComponentFilter() != null) {
-    //                    Pair<ITupleReference, ITupleReference> minMaxTuples = tuples.get(newComponent);
-    //                    List<ITupleReference> filterTuples = Arrays.asList(minMaxTuples.getLeft(), minMaxTuples.getRight());
-    //                    //                    for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
-    //                    //                        filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMinTuple());
-    //                    //                        filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMaxTuple());
-    //                    //                    }
-    //                    getFilterManager().updateFilter(newComponent.getLSMComponentFilter(), filterTuples,
-    //                            NoOpOperationCallback.INSTANCE);
-    //                    getFilterManager().writeFilter(newComponent.getLSMComponentFilter(),
-    //                            newComponent.getMetadataHolder());
-    //                }
-    //            }
-    //        } catch (Throwable e) { // NOSONAR.. As per the contract, we should either abort or end
-    //            try {
-    //                for (ILSMDiskComponentBulkLoader componentBulkLoader : componentBulkLoaders) {
-    //                    componentBulkLoader.abort();
-    //                }
-    //            } catch (Throwable th) { // NOSONAR Don't lose the root failure
-    //                e.addSuppressed(th);
-    //            }
-    //            throw e;
-    //        }
-    //        for (ILSMDiskComponentBulkLoader componentBulkLoader : componentBulkLoaders) {
-    //            componentBulkLoader.end();
-    //        }
-    //
-    //
-    //        return null;
-    //    }
-
-    @Override
-    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
-        if (isLeveledLSM()) {
-            return mergePolicyHelper.merge(operation);
-        }
-        LSMBTreeMergeOperation mergeOp = (LSMBTreeMergeOperation) operation;
-        //        if (isLeveled) {
-        //            return leveledMerge(mergeOp.getMergingComponents(), mergeOp);
-        //        } else {
-        //            ILSMDiskComponent newComponent = stackedMerge(mergeOp.getMergingComponents(), mergeOp);
-        //            return newComponent == null ? Collections.emptyList() : Collections.singletonList(newComponent);
-        //        }
-
+    private ILSMDiskComponent stackedMerge(LSMBTreeMergeOperation mergeOp) throws HyracksDataException {
         IIndexCursor cursor = mergeOp.getCursor();
-        List<ILSMDiskComponent> newComponents = new ArrayList<>();
-        List<ILSMDiskComponentBulkLoader> componentBulkLoaders = new ArrayList<>();
-        List<ITupleReference> minTuples = new ArrayList<>();
-        List<ITupleReference> maxTuples = new ArrayList<>();
-        String oldMsg = "";
+        ILSMDiskComponent newComponent = null;
+        ILSMDiskComponentBulkLoader componentBulkLoader = null;
+        ITupleReference minTuple = null;
+        ITupleReference maxTuple = null;
         try {
             try {
                 RangePredicate rangePred = new RangePredicate(null, null, true, true, null, null);
@@ -679,263 +433,56 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 try {
                     List<ILSMComponent> mergedComponents = mergeOp.getMergingComponents();
                     long numElements = getNumberOfElements(mergedComponents);
-                    if (isLeveled) {
-                        ILSMDiskComponent newComponent = null;
-                        ILSMDiskComponentBulkLoader componentBulkLoader = null;
-                        if (mergedComponents.size() == 1) {
-                            LSMComponentFileReferences refs = getNextMergeFileReferencesAtLevel(
-                                    ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1, 1);
-                            newComponent = createDiskComponent(componentFactory, refs.getInsertIndexFileReference(),
-                                    null, refs.getBloomFilterFileReference(), true);
-                            componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false, numElements,
-                                    false, false, false);
-                            componentBulkLoaders.add(componentBulkLoader);
-                            byte[] minKey = null;
-                            byte[] maxKey = null;
-                            while (cursor.hasNext()) {
-                                cursor.next();
-                                ITupleReference frameTuple = cursor.getTuple();
-                                componentBulkLoader.add(frameTuple);
-                                byte[] key = getTupleKey(frameTuple);
-                                if (key != null) {
-                                    if (minKey == null) {
-                                        minKey = key;
-                                    } else {
-                                        if (compareBytes(key, minKey) < 0) {
-                                            minKey = key;
-                                        }
-                                    }
-                                    if (maxKey == null) {
-                                        maxKey = key;
-                                    } else {
-                                        if (ByteArrayPointable.compare(maxKey, 0, maxKey.length, key, 0,
-                                                key.length) <= 0) {
-                                            maxKey = key;
-                                        }
-                                    }
-                                }
-                            }
-                            newComponent.setMinKey(minKey);
-                            newComponent.setMaxKey(maxKey);
-                            newComponents.add(newComponent);
-                            if (newComponent.getLSMComponentFilter() != null) {
-                                ITupleReference minTuple =
-                                        mergedComponents.get(0).getLSMComponentFilter().getMinTuple();
-                                ITupleReference maxTuple =
-                                        mergedComponents.get(0).getLSMComponentFilter().getMaxTuple();
-                                minTuples.add(minTuple);
-                                maxTuples.add(maxTuple);
-                            }
-                        } else if (((ILSMDiskComponent) (mergedComponents.get(mergedComponents.size() - 1)))
-                                .getLevel() == 0L) {
-                            LSMComponentFileReferences refs = getNextMergeFileReferencesAtLevel(1L, 1);
-                            newComponent = createDiskComponent(componentFactory, refs.getInsertIndexFileReference(),
-                                    null, refs.getBloomFilterFileReference(), true);
-                            componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false, numElements,
-                                    false, false, false);
-                            componentBulkLoaders.add(componentBulkLoader);
-                            byte[] minKey = null;
-                            byte[] maxKey = null;
-                            while (cursor.hasNext()) {
-                                cursor.next();
-                                ITupleReference frameTuple = cursor.getTuple();
-                                componentBulkLoader.add(frameTuple);
-                                byte[] key = getTupleKey(frameTuple);
-                                if (key != null) {
-                                    if (minKey == null) {
-                                        minKey = key;
-                                    } else {
-                                        if (compareBytes(key, minKey) < 0) {
-                                            minKey = key;
-                                        }
-                                    }
-                                    if (maxKey == null) {
-                                        maxKey = key;
-                                    } else {
-                                        if (compareBytes(maxKey, key) <= 0) {
-                                            maxKey = key;
-                                        }
-                                    }
-                                }
-                            }
-                            newComponents.add(newComponent);
-                            newComponent.setMinKey(minKey);
-                            newComponent.setMaxKey(maxKey);
-                            if (newComponent.getLSMComponentFilter() != null) {
-                                ITupleReference minTuple = null;
-                                ITupleReference maxTuple = null;
-                                MultiComparator filterCmp = MultiComparator
-                                        .create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
-                                for (ILSMComponent component : mergedComponents) {
-                                    ITupleReference minMergeTuple = component.getLSMComponentFilter().getMinTuple();
-                                    ITupleReference maxMergeTuple = component.getLSMComponentFilter().getMaxTuple();
-                                    if (minTuple == null) {
-                                        minTuple = minMergeTuple;
-                                    } else {
-                                        if (filterCmp.compare(minMergeTuple, minTuple) < 0) {
-                                            minTuple = minMergeTuple;
-                                        }
-                                    }
-                                    if (maxTuple == null) {
-                                        maxTuple = maxMergeTuple;
-                                    } else {
-                                        if (filterCmp.compare(maxMergeTuple, maxTuple) > 0) {
-                                            maxTuple = maxMergeTuple;
-                                        }
-                                    }
-                                }
-                                minTuples.add(minTuple);
-                                maxTuples.add(maxTuple);
-                            }
-                        } else {
-                            ITupleReference minTuple = null;
-                            ITupleReference maxTuple = null;
-                            MultiComparator filterCmp = null;
-                            long levelTo =
-                                    ((ILSMDiskComponent) mergedComponents.get(mergedComponents.size() - 1)).getLevel();
-                            long start = getMaxLevelId(levelTo);
-                            if (start < 1) {
-                                start = 1;
-                            }
-                            List<FileReference> mergeFileTargets = new ArrayList<>();
-                            List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
-                            byte[] minKey = null;
-                            byte[] maxKey = null;
-                            while (cursor.hasNext()) {
-                                cursor.next();
-                                ITupleReference frameTuple = cursor.getTuple();
-                                byte[] key = getTupleKey(frameTuple);
-                                if (key != null) {
-                                    if (minKey == null) {
-                                        minKey = key;
-                                    } else {
-                                        if (compareBytes(key, minKey) < 0) {
-                                            minKey = key;
-                                        }
-                                    }
-                                    if (maxKey == null) {
-                                        maxKey = key;
-                                    } else {
-                                        if (compareBytes(maxKey, key) <= 0) {
-                                            maxKey = key;
-                                        }
-                                    }
-                                }
-
-                                if (newComponent == null) {
-                                    LSMComponentFileReferences refs =
-                                            getNextMergeFileReferencesAtLevel(levelTo, start++);
-                                    mergeFileTargets.add(refs.getInsertIndexFileReference());
-                                    mergeBloomFilterTargets.add(refs.getBloomFilterFileReference());
-                                    newComponent =
-                                            createDiskComponent(componentFactory, refs.getInsertIndexFileReference(),
-                                                    null, refs.getBloomFilterFileReference(), true);
-                                    componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false, 0L,
-                                            false, false, false);
-                                    newComponents.add(newComponent);
-                                    componentBulkLoaders.add(componentBulkLoader);
-                                    filterCmp = newComponent.getLSMComponentFilter() == null ? null
-                                            : MultiComparator.create(
-                                                    newComponent.getLSMComponentFilter().getFilterCmpFactories());
-                                    minTuple = null;
-                                    maxTuple = null;
-                                }
-                                if (minTuple == null) {
-                                    minTuple = frameTuple;
-                                } else {
-                                    if (filterCmp != null && filterCmp.compare(frameTuple, minTuple) < 0) {
-                                        minTuple = frameTuple;
-                                    }
-                                }
-                                if (maxTuple == null) {
-                                    maxTuple = frameTuple;
-                                } else {
-                                    if (filterCmp != null && filterCmp.compare(frameTuple, maxTuple) > 0) {
-                                        maxTuple = frameTuple;
-                                    }
-                                }
-                                componentBulkLoader.add(frameTuple);
-                                if (newComponent.getComponentSize() >= levelTableSize) {
-                                    newComponent.setMinKey(minKey);
-                                    newComponent.setMaxKey(maxKey);
-                                    minTuples.add(minTuple);
-                                    maxTuples.add(maxTuple);
-                                    newComponent = null;
-                                    componentBulkLoader = null;
-                                    minTuple = null;
-                                    maxTuple = null;
-                                    filterCmp = null;
-                                    minKey = null;
-                                    maxKey = null;
-                                }
-                            }
-                            if (newComponent != null) {
-                                newComponent.setMinKey(minKey);
-                                newComponent.setMaxKey(maxKey);
-                                minTuples.add(minTuple);
-                                maxTuples.add(maxTuple);
-                            }
-                            mergeOp.setTargets(mergeFileTargets);
-                            mergeOp.setBloomFilterTargets(mergeBloomFilterTargets);
-                        }
-                    } else {
-                        ILSMDiskComponent newComponent = createDiskComponent(componentFactory, mergeOp.getTarget(),
-                                null, mergeOp.getBloomFilterTarget(), true);
-                        ILSMDiskComponentBulkLoader componentBulkLoader =
-                                newComponent.createBulkLoader(operation, 1.0f, false, numElements, false, false, false);
-                        componentBulkLoaders.add(componentBulkLoader);
-                        byte[] minKey = null;
-                        byte[] maxKey = null;
-                        while (cursor.hasNext()) {
-                            cursor.next();
-                            ITupleReference frameTuple = cursor.getTuple();
-                            componentBulkLoader.add(frameTuple);
-                            byte[] key = getTupleKey(frameTuple);
-                            if (key != null) {
-                                if (minKey == null) {
+                    newComponent = createDiskComponent(componentFactory, mergeOp.getTarget(), null,
+                            mergeOp.getBloomFilterTarget(), true);
+                    componentBulkLoader =
+                            newComponent.createBulkLoader(mergeOp, 1.0f, false, numElements, false, false, false);
+                    byte[] minKey = null;
+                    byte[] maxKey = null;
+                    while (cursor.hasNext()) {
+                        cursor.next();
+                        ITupleReference frameTuple = cursor.getTuple();
+                        componentBulkLoader.add(frameTuple);
+                        byte[] key = getTupleKey(frameTuple);
+                        if (key != null) {
+                            if (minKey == null) {
+                                minKey = key;
+                            } else {
+                                if (compareBytes(key, minKey) < 0) {
                                     minKey = key;
-                                } else {
-                                    if (compareBytes(key, minKey) < 0) {
-                                        minKey = key;
-                                    }
                                 }
-                                if (maxKey == null) {
+                            }
+                            if (maxKey == null) {
+                                maxKey = key;
+                            } else {
+                                if (compareBytes(maxKey, key) <= 0) {
                                     maxKey = key;
-                                } else {
-                                    if (compareBytes(maxKey, key) <= 0) {
-                                        maxKey = key;
-                                    }
                                 }
                             }
                         }
-                        newComponent.setMinKey(minKey);
-                        newComponent.setMaxKey(maxKey);
-                        newComponents.add(newComponent);
-                        if (newComponent.getLSMComponentFilter() != null) {
-                            ITupleReference minTuple = null;
-                            ITupleReference maxTuple = null;
-                            MultiComparator filterCmp = MultiComparator
-                                    .create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
-                            for (ILSMComponent component : mergedComponents) {
-                                ITupleReference minMergeTuple = component.getLSMComponentFilter().getMinTuple();
-                                ITupleReference maxMergeTuple = component.getLSMComponentFilter().getMaxTuple();
-                                if (minTuple == null) {
+                    }
+                    newComponent.setMinKey(minKey);
+                    newComponent.setMaxKey(maxKey);
+                    if (newComponent.getLSMComponentFilter() != null) {
+                        MultiComparator filterCmp =
+                                MultiComparator.create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
+                        for (ILSMComponent component : mergedComponents) {
+                            ITupleReference minMergeTuple = component.getLSMComponentFilter().getMinTuple();
+                            ITupleReference maxMergeTuple = component.getLSMComponentFilter().getMaxTuple();
+                            if (minTuple == null) {
+                                minTuple = minMergeTuple;
+                            } else {
+                                if (filterCmp.compare(minMergeTuple, minTuple) < 0) {
                                     minTuple = minMergeTuple;
-                                } else {
-                                    if (filterCmp.compare(minMergeTuple, minTuple) < 0) {
-                                        minTuple = minMergeTuple;
-                                    }
-                                }
-                                if (maxTuple == null) {
-                                    maxTuple = maxMergeTuple;
-                                } else {
-                                    if (filterCmp.compare(maxMergeTuple, maxTuple) > 0) {
-                                        maxTuple = maxMergeTuple;
-                                    }
                                 }
                             }
-                            minTuples.add(minTuple);
-                            maxTuples.add(maxTuple);
+                            if (maxTuple == null) {
+                                maxTuple = maxMergeTuple;
+                            } else {
+                                if (filterCmp.compare(maxMergeTuple, maxTuple) > 0) {
+                                    maxTuple = maxMergeTuple;
+                                }
+                            }
                         }
                     }
                 } finally {
@@ -944,40 +491,35 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             } finally {
                 cursor.destroy();
             }
-            for (int i = 0; i < newComponents.size(); i++) {
-                ILSMDiskComponent newComponent = newComponents.get(i);
-                if (newComponent.getLSMComponentFilter() != null) {
-                    List<ITupleReference> filterTuples = Arrays.asList(minTuples.get(i), maxTuples.get(i));
-                    //                    for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
-                    //                        filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMinTuple());
-                    //                        filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMaxTuple());
-                    //                    }
-                    getFilterManager().updateFilter(newComponent.getLSMComponentFilter(), filterTuples,
-                            NoOpOperationCallback.INSTANCE);
-                    getFilterManager().writeFilter(newComponent.getLSMComponentFilter(),
-                            newComponent.getMetadataHolder());
-                }
+            if (newComponent.getLSMComponentFilter() != null) {
+                List<ITupleReference> filterTuples = Arrays.asList(minTuple, maxTuple);
+                //                    for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
+                //                        filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMinTuple());
+                //                        filterTuples.add(mergeOp.getMergingComponents().get(i).getLSMComponentFilter().getMaxTuple());
+                //                    }
+                getFilterManager().updateFilter(newComponent.getLSMComponentFilter(), filterTuples,
+                        NoOpOperationCallback.INSTANCE);
+                getFilterManager().writeFilter(newComponent.getLSMComponentFilter(), newComponent.getMetadataHolder());
             }
         } catch (Throwable e) { // NOSONAR.. As per the contract, we should either abort or end
             try {
-                for (ILSMDiskComponentBulkLoader componentBulkLoader : componentBulkLoaders) {
-                    componentBulkLoader.abort();
-                }
+                componentBulkLoader.abort();
             } catch (Throwable th) { // NOSONAR Don't lose the root failure
                 e.addSuppressed(th);
             }
             throw e;
         }
-        for (ILSMDiskComponentBulkLoader componentBulkLoader : componentBulkLoaders) {
-            componentBulkLoader.end();
-        }
+        componentBulkLoader.end();
+        return newComponent;
+    }
 
-        String newMsg = diskComponentToString(newComponents.get(0));
-        for (int i = 1; i < newComponents.size(); i++) {
-            newMsg += "; " + diskComponentToString(newComponents.get(i));
+    @Override
+    public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
+        if (isLeveled) {
+            return mergePolicyHelper.merge(operation);
+        } else {
+            return Collections.singletonList(stackedMerge((LSMBTreeMergeOperation) operation));
         }
-        LOGGER.info("[doMerge]\tOld: " + oldMsg + "\tnew: " + newMsg);
-        return newComponents;
     }
 
     private long getNumberOfElements(List<ILSMComponent> mergedComponents) throws HyracksDataException {
@@ -1085,22 +627,6 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
     }
 
-    public LSMComponentFileReferences getNextMergeFileReferencesAtLevel(long level, long start)
-            throws HyracksDataException {
-        long maxId = getMaxLevelId(level);
-        String newName = level + AbstractLSMIndexFileManager.DELIMITER + (start > maxId ? start : maxId + 1);
-        return fileManager.getRelMergeFileReference(newName);
-    }
-
-    public ILSMDiskComponent createDiskComponent(FileReference insertFileReference,
-                                                    FileReference deleteIndexFileReference, FileReference bloomFilterFileRef, boolean createComponent)
-            throws HyracksDataException {
-        ILSMDiskComponent component = componentFactory.createComponent(this,
-                new LSMComponentFileReferences(insertFileReference, deleteIndexFileReference, bloomFilterFileRef));
-        component.activate(createComponent);
-        return component;
-    }
-
     @Override
     protected ILSMIOOperation createMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences mergeFileRefs, ILSMIOOperationCallback callback) {
@@ -1114,5 +640,43 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         LSMBTreeRangeSearchCursor cursor = new LSMBTreeRangeSearchCursor(opCtx, returnDeletedTuples);
         return new LSMBTreeMergeOperation(accessor, cursor, mergeFileRefs.getInsertIndexFileReference(),
                 mergeFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
+    }
+
+    @Override
+    public String componentToString(ILSMDiskComponent component) {
+        String basename;
+        String minKey;
+        String maxKey;
+        try {
+            basename = component.getId().toString();
+        } catch (HyracksDataException ex) {
+            basename = "Unknown";
+        }
+        try {
+            byte[] minData = component.getMinKey();
+            if (minData == null) {
+                minKey = "Unknown";
+            } else {
+                int l = minData.length;
+                ByteBuffer wrapped = ByteBuffer.wrap(minData, l - Integer.SIZE, Integer.SIZE);
+                minKey = Integer.toString(wrapped.getInt());
+            }
+        } catch (HyracksDataException ex) {
+            minKey = "Unknown";
+        }
+        try {
+            byte[] maxData = component.getMaxKey();
+            if (maxData == null) {
+                maxKey = "Unknown";
+            } else {
+                int l = maxData.length;
+                ByteBuffer wrapped = ByteBuffer.wrap(maxData, l - Integer.SIZE, Integer.SIZE);
+                maxKey = Integer.toString(wrapped.getInt());
+            }
+        } catch (HyracksDataException ex) {
+            maxKey = "Unknown";
+        }
+        return "{ name: " + basename + ", size: " + component.getComponentSize() + ", min: " + minKey + ", max: "
+                + maxKey + " }";
     }
 }
