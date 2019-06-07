@@ -123,7 +123,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         this.needKeyDupCheck = needKeyDupCheck;
         this.hasBloomFilter = hasBloomFilter;
         if (isLeveled) {
-            mergePolicyHelper = new LSMBTreeLevelMergePolicyHelper(this, levelTableSize);
+            mergePolicyHelper = new LSMBTreeLevelMergePolicyHelper(this);
             levelMergePolicy.setHelper(mergePolicyHelper);
         } else {
             mergePolicyHelper = null;
@@ -147,7 +147,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         this.hasBloomFilter = true;
         this.updateAware = false;
         if (isLeveled) {
-            mergePolicyHelper = new LSMBTreeLevelMergePolicyHelper(this, levelTableSize);
+            mergePolicyHelper = new LSMBTreeLevelMergePolicyHelper(this);
             levelMergePolicy.setHelper(mergePolicyHelper);
         } else {
             mergePolicyHelper = null;
@@ -321,9 +321,6 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         ILSMDiskComponent component;
         ILSMDiskComponentBulkLoader componentBulkLoader;
 
-        byte[] minKey = null;
-        byte[] maxKey = null;
-
         try {
             RangePredicate nullPred = new RangePredicate(null, null, true, true, null, null);
             long numElements = 0L;
@@ -351,6 +348,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             componentBulkLoader = component.createBulkLoader(operation, 1.0f, false, numElements, false, false, false);
             IIndexCursor scanCursor = accessor.createSearchCursor(false);
             accessor.search(scanCursor, nullPred);
+            byte[] minKey = null;
+            byte[] maxKey = null;
             try {
                 while (scanCursor.hasNext()) {
                     scanCursor.next();
@@ -363,20 +362,36 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                     componentBulkLoader.add(tuple);
                     byte[] key = getTupleKey(tuple);
                     if (key != null) {
-                        if (minKey == null) {
-                            minKey = key;
-                        } else {
-                            if (compareBytes(key, minKey) < 0) {
-                                //                            if (ByteArrayPointable.compare(key, 0, key.length, minKey, 0, minKey.length) < 0) {
+                        if (key.length >= Long.BYTES) {
+                            key = getLongBytesFromTuple(tuple);
+                            if (minKey == null) {
                                 minKey = key;
+                            } else {
+                                if (bytesToLong(key) < bytesToLong(minKey)) {
+                                    minKey = key;
+                                }
                             }
-                        }
-                        if (maxKey == null) {
-                            maxKey = key;
-                        } else {
-                            if (compareBytes(maxKey, key) <= 0) {
-                                //                            if (ByteArrayPointable.compare(maxKey, 0, maxKey.length, key, 0, key.length) <= 0) {
+                            if (maxKey == null) {
                                 maxKey = key;
+                            } else {
+                                if (bytesToLong(key) > bytesToLong(maxKey)) {
+                                    maxKey = key;
+                                }
+                            }
+                        } else {
+                            if (minKey == null) {
+                                minKey = key;
+                            } else {
+                                if (compareBytes(key, minKey) < 0) {
+                                    minKey = key;
+                                }
+                            }
+                            if (maxKey == null) {
+                                maxKey = key;
+                            } else {
+                                if (compareBytes(key, maxKey) > 0) {
+                                    maxKey = key;
+                                }
                             }
                         }
                     }
@@ -388,6 +403,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                     scanCursor.destroy();
                 }
             }
+            component.setMinKey(minKey);
+            component.setMaxKey(maxKey);
         } finally {
             accessor.destroy();
         }
@@ -406,18 +423,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         // Use the copy of the metadata in the opContext
         // TODO This code should be in the callback and not in the index
         flushingComponent.getMetadata().copy(component.getMetadata());
-        component.setMinKey(minKey);
-        component.setMaxKey(maxKey);
         componentBulkLoader.end();
         return component;
-    }
-
-    private String diskComponentToString(ILSMComponent c) {
-        if (c instanceof ILSMDiskComponent) {
-            ILSMDiskComponent d = (ILSMDiskComponent) c;
-            return d.getLevel() + "_" + d.getLevelSequence() + ":" + d.getComponentSize();
-        }
-        return "";
     }
 
     private ILSMDiskComponent stackedMerge(LSMBTreeMergeOperation mergeOp) throws HyracksDataException {
@@ -445,18 +452,36 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                         componentBulkLoader.add(frameTuple);
                         byte[] key = getTupleKey(frameTuple);
                         if (key != null) {
-                            if (minKey == null) {
-                                minKey = key;
-                            } else {
-                                if (compareBytes(key, minKey) < 0) {
+                            if (key.length >= Long.BYTES) {
+                                key = getLongBytesFromTuple(frameTuple);
+                                if (minKey == null) {
                                     minKey = key;
+                                } else {
+                                    if (bytesToLong(key) < bytesToLong(minKey)) {
+                                        minKey = key;
+                                    }
                                 }
-                            }
-                            if (maxKey == null) {
-                                maxKey = key;
-                            } else {
-                                if (compareBytes(maxKey, key) <= 0) {
+                                if (maxKey == null) {
                                     maxKey = key;
+                                } else {
+                                    if (bytesToLong(key) > bytesToLong(maxKey)) {
+                                        maxKey = key;
+                                    }
+                                }
+                            } else {
+                                if (minKey == null) {
+                                    minKey = key;
+                                } else {
+                                    if (compareBytes(key, minKey) < 0) {
+                                        minKey = key;
+                                    }
+                                }
+                                if (maxKey == null) {
+                                    maxKey = key;
+                                } else {
+                                    if (compareBytes(key, maxKey) > 0) {
+                                        maxKey = key;
+                                    }
                                 }
                             }
                         }
@@ -642,6 +667,43 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 mergeFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
     }
 
+    public static byte[] getLongBytesFromTuple(ITupleReference tuple) {
+        byte[] key = getTupleKey(tuple);
+        int l = key == null ? 0 : key.length;
+        if (key.length < Long.BYTES) {
+            return null;
+        }
+        return Arrays.copyOfRange(key, l - Long.BYTES, l);
+    }
+
+    public static long bytesToLong(byte[] bytes) {
+        if (bytes == null || bytes.length != Long.BYTES) {
+            return Long.MAX_VALUE;
+        }
+        return ByteBuffer.wrap(bytes).getLong();
+    }
+
+    public static long getLongFromTuple(ITupleReference tuple) {
+        byte[] key = getTupleKey(tuple);
+        int l = key == null ? 0 : key.length;
+        if (key.length < Long.BYTES) {
+            return Long.MAX_VALUE;
+        }
+        return ByteBuffer.wrap(key, l - Long.BYTES, Long.BYTES).getLong();
+    }
+
+    private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
+
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
+
     @Override
     public String componentToString(ILSMDiskComponent component) {
         String basename;
@@ -658,8 +720,11 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 minKey = "Unknown";
             } else {
                 int l = minData.length;
-                ByteBuffer wrapped = ByteBuffer.wrap(minData, l - Integer.SIZE, Integer.SIZE);
-                minKey = Integer.toString(wrapped.getInt());
+                if (l == Long.BYTES) {
+                    minKey = Long.toString(bytesToLong(minData));
+                } else {
+                    minKey = bytesToHex(minData);
+                }
             }
         } catch (HyracksDataException ex) {
             minKey = "Unknown";
@@ -670,8 +735,11 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 maxKey = "Unknown";
             } else {
                 int l = maxData.length;
-                ByteBuffer wrapped = ByteBuffer.wrap(maxData, l - Integer.SIZE, Integer.SIZE);
-                maxKey = Integer.toString(wrapped.getInt());
+                if (l == Long.BYTES) {
+                    maxKey = Long.toString(bytesToLong(maxData));
+                } else {
+                    maxKey = bytesToHex(maxData);
+                }
             }
         } catch (HyracksDataException ex) {
             maxKey = "Unknown";

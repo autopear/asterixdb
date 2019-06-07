@@ -295,7 +295,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
                 maxKey = maxKeyBuf.getByteArray();
             }
         }
-        return minKey;
+        return maxKey;
     }
 
     @Override

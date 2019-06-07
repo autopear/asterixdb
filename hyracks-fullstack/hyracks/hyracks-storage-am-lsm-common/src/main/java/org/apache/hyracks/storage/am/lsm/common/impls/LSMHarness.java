@@ -257,10 +257,6 @@ public class LSMHarness implements ILSMHarness {
                 }
             }
         }
-
-        if (opType == LSMOperationType.FLUSH) {
-            LOGGER.info("[COMPONENTS]\t" + ((AbstractLSMIndex) lsmIndex).componentsToString());
-        }
     }
 
     private void exitOperation(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -299,9 +295,7 @@ public class LSMHarness implements ILSMHarness {
                         }
                         triggerReplication(componentsToBeReplicated, opType);
                     }
-                    if (!((AbstractLSMIndex) lsmIndex).isLeveledLSM()) {
-                        mergePolicy.diskComponentAdded(lsmIndex, newComponents, fullMergeIsRequested.get(), true);
-                    }
+                    mergePolicy.diskComponentAdded(lsmIndex, newComponents, fullMergeIsRequested.get(), true);
                 }
                 break;
             default:
@@ -624,9 +618,6 @@ public class LSMHarness implements ILSMHarness {
             opTracker.completeOperation(lsmIndex, LSMOperationType.MERGE,
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
-            if (((AbstractLSMIndex) lsmIndex).isLeveledLSM() && newComponents != null) {
-                mergePolicy.diskComponentAdded(lsmIndex, newComponents, false, true);
-            }
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());

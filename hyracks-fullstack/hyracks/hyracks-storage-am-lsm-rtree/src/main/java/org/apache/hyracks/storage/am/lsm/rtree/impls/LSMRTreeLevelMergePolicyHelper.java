@@ -45,8 +45,8 @@ import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
 
 public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelper {
-    public LSMRTreeLevelMergePolicyHelper(AbstractLSMIndex index, long tableSize) {
-        super(index, tableSize);
+    public LSMRTreeLevelMergePolicyHelper(AbstractLSMIndex index) {
+        super(index);
     }
 
     public static boolean isOverlapping(double[] min1, double[] max1, double[] min2, double[] max2) {
@@ -72,10 +72,11 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
     }
 
     public List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component,
-            List<ILSMDiskComponent> components, long level) {
+            List<ILSMDiskComponent> components) {
+        long levelTo = component.getLevel() + 1;
         Map<Long, ILSMDiskComponent> map = new HashMap<>();
         for (ILSMDiskComponent c : components) {
-            if (c.getLevel() == level) {
+            if (c.getLevel() == levelTo) {
                 map.put(c.getLevelSequence(), c);
             }
         }
@@ -83,7 +84,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             return Collections.emptyList();
         }
         List<Long> seqs = new ArrayList<>(map.keySet());
-        Collections.sort(seqs);
+        seqs.sort(Collections.reverseOrder());
         List<ILSMDiskComponent> overlapped = new ArrayList<>();
 
         double[] minMBR = null;
@@ -188,11 +189,8 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             ITupleReference minTuple = null;
             ITupleReference maxTuple = null;
             MultiComparator filterCmp = null;
-            long levelTo = ((ILSMDiskComponent) mergedComponents.get(mergedComponents.size() - 1)).getLevel();
-            long start = rtree.getMaxLevelId(levelTo);
-            if (start < 1) {
-                start = 1;
-            }
+            long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1;
+            long start = rtree.getMaxLevelId(levelTo) + 1;
             List<FileReference> mergeFileTargets = new ArrayList<>();
             List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
             try {
@@ -251,7 +249,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         }
                     }
                     componentBulkLoader.add(frameTuple);
-                    if (newComponent.getComponentSize() >= tableSize) {
+                    if (newComponent.getComponentSize() >= rtree.getAvgFlushSize()) {
                         newComponent.setMinKey(AbstractLSMRTree.doublesToBytes(minMBR));
                         newComponent.setMaxKey(AbstractLSMRTree.doublesToBytes(maxMBR));
                         minTuples.add(minTuple);

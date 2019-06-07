@@ -351,7 +351,6 @@ public abstract class AbstractLSMMemoryComponent extends AbstractLSMComponent im
         this.componentId = newId;
 
         if (this.componentId != null) {
-            LOGGER.info("[resetId]\t" + this.componentId);
             LSMComponentIdUtils.persist(this.componentId, metadata);
         }
     }

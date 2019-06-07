@@ -96,9 +96,13 @@ public class LevelMergePolicy implements ILSMMergePolicy {
             }
         }
         if (picked != null) {
-            List<ILSMDiskComponent> mergableComponents = new ArrayList<>(
-                    helper.getOverlappingComponents(picked, immutableComponents, picked.getLevel() + 1));
+            List<ILSMDiskComponent> mergableComponents =
+                    new ArrayList<>(helper.getOverlappingComponents(picked, immutableComponents));
             mergableComponents.add(0, picked);
+            String[] tmp = picked.getLsmIndex().getIndexIdentifier().split("/");
+            LOGGER.info("[MERGE]\t" + tmp[tmp.length - 1] + "\t"
+                    + ((AbstractLSMIndex) picked.getLsmIndex()).componentsToString());
+            LOGGER.info("[MERGE]\t" + tmp[tmp.length - 1] + "\t" + getComponents(mergableComponents));
             return mergableComponents;
         }
         return Collections.emptyList();

@@ -39,8 +39,7 @@ public interface ILevelMergePolicyHelper {
 
     ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level);
 
-    List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component, List<ILSMDiskComponent> components,
-            long level);
+    List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component, List<ILSMDiskComponent> components);
 
     List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException;
 }

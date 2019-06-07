@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.exceptions.ErrorCode;
@@ -118,7 +119,9 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     protected final LevelMergePolicy levelMergePolicy;
     protected final long level0Tables;
     protected final long level1Tables;
-    protected final long levelTableSize;
+    protected AtomicLong totalFlushSize;
+    protected AtomicLong totalFlushes;
+    protected AtomicLong avgTableSize;
     protected long maxLevels;
 
     public AbstractLSMIndex(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,
@@ -159,15 +162,16 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             levelMergePolicy = (LevelMergePolicy) mergePolicy;
             this.level0Tables = ((LevelMergePolicy) mergePolicy).getLevel0Components();
             this.level1Tables = ((LevelMergePolicy) mergePolicy).getLevel1Components();
-            this.levelTableSize = level0Tables * diskBufferCache.getPageSize() * (long) diskBufferCache.getPageBudget();
             maxLevels = -1L;
         } else {
             this.isLeveled = false;
             levelMergePolicy = null;
             this.level0Tables = 0L;
             this.level1Tables = 0L;
-            this.levelTableSize = 0L;
         }
+        totalFlushSize = new AtomicLong(0);
+        totalFlushes = new AtomicLong(0);
+        avgTableSize = new AtomicLong(0);
     }
 
     // The constructor used by external indexes
@@ -206,15 +210,16 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             levelMergePolicy = (LevelMergePolicy) mergePolicy;
             this.level0Tables = ((LevelMergePolicy) mergePolicy).getLevel0Components();
             this.level1Tables = ((LevelMergePolicy) mergePolicy).getLevel1Components();
-            this.levelTableSize = level0Tables * diskBufferCache.getPageSize() * (long) diskBufferCache.getPageBudget();
             maxLevels = -1L;
         } else {
             this.isLeveled = false;
             levelMergePolicy = null;
             this.level0Tables = 0L;
             this.level1Tables = 0L;
-            this.levelTableSize = 0L;
         }
+        totalFlushSize = new AtomicLong(0);
+        totalFlushes = new AtomicLong(0);
+        avgTableSize = new AtomicLong(0);
     }
 
     @Override
@@ -1030,7 +1035,11 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             LOGGER.log(Level.INFO,
                     "Flushing component with id: " + flushOp.getFlushingComponent().getId() + " in the index " + this);
         }
-        return doFlush(operation);
+        ILSMDiskComponent component = doFlush(operation);
+        double totalSize = totalFlushSize.addAndGet(component.getComponentSize());
+        long flushes = totalFlushes.incrementAndGet();
+        avgTableSize.set((long) (totalSize / flushes));
+        return component;
     }
 
     @Override
@@ -1082,6 +1091,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             throws HyracksDataException {
         long maxId = getMaxLevelId(level);
         String newName = level + AbstractLSMIndexFileManager.DELIMITER + (start > maxId ? start : maxId + 1);
+        String[] tmp = getIndexIdentifier().split("/");
+        LOGGER.info("[getNextMergeFileReferencesAtLevel]\t" + tmp[tmp.length - 1] + "\t" + start + "\t" + newName);
         return fileManager.getRelMergeFileReference(newName);
     }
 
@@ -1115,7 +1126,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     }
 
     public long getMaxLevelId(long level) {
-        long maxLevelId = -1L;
+        long maxLevelId = 0L;
         for (ILSMDiskComponent component : diskComponents) {
             if (component.getLevel() == level) {
                 long levelId = component.getLevelSequence();
@@ -1133,6 +1144,10 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     public long getMaxLevel() {
         return maxLevels;
+    }
+
+    public long getAvgFlushSize() {
+        return avgTableSize.get();
     }
 
     public static byte[] getTupleKey(ITupleReference tuple) {
@@ -1162,11 +1177,11 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         String dirStr = "{ dir: " + fileManager.getBaseDir().getFile().getName() + " }";
         String memStr = "{ Mem: " + memoryComponents.size() + " }";
         if (diskComponents.isEmpty()) {
-            return memStr;
+            return dirStr + "," + memStr;
         }
         String diskStr = "";
         if (isLeveled) {
-            long currentLevel = 0;
+            long currentLevel = -1;
             String levelStr = "";
             for (ILSMDiskComponent component : diskComponents) {
                 long level = component.getLevel();
@@ -1181,7 +1196,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                         if (diskStr.isEmpty()) {
                             diskStr = currentLevel + ": [ " + levelStr + " ]";
                         } else {
-                            diskStr = ", " + currentLevel + ": [" + levelStr + " ]";
+                            diskStr += ", " + currentLevel + ": [ " + levelStr + " ]";
                         }
                     }
                     currentLevel = level;
@@ -1189,7 +1204,11 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 }
             }
             if (!levelStr.isEmpty()) {
-                diskStr = ", " + currentLevel + ": [" + levelStr + " ]";
+                if (diskStr.isEmpty()) {
+                    diskStr = currentLevel + ": [ " + levelStr + " ]";
+                } else {
+                    diskStr += ", " + currentLevel + ": [ " + levelStr + " ]";
+                }
             }
         } else {
             diskStr = componentToString(diskComponents.get(0));

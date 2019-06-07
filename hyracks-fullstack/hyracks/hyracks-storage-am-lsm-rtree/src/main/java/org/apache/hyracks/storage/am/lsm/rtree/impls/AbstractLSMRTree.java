@@ -122,7 +122,7 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         this.isPointMBR = isPointMBR;
         this.valueProviders = ((RTreeNSMLeafFrameFactory) rtreeLeafFrameFactory).getKeyValueProviders();
         if (isLeveled) {
-            mergePolicyHelper = new LSMRTreeLevelMergePolicyHelper(this, levelTableSize);
+            mergePolicyHelper = new LSMRTreeLevelMergePolicyHelper(this);
             levelMergePolicy.setHelper(mergePolicyHelper);
         } else {
             mergePolicyHelper = null;
@@ -155,7 +155,7 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         this.isPointMBR = isPointMBR;
         this.valueProviders = ((RTreeNSMLeafFrameFactory) rtreeLeafFrameFactory).getKeyValueProviders();
         if (isLeveled) {
-            mergePolicyHelper = new LSMRTreeLevelMergePolicyHelper(this, levelTableSize);
+            mergePolicyHelper = new LSMRTreeLevelMergePolicyHelper(this);
             levelMergePolicy.setHelper(mergePolicyHelper);
         } else {
             mergePolicyHelper = null;
@@ -315,10 +315,10 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         if (bytes == null || bytes.length == 0) {
             return null;
         }
-        int dim = bytes.length / Double.SIZE;
+        int dim = bytes.length / Double.BYTES;
         double[] values = new double[dim];
         for (int i = 0; i < dim; i++) {
-            values[i] = ByteBuffer.wrap(bytes, i * Double.SIZE, Double.SIZE).getDouble();
+            values[i] = ByteBuffer.wrap(bytes, i * Double.BYTES, Double.BYTES).getDouble();
         }
         return values;
     }
@@ -327,9 +327,9 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         if (values == null || values.length == 0) {
             return null;
         }
-        byte[] bytes = new byte[values.length * Double.SIZE];
+        byte[] bytes = new byte[values.length * Double.BYTES];
         for (int i = 0; i < values.length; i++) {
-            ByteBuffer.wrap(bytes, i * Double.SIZE, Double.SIZE).putDouble(values[i]);
+            ByteBuffer.wrap(bytes, i * Double.BYTES, Double.BYTES).putDouble(values[i]);
         }
         return bytes;
     }

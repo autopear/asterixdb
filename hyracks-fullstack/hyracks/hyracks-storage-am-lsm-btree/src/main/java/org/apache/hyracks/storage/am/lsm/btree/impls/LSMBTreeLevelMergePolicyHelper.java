@@ -28,7 +28,6 @@ import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
-import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.btree.impls.RangePredicate;
 import org.apache.hyracks.storage.am.common.impls.NoOpOperationCallback;
@@ -44,15 +43,16 @@ import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.MultiComparator;
 
 public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelper {
-    public LSMBTreeLevelMergePolicyHelper(AbstractLSMIndex index, long tableSize) {
-        super(index, tableSize);
+    public LSMBTreeLevelMergePolicyHelper(AbstractLSMIndex index) {
+        super(index);
     }
 
     public List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component,
-            List<ILSMDiskComponent> components, long level) {
+            List<ILSMDiskComponent> components) {
+        long levelTo = component.getLevel() + 1;
         Map<Long, ILSMDiskComponent> map = new HashMap<>();
         for (ILSMDiskComponent c : components) {
-            if (c.getLevel() == level) {
+            if (c.getLevel() == levelTo) {
                 map.put(c.getLevelSequence(), c);
             }
         }
@@ -60,15 +60,15 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             return Collections.emptyList();
         }
         List<Long> seqs = new ArrayList<>(map.keySet());
-        Collections.sort(seqs);
+        seqs.sort(Collections.reverseOrder());
         List<ILSMDiskComponent> overlapped = new ArrayList<>();
 
-        byte[] minKey = null;
-        byte[] maxKey = null;
+        long minKey;
+        long maxKey;
 
         try {
-            minKey = component.getMinKey();
-            maxKey = component.getMaxKey();
+            minKey = LSMBTree.bytesToLong(component.getMinKey());
+            maxKey = LSMBTree.bytesToLong(component.getMaxKey());
         } catch (HyracksDataException ex) {
             for (long levelSeq : seqs) {
                 ILSMDiskComponent c = map.get(levelSeq);
@@ -80,9 +80,9 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         for (long levelSeq : seqs) {
             ILSMDiskComponent c = map.get(levelSeq);
             try {
-                byte[] cMinKey = c.getMinKey();
-                byte[] cMaxKey = c.getMaxKey();
-                if (!(LSMBTree.compareBytes(cMinKey, maxKey) > 0 || LSMBTree.compareBytes(cMaxKey, minKey) < 0)) {
+                long cMinKey = LSMBTree.bytesToLong(component.getMinKey());
+                long cMaxKey = LSMBTree.bytesToLong(component.getMaxKey());
+                if (!(minKey > cMaxKey || maxKey < cMinKey)) {
                     overlapped.add(c);
                 }
             } catch (HyracksDataException ex) {
@@ -123,19 +123,19 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                             cursor.next();
                             ITupleReference frameTuple = cursor.getTuple();
                             componentBulkLoader.add(frameTuple);
-                            byte[] key = btree.getTupleKey(frameTuple);
+                            byte[] key = LSMBTree.getLongBytesFromTuple(frameTuple);
                             if (key != null) {
                                 if (minKey == null) {
                                     minKey = key;
                                 } else {
-                                    if (btree.compareBytes(key, minKey) < 0) {
+                                    if (LSMBTree.bytesToLong(key) < LSMBTree.bytesToLong(minKey)) {
                                         minKey = key;
                                     }
                                 }
                                 if (maxKey == null) {
                                     maxKey = key;
                                 } else {
-                                    if (ByteArrayPointable.compare(maxKey, 0, maxKey.length, key, 0, key.length) <= 0) {
+                                    if (LSMBTree.bytesToLong(key) > LSMBTree.bytesToLong(maxKey)) {
                                         maxKey = key;
                                     }
                                 }
@@ -217,12 +217,8 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         ITupleReference minTuple = null;
                         ITupleReference maxTuple = null;
                         MultiComparator filterCmp = null;
-                        long levelTo =
-                                ((ILSMDiskComponent) mergedComponents.get(mergedComponents.size() - 1)).getLevel();
-                        long start = btree.getMaxLevelId(levelTo);
-                        if (start < 1) {
-                            start = 1;
-                        }
+                        long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1;
+                        long start = btree.getMaxLevelId(levelTo) + 1;
                         List<FileReference> mergeFileTargets = new ArrayList<>();
                         List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
                         byte[] minKey = null;
@@ -230,24 +226,6 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         while (cursor.hasNext()) {
                             cursor.next();
                             ITupleReference frameTuple = cursor.getTuple();
-                            byte[] key = btree.getTupleKey(frameTuple);
-                            if (key != null) {
-                                if (minKey == null) {
-                                    minKey = key;
-                                } else {
-                                    if (btree.compareBytes(key, minKey) < 0) {
-                                        minKey = key;
-                                    }
-                                }
-                                if (maxKey == null) {
-                                    maxKey = key;
-                                } else {
-                                    if (btree.compareBytes(maxKey, key) <= 0) {
-                                        maxKey = key;
-                                    }
-                                }
-                            }
-
                             if (newComponent == null) {
                                 LSMComponentFileReferences refs =
                                         btree.getNextMergeFileReferencesAtLevel(levelTo, start++);
@@ -265,6 +243,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                 minTuple = null;
                                 maxTuple = null;
                             }
+                            componentBulkLoader.add(frameTuple);
                             if (minTuple == null) {
                                 minTuple = frameTuple;
                             } else {
@@ -279,8 +258,24 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                     maxTuple = frameTuple;
                                 }
                             }
-                            componentBulkLoader.add(frameTuple);
-                            if (newComponent.getComponentSize() >= tableSize) {
+                            byte[] key = LSMBTree.getLongBytesFromTuple(frameTuple);
+                            if (key != null) {
+                                if (minKey == null) {
+                                    minKey = key;
+                                } else {
+                                    if (LSMBTree.bytesToLong(key) < LSMBTree.bytesToLong(minKey)) {
+                                        minKey = key;
+                                    }
+                                }
+                                if (maxKey == null) {
+                                    maxKey = key;
+                                } else {
+                                    if (LSMBTree.bytesToLong(key) > LSMBTree.bytesToLong(maxKey)) {
+                                        maxKey = key;
+                                    }
+                                }
+                            }
+                            if (newComponent.getComponentSize() >= btree.getAvgFlushSize()) {
                                 newComponent.setMinKey(minKey);
                                 newComponent.setMaxKey(maxKey);
                                 minTuples.add(minTuple);

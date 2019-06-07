@@ -28,11 +28,9 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper;
 
 public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolicyHelper {
     protected final AbstractLSMIndex index;
-    protected final long tableSize;
 
-    public AbstractLevelMergePolicyHelper(AbstractLSMIndex index, long tableSize) {
+    public AbstractLevelMergePolicyHelper(AbstractLSMIndex index) {
         this.index = index;
-        this.tableSize = tableSize;
     }
 
     public List<ILSMDiskComponent> getComponents(List<ILSMDiskComponent> components, long level) {
@@ -40,7 +38,7 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
         for (int i = 0; i < components.size(); i++) {
             ILSMDiskComponent c = components.get(i);
             if (c.getLevel() == level) {
-                ret.add(0, c);
+                ret.add(c);
             }
         }
         return ret;
@@ -89,7 +87,7 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
         ILSMDiskComponent best = null;
         int cnt = -1;
         for (ILSMDiskComponent component : srcComponents) {
-            int t = getOverlappingComponents(component, dstComponents, level + 1).size();
+            int t = getOverlappingComponents(component, dstComponents).size();
             if (best == null || t > cnt) {
                 best = component;
                 cnt = t;
