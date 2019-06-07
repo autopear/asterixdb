@@ -119,6 +119,11 @@
         <expected-error>ASX0013: Duplicate field name "g" (in line 27, at column 11)</expected-error>
       </compilation-unit>
     </test-case>
+    <test-case FilePath="flwor">
+      <compilation-unit name="select-let">
+        <output-dir compare="Text">select-let</output-dir>
+      </compilation-unit>
+    </test-case>
   </test-group>
   <test-group name="sorting">
     <test-case FilePath="sorting">
@@ -174,6 +179,14 @@
         <output-dir compare="Text">explain_field_access_closed</output-dir>
       </compilation-unit>
     </test-case>
+    <test-case FilePath="explain">
+      <compilation-unit name="explain_negative">
+        <output-dir compare="Text">explain_simple</output-dir>
+        <expected-error>ASX1001: Syntax error: EXPLAIN is not supported for this kind of statement</expected-error>
+        <expected-error>ASX1001: Syntax error: EXPLAIN is not supported for this kind of statement</expected-error>
+        <expected-error>ASX1001: Syntax error: EXPLAIN is not supported for this kind of statement</expected-error>
+      </compilation-unit>
+    </test-case>
   </test-group>
   <test-case FilePath="flwor">
     <compilation-unit name="let33">
@@ -215,7 +228,6 @@
     <test-case FilePath="aggregate">
       <compilation-unit name="min_mixed">
         <output-dir compare="Text">min_mixed</output-dir>
-        <expected-error>Type incompatibility: function min/max gets incompatible input values: string and float</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="aggregate">
@@ -1445,8 +1457,18 @@
         <output-dir compare="Text">var_pop_misc</output-dir>
       </compilation-unit>
     </test-case>
+    <test-case FilePath="aggregate">
+      <compilation-unit name="min_max_arrays">
+        <output-dir compare="Text">min_max_arrays</output-dir>
+      </compilation-unit>
+    </test-case>
   </test-group>
   <test-group name="aggregate-sql">
+    <test-case FilePath="aggregate-sql">
+      <compilation-unit name="min_max_arrays">
+        <output-dir compare="Text">min_max_arrays</output-dir>
+      </compilation-unit>
+    </test-case>
     <test-case FilePath="aggregate-sql">
       <compilation-unit name="issue531_string_min_max">
         <output-dir compare="Text">issue531_string_min_max</output-dir>
@@ -1481,7 +1503,6 @@
     <test-case FilePath="aggregate-sql">
       <compilation-unit name="min_mixed">
         <output-dir compare="Text">min_mixed</output-dir>
-        <expected-error>Type incompatibility: function min/max gets incompatible input values: string and float</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="aggregate-sql">
@@ -10424,6 +10445,8 @@
         <expected-error>ASX1079: Compilation error: count is a SQL-92 aggregate function</expected-error>
         <expected-error>ASX1104: Invalid modifier RESPECT/IGNORE NULLS for function</expected-error>
         <expected-error>ASX1104: Invalid modifier RESPECT/IGNORE NULLS for function</expected-error>
+        <expected-error>ASX1104: Invalid modifier FROM FIRST/LAST for function</expected-error>
+        <expected-error>ASX1104: Invalid modifier FROM FIRST/LAST for function</expected-error>
         <source-location>false</source-location>
       </compilation-unit>
     </test-case>

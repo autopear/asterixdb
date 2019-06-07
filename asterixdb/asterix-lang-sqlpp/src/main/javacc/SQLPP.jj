@@ -191,9 +191,11 @@ class SQLPPParser extends ScopeChecker implements IParser {
     // tokens parsed as identifiers
     private static final String CURRENT = "CURRENT";
     private static final String EXCLUDE = "EXCLUDE";
+    private static final String FIRST = "FIRST";
     private static final String FOLLOWING = "FOLLOWING";
     private static final String GROUPS = "GROUPS";
     private static final String IGNORE = "IGNORE";
+    private static final String LAST = "LAST";
     private static final String NO = "NO";
     private static final String NULLS = "NULLS";
     private static final String OTHERS = "OTHERS";
@@ -432,7 +434,7 @@ List<Statement> Statement() throws ParseException:
 }
 {
   (
-    (stmt = SingleStatement()
+    (stmt = ExplainStatement()
       {
         decls.add(stmt);
       }
@@ -443,6 +445,27 @@ List<Statement> Statement() throws ParseException:
   {
     return decls;
   }
+}
+
+Statement ExplainStatement() throws ParseException:
+{
+  Statement stmt = null;
+  Token explainToken = null;
+}
+{
+   ( <EXPLAIN> { explainToken = token; } )?
+   stmt = SingleStatement()
+   {
+      if (explainToken != null) {
+        if (stmt.getKind() == Statement.Kind.QUERY) {
+          ((Query)stmt).setExplain(true);
+        } else {
+          throw new SqlppParseException(getSourceLocation(explainToken),
+            "EXPLAIN is not supported for this kind of statement");
+        }
+      }
+      return stmt;
+   }
 }
 
 Statement SingleStatement() throws ParseException:
@@ -464,8 +487,7 @@ Statement SingleStatement() throws ParseException:
     | stmt = UpsertStatement()
     | stmt = ConnectionStatement()
     | stmt = CompactStatement()
-    | stmt = ExplainStatement()
-    | stmt = Query(false)
+    | stmt = Query()
     | stmt = RefreshExternalDatasetStatement()
   )
   {
@@ -1088,7 +1110,7 @@ InsertStatement InsertStatement() throws ParseException:
 }
 {
   <INSERT> { startToken = token; } <INTO> nameComponents = QualifiedName() (<AS> var = Variable())?
-    query = Query(false)
+    query = Query()
     ( <RETURNING> returnExpression = Expression())?
     {
       if (var == null && returnExpression != null) {
@@ -1112,7 +1134,7 @@ UpsertStatement UpsertStatement() throws ParseException:
 }
 {
   <UPSERT> { startToken = token; } <INTO> nameComponents = QualifiedName() (<AS> var = Variable())?
-    query = Query(false)
+    query = Query()
     ( <RETURNING> returnExpression = Expression())?
     {
       if (var == null && returnExpression != null) {
@@ -1850,20 +1872,9 @@ FunctionDecl FunctionDeclaration() throws ParseException:
   }
 }
 
-Query ExplainStatement() throws ParseException:
+Query Query() throws ParseException:
 {
-  Query query;
-}
-{
-  <EXPLAIN> query = Query(true)
-  {
-    return query;
-  }
-}
-
-Query Query(boolean explain) throws ParseException:
-{
-  Query query = new Query(explain);
+  Query query = new Query();
   Expression expr;
 }
 {
@@ -1973,7 +1984,7 @@ Expression NotExpr() throws ParseException:
    Token startToken = null;
 }
 {
-  (<NOT> { not = true; startToken = token; } )? inputExpr = RelExpr()
+  (LOOKAHEAD(2) <NOT> { not = true; startToken = token; } )? inputExpr = RelExpr()
   {
     if(not) {
         FunctionSignature signature = new FunctionSignature(BuiltinFunctions.NOT);
@@ -2679,12 +2690,21 @@ RecordConstructor RecordConstructor() throws ParseException:
 
 FieldBinding FieldBinding() throws ParseException:
 {
-  Expression left, right;
+  Expression left, right = null;
 }
 {
-  left = Expression() <COLON> right = Expression()
+  left = Expression() ( <COLON> right = Expression() )?
   {
-    return new FieldBinding(left, right);
+    if (right == null) {
+        String generatedIdentifier = ExpressionToVariableUtil.getGeneratedIdentifier(left, false);
+        if (generatedIdentifier == null) {
+          throw new SqlppParseException(getSourceLocation(token), "Cannot infer field name");
+        }
+        String generatedName = SqlppVariableUtil.toUserDefinedName(generatedIdentifier);
+        return new FieldBinding(new LiteralExpr(new StringLiteral(generatedName)), left);
+    } else {
+      return new FieldBinding(left, right);
+    }
   }
 }
 
@@ -2749,14 +2769,60 @@ Expression FunctionCallExpr() throws ParseException:
       resultExpr = callExpr;
     }
 
-  ( resultExpr = WindowExpr(callExpr.getFunctionSignature(), callExpr.getExprList(), token) )?
+  ( LOOKAHEAD(5) resultExpr = WindowExpr(callExpr.getFunctionSignature(), callExpr.getExprList()) )?
 
   {
      return resultExpr;
   }
 }
 
-WindowExpression WindowExpr(FunctionSignature signature, List<Expression> argList, Token startToken) throws ParseException:
+WindowExpression WindowExpr(FunctionSignature signature, List<Expression> argList) throws ParseException:
+{
+  Boolean fromLast = null, ignoreNulls = null;
+}
+{
+  (
+    // FROM ( FIRST | LAST ) ( ( RESPECT | IGNORE ) NULLS )? OVER
+    LOOKAHEAD(5, <FROM> <IDENTIFIER> ( <IDENTIFIER> <IDENTIFIER> )? <OVER>)
+    <FROM> <IDENTIFIER>
+    {
+      if (isToken(FIRST)) {
+        fromLast = false;
+      } else if (isToken(LAST)) {
+        fromLast = true;
+      } else {
+        throw createUnexpectedTokenError();
+      }
+    }
+  )?
+  (
+    // ( RESPECT | IGNORE ) NULLS OVER
+    LOOKAHEAD(3, <IDENTIFIER> <IDENTIFIER> <OVER>)
+    <IDENTIFIER>
+    {
+      if (isToken(RESPECT)) {
+        ignoreNulls = false;
+      } else if (isToken(IGNORE)) {
+        ignoreNulls = true;
+      } else {
+        throw createUnexpectedTokenError();
+      }
+    }
+    <IDENTIFIER>
+    {
+      if (!isToken(NULLS)) {
+        throw createUnexpectedTokenError();
+      }
+    }
+  )?
+  <OVER>
+  {
+    return OverClause(signature, argList, token, fromLast, ignoreNulls);
+  }
+}
+
+WindowExpression OverClause(FunctionSignature signature, List<Expression> argList, Token startToken, Boolean fromLast,
+    Boolean ignoreNulls) throws ParseException:
 {
   Expression partitionExpr = null;
   List<Expression> partitionExprs = new ArrayList<Expression>();
@@ -2771,17 +2837,8 @@ WindowExpression WindowExpr(FunctionSignature signature, List<Expression> argLis
   Pair<VariableExpr, List<Pair<Expression, Identifier>>> windowVarWithFieldList = null;
   VariableExpr windowVar = null;
   List<Pair<Expression, Identifier>> windowFieldList = null;
-  Boolean ignoreNulls = null;
 }
 {
-  (
-    (
-      LOOKAHEAD({ laIdentifier(RESPECT) }) <IDENTIFIER> { ignoreNulls = false; }
-      | LOOKAHEAD({ laIdentifier(IGNORE) }) <IDENTIFIER> { ignoreNulls = true; }
-    )
-    LOOKAHEAD({ laIdentifier(NULLS) }) <IDENTIFIER>
-  )?
-  <OVER>
   (
     windowVarWithFieldList = VariableWithFieldMap() <AS>
     {
@@ -2827,7 +2884,7 @@ WindowExpression WindowExpr(FunctionSignature signature, List<Expression> argLis
   {
     WindowExpression winExp = new WindowExpression(signature, argList, partitionExprs, orderbyList, orderbyModifierList,
       frameMode, frameStartKind, frameStartExpr, frameEndKind, frameEndExpr, frameExclusionKind, windowVar,
-      windowFieldList, ignoreNulls);
+      windowFieldList, ignoreNulls, fromLast);
     return addSourceLocation(winExp, startToken);
   }
 }
@@ -2857,8 +2914,7 @@ Pair<WindowExpression.FrameBoundaryKind, Expression> WindowFrameBoundary() throw
 }
 {
   (
-    LOOKAHEAD({ laIdentifier(CURRENT) }) <IDENTIFIER> { current = true; }
-    | LOOKAHEAD({ laIdentifier(UNBOUNDED) }) <IDENTIFIER>
+    LOOKAHEAD({ laIdentifier(CURRENT) || laIdentifier(UNBOUNDED) }) <IDENTIFIER> { current = isToken(CURRENT); }
     | expr = Expression()
   )
   <IDENTIFIER>
@@ -3058,18 +3114,36 @@ SelectBlock SelectBlock() throws ParseException:
   (
      selectClause = SelectClause() { startSrcLoc = selectClause.getSourceLocation(); }
      (
-        LOOKAHEAD(1)
-        fromClause = FromClause()
         (
-            LOOKAHEAD(1)
-            fromLetClauses = LetClause()
-        )?
+          fromClause = FromClause()
+          (
+              fromLetClauses = LetClause()
+          )?
+        )
+        |
+        (
+          fromLetClauses = LetClause()
+          {
+            // LET without FROM -> create dummy FROM clause: FROM {{missing}} AS #0
+            SourceLocation sourceLoc = getSourceLocation(token);
+            LiteralExpr missingExpr = new LiteralExpr(MissingLiteral.INSTANCE);
+            missingExpr.setSourceLocation(sourceLoc);
+            List<Expression> list = new ArrayList<Expression>(1);
+            list.add(missingExpr);
+            ListConstructor listExpr = new ListConstructor(ListConstructor.Type.ORDERED_LIST_CONSTRUCTOR, list);
+            listExpr.setSourceLocation(sourceLoc);
+            List<FromTerm> fromTerms = new ArrayList<FromTerm>(1);
+            VariableExpr fromVar = new VariableExpr(new VarIdentifier("#0"));
+            fromVar.setSourceLocation(sourceLoc);
+            fromTerms.add(new FromTerm(listExpr, fromVar, null, new ArrayList<AbstractBinaryCorrelateClause>()));
+            fromClause = new FromClause(fromTerms);
+          }
+        )
      )?
      (whereClause = WhereClause())?
      (
         groupbyClause = GroupbyClause()
         (
-            LOOKAHEAD(1)
             gbyLetClauses = LetClause()
         )?
         (havingClause = HavingClause())?
@@ -3077,7 +3151,6 @@ SelectBlock SelectBlock() throws ParseException:
     |
      fromClause = FromClause() { startSrcLoc = fromClause.getSourceLocation(); }
      (
-        LOOKAHEAD(1)
         fromLetClauses = LetClause()
      )?
      (whereClause = WhereClause())?
