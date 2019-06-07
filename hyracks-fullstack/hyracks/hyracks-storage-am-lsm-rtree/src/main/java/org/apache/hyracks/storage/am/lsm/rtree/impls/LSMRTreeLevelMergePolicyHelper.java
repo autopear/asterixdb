@@ -45,8 +45,11 @@ import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
 
 public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelper {
+    protected final AbstractLSMRTree lsmRTree;
+
     public LSMRTreeLevelMergePolicyHelper(AbstractLSMIndex index) {
         super(index);
+        lsmRTree = (AbstractLSMRTree) index;
     }
 
     public static boolean isOverlapping(double[] min1, double[] max1, double[] min2, double[] max2) {
@@ -117,12 +120,11 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
     }
 
     private List<ILSMDiskComponent> doZOrderMerge(ILSMIOOperation operation) throws HyracksDataException {
-        AbstractLSMRTree rtree = (AbstractLSMRTree) index;
         LSMRTreeMergeOperation mergeOp = (LSMRTreeMergeOperation) operation;
         IIndexCursor cursor = mergeOp.getCursor();
         ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
         ILSMIndexOperationContext opCtx = ((LSMIndexSearchCursor) cursor).getOpCtx();
-        rtree.search(opCtx, cursor, rtreeSearchPred);
+        lsmRTree.search(opCtx, cursor, rtreeSearchPred);
 
         List<ILSMDiskComponent> newComponents = new ArrayList<>();
         List<ILSMDiskComponentBulkLoader> componentBulkLoaders = new ArrayList<>();
@@ -134,9 +136,9 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         if (mergedComponents.size() == 1) {
             ILSMDiskComponent newComponent = null;
             ILSMDiskComponentBulkLoader componentBulkLoader = null;
-            LSMComponentFileReferences refs = rtree
+            LSMComponentFileReferences refs = lsmRTree
                     .getNextMergeFileReferencesAtLevel(((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1, 1);
-            newComponent = rtree.createDiskComponent(refs.getInsertIndexFileReference(), null, null, true);
+            newComponent = lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(), null, null, true);
             componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
             componentBulkLoaders.add(componentBulkLoader);
             double[] minMBR = null;
@@ -146,7 +148,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     cursor.next();
                     ITupleReference frameTuple = cursor.getTuple();
                     componentBulkLoader.add(frameTuple);
-                    double[] mbr = rtree.getMBRFromTuple(frameTuple);
+                    double[] mbr = lsmRTree.getMBRFromTuple(frameTuple);
                     int dim = mbr.length / 2;
                     if (minMBR == null) {
                         minMBR = new double[dim];
@@ -190,14 +192,14 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             ITupleReference maxTuple = null;
             MultiComparator filterCmp = null;
             long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1;
-            long start = rtree.getMaxLevelId(levelTo) + 1;
+            long start = lsmRTree.getMaxLevelId(levelTo) + 1;
             List<FileReference> mergeFileTargets = new ArrayList<>();
             List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
             try {
                 while (cursor.hasNext()) {
                     cursor.next();
                     ITupleReference frameTuple = cursor.getTuple();
-                    double[] mbr = rtree.getMBRFromTuple(frameTuple);
+                    double[] mbr = lsmRTree.getMBRFromTuple(frameTuple);
                     int dim = mbr.length / 2;
                     if (minMBR == null) {
                         minMBR = new double[dim];
@@ -220,10 +222,10 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         }
                     }
                     if (newComponent == null) {
-                        LSMComponentFileReferences refs = rtree.getNextMergeFileReferencesAtLevel(levelTo, start++);
+                        LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo, start++);
                         mergeFileTargets.add(refs.getInsertIndexFileReference());
                         mergeBloomFilterTargets.add(refs.getBloomFilterFileReference());
-                        newComponent = rtree.createDiskComponent(refs.getInsertIndexFileReference(), null,
+                        newComponent = lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(), null,
                                 refs.getBloomFilterFileReference(), true);
                         componentBulkLoader =
                                 newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
@@ -249,7 +251,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         }
                     }
                     componentBulkLoader.add(frameTuple);
-                    if (newComponent.getComponentSize() >= rtree.getAvgFlushSize()) {
+                    if (newComponent.getComponentSize() >= lsmRTree.getAvgFlushSize()) {
                         newComponent.setMinKey(AbstractLSMRTree.doublesToBytes(minMBR));
                         newComponent.setMaxKey(AbstractLSMRTree.doublesToBytes(maxMBR));
                         minTuples.add(minTuple);
@@ -279,9 +281,9 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             ILSMDiskComponent newComponent = newComponents.get(i);
             if (newComponent.getLSMComponentFilter() != null) {
                 List<ITupleReference> filterTuples = Arrays.asList(minTuples.get(i), maxTuples.get(i));
-                rtree.getFilterManager().updateFilter(newComponent.getLSMComponentFilter(), filterTuples,
+                lsmRTree.getFilterManager().updateFilter(newComponent.getLSMComponentFilter(), filterTuples,
                         NoOpOperationCallback.INSTANCE);
-                rtree.getFilterManager().writeFilter(newComponent.getLSMComponentFilter(),
+                lsmRTree.getFilterManager().writeFilter(newComponent.getLSMComponentFilter(),
                         newComponent.getMetadataHolder());
             }
         }

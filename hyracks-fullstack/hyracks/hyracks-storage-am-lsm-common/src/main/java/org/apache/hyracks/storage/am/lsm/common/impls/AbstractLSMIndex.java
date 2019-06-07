@@ -172,6 +172,12 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         totalFlushSize = new AtomicLong(0);
         totalFlushes = new AtomicLong(0);
         avgTableSize = new AtomicLong(0);
+        String[] tmp = getIndexIdentifier().split("/");
+        String baseDir = tmp[tmp.length - 1];
+        IVirtualBufferCache bc = virtualBufferCaches.get(0);
+        LOGGER.info("[" + baseDir + "]\tdiskBufferCache\t" + diskBufferCache.getPageBudget() + "\t"
+                + +diskBufferCache.getPageSize());
+        LOGGER.info("[" + baseDir + "]\tvirtualBufferCache\t" + bc.getPageBudget() + "\t" + +bc.getPageSize());
     }
 
     // The constructor used by external indexes

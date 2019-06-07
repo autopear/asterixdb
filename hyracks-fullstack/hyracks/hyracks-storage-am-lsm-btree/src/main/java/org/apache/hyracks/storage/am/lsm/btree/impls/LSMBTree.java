@@ -300,7 +300,9 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
     }
 
     public static int compareBytes(byte[] thisBytes, byte[] thatBytes) {
-        for (int i = 0; i < thisBytes.length; i++) {
+        int thisLen = thisBytes == null ? 0 : thisBytes.length;
+        int thatLen = thatBytes == null ? 0 : thatBytes.length;
+        for (int i = 0; i < thisLen && i < thatLen; i++) {
             byte b1 = thisBytes[i];
             byte b2 = thatBytes[i];
             if (b1 < b2) {
@@ -310,7 +312,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             } else {
             }
         }
-        return 0;
+        return thisLen - thatLen;
     }
 
     @Override
@@ -362,36 +364,18 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                     componentBulkLoader.add(tuple);
                     byte[] key = getTupleKey(tuple);
                     if (key != null) {
-                        if (key.length >= Long.BYTES) {
-                            key = getLongBytesFromTuple(tuple);
-                            if (minKey == null) {
-                                minKey = key;
-                            } else {
-                                if (bytesToLong(key) < bytesToLong(minKey)) {
-                                    minKey = key;
-                                }
-                            }
-                            if (maxKey == null) {
-                                maxKey = key;
-                            } else {
-                                if (bytesToLong(key) > bytesToLong(maxKey)) {
-                                    maxKey = key;
-                                }
-                            }
+                        if (minKey == null) {
+                            minKey = key;
                         } else {
-                            if (minKey == null) {
+                            if (compareBytes(key, minKey) < 0) {
                                 minKey = key;
-                            } else {
-                                if (compareBytes(key, minKey) < 0) {
-                                    minKey = key;
-                                }
                             }
-                            if (maxKey == null) {
+                        }
+                        if (maxKey == null) {
+                            maxKey = key;
+                        } else {
+                            if (compareBytes(key, maxKey) > 0) {
                                 maxKey = key;
-                            } else {
-                                if (compareBytes(key, maxKey) > 0) {
-                                    maxKey = key;
-                                }
                             }
                         }
                     }
@@ -452,36 +436,18 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                         componentBulkLoader.add(frameTuple);
                         byte[] key = getTupleKey(frameTuple);
                         if (key != null) {
-                            if (key.length >= Long.BYTES) {
-                                key = getLongBytesFromTuple(frameTuple);
-                                if (minKey == null) {
-                                    minKey = key;
-                                } else {
-                                    if (bytesToLong(key) < bytesToLong(minKey)) {
-                                        minKey = key;
-                                    }
-                                }
-                                if (maxKey == null) {
-                                    maxKey = key;
-                                } else {
-                                    if (bytesToLong(key) > bytesToLong(maxKey)) {
-                                        maxKey = key;
-                                    }
-                                }
+                            if (minKey == null) {
+                                minKey = key;
                             } else {
-                                if (minKey == null) {
+                                if (compareBytes(key, minKey) < 0) {
                                     minKey = key;
-                                } else {
-                                    if (compareBytes(key, minKey) < 0) {
-                                        minKey = key;
-                                    }
                                 }
-                                if (maxKey == null) {
+                            }
+                            if (maxKey == null) {
+                                maxKey = key;
+                            } else {
+                                if (compareBytes(key, maxKey) > 0) {
                                     maxKey = key;
-                                } else {
-                                    if (compareBytes(key, maxKey) > 0) {
-                                        maxKey = key;
-                                    }
                                 }
                             }
                         }
@@ -677,10 +643,10 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
     }
 
     public static long bytesToLong(byte[] bytes) {
-        if (bytes == null || bytes.length != Long.BYTES) {
+        if (bytes == null || bytes.length < Long.BYTES) {
             return Long.MAX_VALUE;
         }
-        return ByteBuffer.wrap(bytes).getLong();
+        return ByteBuffer.wrap(bytes, bytes.length - Long.BYTES, Long.BYTES).getLong();
     }
 
     public static long getLongFromTuple(ITupleReference tuple) {
@@ -720,7 +686,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 minKey = "Unknown";
             } else {
                 int l = minData.length;
-                if (l == Long.BYTES) {
+                if (l >= Long.BYTES) {
                     minKey = Long.toString(bytesToLong(minData));
                 } else {
                     minKey = bytesToHex(minData);
@@ -735,7 +701,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 maxKey = "Unknown";
             } else {
                 int l = maxData.length;
-                if (l == Long.BYTES) {
+                if (l >= Long.BYTES) {
                     maxKey = Long.toString(bytesToLong(maxData));
                 } else {
                     maxKey = bytesToHex(maxData);
