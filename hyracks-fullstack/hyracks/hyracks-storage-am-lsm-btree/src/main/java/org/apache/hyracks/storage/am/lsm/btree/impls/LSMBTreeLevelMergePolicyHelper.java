@@ -214,7 +214,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                     }
                                 }
                             }
-                            if (newComponent.getComponentSize() >= lsmBTree.getAvgFlushSize()) {
+                            if (newComponent.getComponentSize() >= lsmBTree.memTableSize) {
                                 newComponent.setMinKey(minKey);
                                 newComponent.setMaxKey(maxKey);
                                 minTuples.add(minTuple);

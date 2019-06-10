@@ -35,7 +35,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.exceptions.ErrorCode;
@@ -115,13 +114,11 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     protected final ILSMDiskComponentFactory bulkLoadComponentFactory;
     private int numScheduledFlushes = 0;
 
-    protected final boolean isLeveled;
-    protected final LevelMergePolicy levelMergePolicy;
-    protected final long level0Tables;
-    protected final long level1Tables;
-    protected AtomicLong totalFlushSize;
-    protected AtomicLong totalFlushes;
-    protected AtomicLong avgTableSize;
+    public final boolean isLeveled;
+    public final LevelMergePolicy levelMergePolicy;
+    public final long level0Tables;
+    public final long level1Tables;
+    public final long memTableSize;
     protected long maxLevels;
 
     public AbstractLSMIndex(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,
@@ -169,15 +166,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             this.level0Tables = 0L;
             this.level1Tables = 0L;
         }
-        totalFlushSize = new AtomicLong(0);
-        totalFlushes = new AtomicLong(0);
-        avgTableSize = new AtomicLong(0);
-        String[] tmp = getIndexIdentifier().split("/");
-        String baseDir = tmp[tmp.length - 1];
-        IVirtualBufferCache bc = virtualBufferCaches.get(0);
-        LOGGER.info("[" + baseDir + "]\tdiskBufferCache\t" + diskBufferCache.getPageBudget() + "\t"
-                + +diskBufferCache.getPageSize());
-        LOGGER.info("[" + baseDir + "]\tvirtualBufferCache\t" + bc.getPageBudget() + "\t" + +bc.getPageSize());
+        memTableSize = virtualBufferCaches.get(0).getPageSize() * virtualBufferCaches.get(0).getPageBudget();
     }
 
     // The constructor used by external indexes
@@ -223,9 +212,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             this.level0Tables = 0L;
             this.level1Tables = 0L;
         }
-        totalFlushSize = new AtomicLong(0);
-        totalFlushes = new AtomicLong(0);
-        avgTableSize = new AtomicLong(0);
+        memTableSize = 0;
     }
 
     @Override
@@ -1041,11 +1028,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             LOGGER.log(Level.INFO,
                     "Flushing component with id: " + flushOp.getFlushingComponent().getId() + " in the index " + this);
         }
-        ILSMDiskComponent component = doFlush(operation);
-        double totalSize = totalFlushSize.addAndGet(component.getComponentSize());
-        long flushes = totalFlushes.incrementAndGet();
-        avgTableSize.set((long) (totalSize / flushes));
-        return component;
+        return doFlush(operation);
     }
 
     @Override
@@ -1097,8 +1080,6 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             throws HyracksDataException {
         long maxId = getMaxLevelId(level);
         String newName = level + AbstractLSMIndexFileManager.DELIMITER + (start > maxId ? start : maxId + 1);
-        String[] tmp = getIndexIdentifier().split("/");
-        LOGGER.info("[getNextMergeFileReferencesAtLevel]\t" + tmp[tmp.length - 1] + "\t" + start + "\t" + newName);
         return fileManager.getRelMergeFileReference(newName);
     }
 
@@ -1150,10 +1131,6 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     public long getMaxLevel() {
         return maxLevels;
-    }
-
-    public long getAvgFlushSize() {
-        return avgTableSize.get();
     }
 
     public static byte[] getTupleKey(ITupleReference tuple) {
