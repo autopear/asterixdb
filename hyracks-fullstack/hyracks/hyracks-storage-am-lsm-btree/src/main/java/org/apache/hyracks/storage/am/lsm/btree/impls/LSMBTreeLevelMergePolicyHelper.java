@@ -85,7 +85,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             try {
                 byte[] cMinKey = component.getMinKey();
                 byte[] cMaxKey = component.getMaxKey();
-                if (!(LSMBTree.compareBytes(minKey, cMaxKey) > 0 || LSMBTree.compareBytes(maxKey, cMinKey) < 0)) {
+                if (!(lsmBTree.compareKey(minKey, cMaxKey) > 0 || lsmBTree.compareKey(maxKey, cMinKey) < 0)) {
                     overlapped.add(c);
                 }
             } catch (HyracksDataException ex) {
@@ -125,19 +125,19 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                             cursor.next();
                             ITupleReference frameTuple = cursor.getTuple();
                             componentBulkLoader.add(frameTuple);
-                            byte[] key = LSMBTree.getTupleKey(frameTuple);
+                            byte[] key = LSMBTree.getKeyBytes(frameTuple);
                             if (key != null) {
                                 if (minKey == null) {
                                     minKey = key;
                                 } else {
-                                    if (LSMBTree.compareBytes(key, minKey) < 0) {
+                                    if (lsmBTree.compareKey(key, minKey) < 0) {
                                         minKey = key;
                                     }
                                 }
                                 if (maxKey == null) {
                                     maxKey = key;
                                 } else {
-                                    if (LSMBTree.compareBytes(key, maxKey) > 0) {
+                                    if (lsmBTree.compareKey(key, maxKey) > 0) {
                                         maxKey = key;
                                     }
                                 }
@@ -183,33 +183,35 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                 maxTuple = null;
                             }
                             componentBulkLoader.add(frameTuple);
-                            if (minTuple == null) {
-                                minTuple = frameTuple;
-                            } else {
-                                if (filterCmp != null && filterCmp.compare(frameTuple, minTuple) < 0) {
+                            if (filterCmp != null) {
+                                if (minTuple == null) {
                                     minTuple = frameTuple;
+                                } else {
+                                    if (filterCmp.compare(frameTuple, minTuple) < 0) {
+                                        minTuple = frameTuple;
+                                    }
                                 }
-                            }
-                            if (maxTuple == null) {
-                                maxTuple = frameTuple;
-                            } else {
-                                if (filterCmp != null && filterCmp.compare(frameTuple, maxTuple) > 0) {
+                                if (maxTuple == null) {
                                     maxTuple = frameTuple;
+                                } else {
+                                    if (filterCmp.compare(frameTuple, maxTuple) > 0) {
+                                        maxTuple = frameTuple;
+                                    }
                                 }
                             }
-                            byte[] key = LSMBTree.getTupleKey(frameTuple);
+                            byte[] key = LSMBTree.getKeyBytes(frameTuple);
                             if (key != null) {
                                 if (minKey == null) {
                                     minKey = key;
                                 } else {
-                                    if (LSMBTree.compareBytes(key, minKey) < 0) {
+                                    if (lsmBTree.compareKey(key, minKey) < 0) {
                                         minKey = key;
                                     }
                                 }
                                 if (maxKey == null) {
                                     maxKey = key;
                                 } else {
-                                    if (LSMBTree.compareBytes(key, maxKey) > 0) {
+                                    if (lsmBTree.compareKey(key, maxKey) > 0) {
                                         maxKey = key;
                                     }
                                 }
@@ -217,13 +219,15 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                             if (newComponent.getComponentSize() >= lsmBTree.memTableSize) {
                                 newComponent.setMinKey(minKey);
                                 newComponent.setMaxKey(maxKey);
-                                minTuples.add(minTuple);
-                                maxTuples.add(maxTuple);
+                                if (filterCmp != null) {
+                                    minTuples.add(minTuple);
+                                    maxTuples.add(maxTuple);
+                                    minTuple = null;
+                                    maxTuple = null;
+                                    filterCmp = null;
+                                }
                                 newComponent = null;
                                 componentBulkLoader = null;
-                                minTuple = null;
-                                maxTuple = null;
-                                filterCmp = null;
                                 minKey = null;
                                 maxKey = null;
                             }
@@ -231,8 +235,10 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         if (newComponent != null) {
                             newComponent.setMinKey(minKey);
                             newComponent.setMaxKey(maxKey);
-                            minTuples.add(minTuple);
-                            maxTuples.add(maxTuple);
+                            if (filterCmp != null) {
+                                minTuples.add(minTuple);
+                                maxTuples.add(maxTuple);
+                            }
                         }
                         mergeOp.setTargets(mergeFileTargets);
                         mergeOp.setBloomFilterTargets(mergeBloomFilterTargets);

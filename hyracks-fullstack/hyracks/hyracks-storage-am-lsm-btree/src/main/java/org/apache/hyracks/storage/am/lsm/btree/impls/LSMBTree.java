@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.hyracks.api.dataflow.value.IBinaryComparator;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -47,6 +48,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.AbstractLSMWithBloomFilterDi
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilterFrameFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentBulkLoader;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentFactory;
@@ -73,6 +75,7 @@ import org.apache.hyracks.storage.common.IIndexAccessor;
 import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
+import org.apache.hyracks.storage.common.SingleComparator;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 import org.apache.hyracks.util.trace.ITracer;
 
@@ -89,6 +92,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
 
     // Primary and Primary Key LSMBTree has a Bloomfilter, but Secondary one doesn't have.
     private final boolean hasBloomFilter;
+
+    protected final IBinaryComparator keyCmp;
 
     protected final LSMBTreeLevelMergePolicyHelper mergePolicyHelper;
 
@@ -128,6 +133,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         } else {
             mergePolicyHelper = null;
         }
+        keyCmp = SingleComparator.create(cmpFactories).getComparators()[0];
     }
 
     // Without memory components
@@ -152,6 +158,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         } else {
             mergePolicyHelper = null;
         }
+        keyCmp = SingleComparator.create(cmpFactories).getComparators()[0];
     }
 
     public boolean hasBloomFilter() {
@@ -245,11 +252,31 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return true;
     }
 
+    public static byte[] getKeyBytes(ITupleReference tuple) {
+        if (tuple == null) {
+            return null;
+        }
+        return Arrays.copyOfRange(tuple.getFieldData(0), tuple.getFieldStart(0),
+                tuple.getFieldStart(0) + tuple.getFieldLength(0));
+    }
+
+    public int compareKey(byte[] key1, byte[] key2) throws HyracksDataException {
+        if (key1 == null && key2 == null) {
+            return 0;
+        } else if (key1 == null && key2 != null) {
+            return -1;
+        } else if (key1 != null && key2 == null) {
+            return 1;
+        } else {
+            return keyCmp.compare(key1, 0, key1.length, key2, 0, key2.length);
+        }
+    }
+
     @Override
     public boolean mayMatchSearchPredicate(ILSMDiskComponent component, ISearchPredicate predicate) {
         RangePredicate rp = (RangePredicate) predicate;
-        byte[] minKey = getTupleKey(rp.getLowKey());
-        byte[] maxKey = getTupleKey(rp.getHighKey());
+        byte[] minKey = getKeyBytes(rp.getLowKey());
+        byte[] maxKey = getKeyBytes(rp.getHighKey());
         if (minKey == null && maxKey == null) {
             return true;
         }
@@ -258,15 +285,15 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             byte[] maxCKey = component.getMaxKey();
 
             if (minKey == null) {
-                if (LSMBTree.compareBytes(maxKey, minCKey) >= 0) {
+                if (compareKey(maxKey, minCKey) >= 0) {
                     return true;
                 }
             } else if (maxKey == null) {
-                if (LSMBTree.compareBytes(minKey, maxCKey) <= 0) {
+                if (compareKey(minKey, maxCKey) <= 0) {
                     return true;
                 }
             } else {
-                if (!(LSMBTree.compareBytes(minKey, maxCKey) > 0 || LSMBTree.compareBytes(maxKey, minCKey) < 0)) {
+                if (!(compareKey(minKey, maxCKey) > 0 || compareKey(maxKey, minCKey) < 0)) {
                     return true;
                 }
             }
@@ -297,22 +324,6 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         ctx.getSearchInitialState().reset(pred, operationalComponents);
         ctx.getSearchInitialState().setDiskComponentScan(true);
         ((LSMBTreeSearchCursor) cursor).open(ctx.getSearchInitialState(), pred);
-    }
-
-    public static int compareBytes(byte[] thisBytes, byte[] thatBytes) {
-        int thisLen = thisBytes == null ? 0 : thisBytes.length;
-        int thatLen = thatBytes == null ? 0 : thatBytes.length;
-        for (int i = 0; i < thisLen && i < thatLen; i++) {
-            byte b1 = thisBytes[i];
-            byte b2 = thatBytes[i];
-            if (b1 < b2) {
-                return -1;
-            } else if (b1 > b2) {
-                return 1;
-            } else {
-            }
-        }
-        return thisLen - thatLen;
     }
 
     @Override
@@ -352,6 +363,10 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             accessor.search(scanCursor, nullPred);
             byte[] minKey = null;
             byte[] maxKey = null;
+
+            String[] tmp = getIndexIdentifier().split("/");
+            String dirName = tmp[tmp.length - 1];
+
             try {
                 while (scanCursor.hasNext()) {
                     scanCursor.next();
@@ -362,19 +377,19 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                         continue;
                     }
                     componentBulkLoader.add(tuple);
-                    byte[] key = getTupleKey(tuple);
+                    byte[] key = getKeyBytes(tuple);
                     if (key != null) {
                         if (minKey == null) {
                             minKey = key;
                         } else {
-                            if (compareBytes(key, minKey) < 0) {
+                            if (compareKey(key, minKey) < 0) {
                                 minKey = key;
                             }
                         }
                         if (maxKey == null) {
                             maxKey = key;
                         } else {
-                            if (compareBytes(key, maxKey) > 0) {
+                            if (compareKey(key, maxKey) > 0) {
                                 maxKey = key;
                             }
                         }
@@ -434,19 +449,19 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                         cursor.next();
                         ITupleReference frameTuple = cursor.getTuple();
                         componentBulkLoader.add(frameTuple);
-                        byte[] key = getTupleKey(frameTuple);
+                        byte[] key = getKeyBytes(frameTuple);
                         if (key != null) {
                             if (minKey == null) {
                                 minKey = key;
                             } else {
-                                if (compareBytes(key, minKey) < 0) {
+                                if (compareKey(key, minKey) < 0) {
                                     minKey = key;
                                 }
                             }
                             if (maxKey == null) {
                                 maxKey = key;
                             } else {
-                                if (compareBytes(key, maxKey) > 0) {
+                                if (compareKey(key, maxKey) > 0) {
                                     maxKey = key;
                                 }
                             }
@@ -634,7 +649,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
     }
 
     public static byte[] getLongBytesFromTuple(ITupleReference tuple) {
-        byte[] key = getTupleKey(tuple);
+        byte[] key = getKeyBytes(tuple);
         int l = key == null ? 0 : key.length;
         if (key.length < Long.BYTES) {
             return null;
@@ -650,7 +665,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
     }
 
     public static long getLongFromTuple(ITupleReference tuple) {
-        byte[] key = getTupleKey(tuple);
+        byte[] key = getKeyBytes(tuple);
         int l = key == null ? 0 : key.length;
         if (key.length < Long.BYTES) {
             return Long.MAX_VALUE;
@@ -676,7 +691,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         String minKey;
         String maxKey;
         try {
-            basename = component.getId().toString();
+            ILSMComponentId cid = component.getId();
+            basename = cid.getMinId() + "_" + cid.getMaxId();
         } catch (HyracksDataException ex) {
             basename = "Unknown";
         }
@@ -687,7 +703,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             } else {
                 int l = minData.length;
                 if (l >= Long.BYTES) {
-                    minKey = Long.toString(bytesToLong(minData));
+                    minKey = Long.toString(bytesToLong(minData)) + "L";
                 } else {
                     minKey = bytesToHex(minData);
                 }
@@ -702,7 +718,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             } else {
                 int l = maxData.length;
                 if (l >= Long.BYTES) {
-                    maxKey = Long.toString(bytesToLong(maxData));
+                    maxKey = Long.toString(bytesToLong(maxData)) + "L";
                 } else {
                     maxKey = bytesToHex(maxData);
                 }
