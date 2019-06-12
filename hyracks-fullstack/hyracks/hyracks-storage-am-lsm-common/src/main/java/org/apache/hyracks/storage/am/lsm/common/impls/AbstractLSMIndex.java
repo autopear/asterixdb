@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.lang.Math;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -1129,6 +1130,14 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     public long getMaxLevel() {
         return maxLevels;
+    }
+
+    public static byte[] getKeyBytes(ITupleReference tuple) {
+        if (tuple == null) {
+            return null;
+        }
+        return Arrays.copyOfRange(tuple.getFieldData(0), tuple.getFieldStart(0),
+                tuple.getFieldStart(0) + tuple.getFieldLength(0));
     }
 
     public String componentToString(ILSMDiskComponent component) {

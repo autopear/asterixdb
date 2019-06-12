@@ -33,11 +33,15 @@ public interface ILevelMergePolicyHelper {
 
     List<ILSMDiskComponent> getComponents(List<ILSMDiskComponent> components, long level);
 
+    ILSMDiskComponent getNewestComponent(List<ILSMDiskComponent> components, long level);
+
     ILSMDiskComponent getOldestComponent(List<ILSMDiskComponent> components, long level);
 
     ILSMDiskComponent getRandomComponent(List<ILSMDiskComponent> components, long level, Distribution distribution);
 
-    ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level);
+    List<ILSMDiskComponent> getMinimumOverlappingComponents(List<ILSMDiskComponent> components, long level);
+
+    List<ILSMDiskComponent> getMaximumOverlappingComponents(List<ILSMDiskComponent> components, long level);
 
     List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component, List<ILSMDiskComponent> components);
 

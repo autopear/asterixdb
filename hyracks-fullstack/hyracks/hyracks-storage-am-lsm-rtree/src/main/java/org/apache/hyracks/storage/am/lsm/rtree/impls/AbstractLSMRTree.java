@@ -277,7 +277,7 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
 
     @Override
     public boolean mayMatchSearchPredicate(ILSMDiskComponent component, ISearchPredicate predicate) {
-        double[] key = bytesToDoubles(getTupleKey(predicate.getLowKey()));
+        double[] key = bytesToDoubles(getKeyBytes(predicate.getLowKey()));
         if (key == null) {
             return true;
         }

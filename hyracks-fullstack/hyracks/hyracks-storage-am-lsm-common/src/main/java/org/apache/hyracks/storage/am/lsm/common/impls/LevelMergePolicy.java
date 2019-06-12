@@ -21,6 +21,7 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +33,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper;
+import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper.Distribution;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -42,6 +44,15 @@ public class LevelMergePolicy implements ILSMMergePolicy {
     protected String pickStrategy;
     protected long level0Components;
     protected long level1Components;
+
+    public static final Map<String, Distribution> dist = new HashMap<String, Distribution>() {
+        {
+            put(LevelMergePolicyFactory.RAND_UNIFORM, Distribution.Uniform);
+            put(LevelMergePolicyFactory.RAND_BINOMIAL, Distribution.Binomial);
+            put(LevelMergePolicyFactory.RAND_OLDEST, Distribution.Oldest);
+            put(LevelMergePolicyFactory.RAND_LATEST, Distribution.Latest);
+        }
+    };
 
     public long getLevel0Components() {
         return level0Components;
@@ -85,9 +96,14 @@ public class LevelMergePolicy implements ILSMMergePolicy {
                 }
             } else {
                 if (components.size() > Math.pow(level1Components, level)) {
-                    if (pickStrategy.compareTo("random") == 0) {
-                        picked = helper.getRandomComponent(components, level,
-                                ILevelMergePolicyHelper.Distribution.Uniform);
+                    if (pickStrategy.compareTo(LevelMergePolicyFactory.NEWEST) == 0) {
+                        picked = helper.getNewestComponent(components, level);
+                    } else if (dist.containsKey(pickStrategy)) {
+                        picked = helper.getRandomComponent(components, level, dist.get(pickStrategy));
+                    } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MIN_OVERLAP) == 0) {
+                        return helper.getMinimumOverlappingComponents(components, level);
+                    } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MAX_OVERLAP) == 0) {
+                        return helper.getMaximumOverlappingComponents(components, level);
                     } else {
                         picked = helper.getOldestComponent(immutableComponents, level);
                     }
@@ -99,25 +115,9 @@ public class LevelMergePolicy implements ILSMMergePolicy {
             List<ILSMDiskComponent> mergableComponents =
                     new ArrayList<>(helper.getOverlappingComponents(picked, immutableComponents));
             mergableComponents.add(0, picked);
-            String[] tmp = picked.getLsmIndex().getIndexIdentifier().split("/");
-            LOGGER.info("[MERGE]\t" + tmp[tmp.length - 1] + "\t"
-                    + ((AbstractLSMIndex) picked.getLsmIndex()).componentsToString());
-            LOGGER.info("[MERGE]\t" + tmp[tmp.length - 1] + "\t" + getComponents(mergableComponents));
             return mergableComponents;
         }
         return Collections.emptyList();
-    }
-
-    private static String getComponentBaseName(ILSMDiskComponent c) {
-        return c.getLevel() + "_" + c.getLevelSequence();
-    }
-
-    private static String getComponents(List<ILSMDiskComponent> components) {
-        String ret = getComponentBaseName(components.get(0));
-        for (int i = 1; i < components.size(); i++) {
-            ret += ";" + getComponentBaseName(components.get(i));
-        }
-        return ret;
     }
 
     @Override
@@ -125,6 +125,9 @@ public class LevelMergePolicy implements ILSMMergePolicy {
         pickStrategy = "oldest";
         level0Components = 2;
         level1Components = 4;
+        //        pickStrategy = properties.getOrDefault(LevelMergePolicyFactory.PICK, "oldest").toLowerCase();
+        //        level0Components = Long.getLong(properties.getOrDefault(LevelMergePolicyFactory.NUM_COMPONENTS_0, "10"));
+        //        level1Components = Long.getLong(properties.getOrDefault(LevelMergePolicyFactory.NUM_COMPONENTS_1, "10"));
     }
 
     @Override

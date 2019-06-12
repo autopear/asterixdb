@@ -35,9 +35,21 @@ public class LevelMergePolicyFactory implements ILSMMergePolicyFactory {
 
     private static final long serialVersionUID = 1L;
     public static final String NAME = "level";
-    //    public static final String NUM_COMPONENTS = "num-components";
-    //    public static final Set<String> PROPERTIES_NAMES = Collections.singleton(NUM_COMPONENTS);
+    public static final String PICK = "pick";
+    public static final String NUM_COMPONENTS_0 = "num-components-0";
+    public static final String NUM_COMPONENTS_1 = "num-components-1";
+    //    public static final Set<String> PROPERTIES_NAMES =
+    //            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(PICK, NUM_COMPONENTS_0, NUM_COMPONENTS_1)));
     public static final Set<String> PROPERTIES_NAMES = Collections.emptySet();
+
+    public static final String OLDEST = "oldest";
+    public static final String NEWEST = "newest";
+    public static final String MIN_OVERLAP = "min-overlap";
+    public static final String MAX_OVERLAP = "max-overlap";
+    public static final String RAND_UNIFORM = "rand-uniform";
+    public static final String RAND_BINOMIAL = "rand-binomial";
+    public static final String RAND_OLDEST = "rand-oldest";
+    public static final String RAND_LATEST = "rand-latest";
 
     @Override
     public String getName() {

@@ -252,14 +252,6 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return true;
     }
 
-    public static byte[] getKeyBytes(ITupleReference tuple) {
-        if (tuple == null) {
-            return null;
-        }
-        return Arrays.copyOfRange(tuple.getFieldData(0), tuple.getFieldStart(0),
-                tuple.getFieldStart(0) + tuple.getFieldLength(0));
-    }
-
     public int compareKey(byte[] key1, byte[] key2) throws HyracksDataException {
         if (key1 == null && key2 == null) {
             return 0;

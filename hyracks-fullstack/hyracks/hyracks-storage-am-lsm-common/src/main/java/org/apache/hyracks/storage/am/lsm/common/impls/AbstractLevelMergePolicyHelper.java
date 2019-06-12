@@ -20,9 +20,12 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
+import org.apache.commons.math3.distribution.BinomialDistribution;
+import org.apache.commons.math3.distribution.UniformIntegerDistribution;
+import org.apache.commons.math3.distribution.ZipfDistribution;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper;
 
@@ -54,7 +57,7 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
                     oldest = component;
                 } else {
                     long t = component.getLevelSequence();
-                    if (t < levelSequence) {
+                    if (t <= levelSequence) {
                         levelSequence = t;
                         oldest = component;
                     }
@@ -62,6 +65,83 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
             }
         }
         return oldest;
+    }
+
+    public ILSMDiskComponent getNewestComponent(List<ILSMDiskComponent> components, long level) {
+        long levelSequence = -1;
+        ILSMDiskComponent newest = null;
+        for (ILSMDiskComponent component : components) {
+            if (component.getLevel() == level) {
+                if (newest == null) {
+                    levelSequence = component.getLevelSequence();
+                    newest = component;
+                } else {
+                    long t = component.getLevelSequence();
+                    if (t > levelSequence) {
+                        levelSequence = t;
+                        newest = component;
+                    }
+                }
+            }
+        }
+        return newest;
+    }
+
+    public List<ILSMDiskComponent> getMinimumOverlappingComponents(List<ILSMDiskComponent> components, long level) {
+        List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
+        long overlapped = components.size();
+        List<ILSMDiskComponent> nextLevelComponents = new ArrayList<>();
+        for (ILSMDiskComponent c : components) {
+            if (c.getLevel() == level) {
+                if (nextLevelComponents.isEmpty()) {
+                    for (ILSMDiskComponent c1 : components) {
+                        if (c1.getLevel() == level + 1) {
+                            nextLevelComponents.add(c1);
+                        }
+                    }
+                    if (nextLevelComponents.isEmpty()) {
+                        return Collections.singletonList(getOldestComponent(components, level));
+                    }
+                    overlapped = nextLevelComponents.size();
+                }
+                List<ILSMDiskComponent> overlapComponents = getOverlappingComponents(c, nextLevelComponents);
+                if (overlapComponents.size() <= overlapped) {
+                    overlapped = overlapComponents.size();
+                    mergableComponents.clear();
+                    mergableComponents.add(c);
+                    mergableComponents.addAll(overlapComponents);
+                }
+            }
+        }
+        return mergableComponents;
+    }
+
+    public List<ILSMDiskComponent> getMaximumOverlappingComponents(List<ILSMDiskComponent> components, long level) {
+        List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
+        long overlapped = 0;
+        List<ILSMDiskComponent> nextLevelComponents = new ArrayList<>();
+        for (ILSMDiskComponent c : components) {
+            if (c.getLevel() == level) {
+                if (nextLevelComponents.isEmpty()) {
+                    for (ILSMDiskComponent c1 : components) {
+                        if (c1.getLevel() == level + 1) {
+                            nextLevelComponents.add(c1);
+                        }
+                    }
+                    if (nextLevelComponents.isEmpty()) {
+                        return Collections.singletonList(getOldestComponent(components, level));
+                    }
+                }
+                List<ILSMDiskComponent> overlapComponents = getOverlappingComponents(c, nextLevelComponents);
+                if (overlapComponents.size() >= overlapped) {
+                    overlapped = overlapComponents.size();
+                    mergableComponents.clear();
+                    mergableComponents.add(c);
+                    mergableComponents.addAll(overlapComponents);
+                }
+            }
+        }
+        return mergableComponents;
     }
 
     public ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level) {
@@ -98,19 +178,29 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
 
     public ILSMDiskComponent getRandomComponent(List<ILSMDiskComponent> components, long level,
             Distribution distribution) {
-        if (level == 0) {
-            return getOldestComponent(components, 0);
-        }
-        List<ILSMDiskComponent> levelComponents = new ArrayList<>();
-        for (ILSMDiskComponent component : components) {
-            if (component.getLevel() == level) {
-                levelComponents.add(component);
-            }
-        }
-        if (levelComponents.isEmpty()) {
+        List<ILSMDiskComponent> levelComponents = getComponents(components, level);
+        int total = levelComponents.size();
+        if (total == 0) {
             return null;
         }
-        int r = ThreadLocalRandom.current().nextInt(0, levelComponents.size());
+        if (total == 1) {
+            return levelComponents.get(0);
+        }
+        int r;
+        switch (distribution) {
+            case Binomial:
+                r = new BinomialDistribution(total, 0.5).sample();
+                break;
+            case Latest:
+                r = new ZipfDistribution(total, 0.9).sample();
+            case Oldest:
+                r = total - 1 - new ZipfDistribution(total, 0.9).sample();
+                break;
+            case Uniform:
+            default: {
+                r = new UniformIntegerDistribution(0, total).sample();
+            }
+        }
         return levelComponents.get(r);
     }
 }
