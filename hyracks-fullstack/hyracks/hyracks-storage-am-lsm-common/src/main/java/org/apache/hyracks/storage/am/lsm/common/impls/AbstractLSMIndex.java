@@ -403,7 +403,6 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                             operationalComponents.add(component);
                         }
                     }
-                    operationalComponents.addAll(diskComponents);
                 }
                 break;
             case REPLICATE:
