@@ -22,6 +22,7 @@ package org.apache.hyracks.storage.am.lsm.rtree.impls;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -372,7 +373,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             List<FileReference> mergeFileTargets = new ArrayList<>();
             List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
             List<TupleWithMBR> allTuples = new ArrayList<>();
-            long numTuplesInPartition = getMaxNumberOfElements(mergedComponents);
+            long numTuplesInPartition = lsmRTree.getMaxNumTuplesPerComponent();
             try {
                 while (cursor.hasNext()) {
                     cursor.next();
@@ -437,32 +438,76 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
     }
 
     public List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException {
-        return doZOrderMerge(operation);
+        return doSTROrderMerge(operation);
     }
 
     public static List<TuplesWithMBR> partitionTuplesBySTR(List<TupleWithMBR> tuples, long partitionTuples) {
         if (tuples == null || tuples.isEmpty()) {
             return Collections.emptyList();
         }
-        int numPartitions = (int)Math.ceil((double)tuples.size() / partitionTuples);
+        int numPartitions = (int) Math.ceil((double) tuples.size() / partitionTuples);
         if (numPartitions == 1) {
             return Collections.singletonList(new TuplesWithMBR(tuples));
         }
 
+        tuples.sort(new Comparator<TupleWithMBR>() {
+            @Override
+            public int compare(TupleWithMBR t1, TupleWithMBR t2) {
+                double[] c1 = t1.getCenter();
+                double[] c2 = t2.getCenter();
+                return Double.compare(c1[0], c2[0]);
+            }
+        });
+
+        int numVSlices = (int) Math.ceil(Math.sqrt(numPartitions));
+        int sliceCapacity = (int) Math.ceil((double) tuples.size() / numVSlices);
+        List<TupleWithMBR>[] vSlices = new List[numVSlices];
+        for (int i = 0; i < numVSlices; i++) {
+            vSlices[i] = new ArrayList<>();
+            for (int j = 0; j < sliceCapacity; j++) {
+                int idx = i * sliceCapacity + j;
+                if (idx < tuples.size()) {
+                    vSlices[i].add(tuples.get(idx));
+                } else {
+                    break;
+                }
+            }
+        }
+
+        int index = 0;
         List<TuplesWithMBR> partitions = new ArrayList<>();
-        // to do
+        for (int i = 0; i < numVSlices && index < tuples.size(); i++) {
+            index = createPartitionsFromAVerticalSlice(vSlices[i], sliceCapacity, index, partitions);
+        }
+
         return partitions;
     }
 
-    private long getMaxNumberOfElements(List<ILSMComponent> mergedComponents) throws HyracksDataException {
-        long numElements = 0L;
-        for (ILSMComponent c : mergedComponents) {
-            ILSMDiskComponent d = (ILSMDiskComponent) c;
-            if (d.getTupleCount() > numElements) {
-                numElements = d.getTupleCount();
+    private static int createPartitionsFromAVerticalSlice(List<TupleWithMBR> vSliceTuples, int sliceCapacity, int index,
+            List<TuplesWithMBR> partitions) {
+        vSliceTuples.sort(new Comparator<TupleWithMBR>() {
+            @Override
+            public int compare(TupleWithMBR t1, TupleWithMBR t2) {
+                double[] c1 = t1.getCenter();
+                double[] c2 = t2.getCenter();
+                for (int i = 1; i < c1.length; i++) {
+                    if (c1[i] < c2[i]) {
+                        return -1;
+                    }
+                    if (c1[i] > c2[i]) {
+                        return 1;
+                    }
+                }
+                return 0;
+            }
+        });
+        for (TupleWithMBR t : vSliceTuples) {
+            partitions.get(index).addTuple(t);
+            if (partitions.get(index).getTuples().size() >= sliceCapacity && index < partitions.size() - 1) {
+                index++;
             }
         }
-        return numElements;
+        return index;
     }
 
     static class TupleWithMBR {

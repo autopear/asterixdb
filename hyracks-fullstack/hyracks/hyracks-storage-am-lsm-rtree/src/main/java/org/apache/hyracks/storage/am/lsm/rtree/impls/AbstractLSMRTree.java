@@ -299,6 +299,16 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         return false;
     }
 
+    public long getMaxNumTuplesPerComponent() throws HyracksDataException {
+        long m = 0L;
+        for (ILSMDiskComponent c : diskComponents) {
+            if (c.getTupleCount() > m) {
+                m = c.getTupleCount();
+            }
+        }
+        return m;
+    }
+
     public double[] getMBRFromTuple(ITupleReference tuple) {
         if (tuple == null) {
             return null;
