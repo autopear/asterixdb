@@ -190,4 +190,12 @@ public class EmptyComponent implements ILSMDiskComponent {
     @Override
     public void setMaxKey(byte[] key) throws HyracksDataException {
     }
+
+    @Override
+    public long getTupleCount() throws HyracksDataException {
+        return 0L;
+    }
+
+    public void setTupleCount(long count) throws HyracksDataException {
+    }
 }

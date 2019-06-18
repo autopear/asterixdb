@@ -159,6 +159,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                     rTreeTupleSorter, bTreeTupleSorter, comparatorFields, linearizerArray);
             double[] minMBR = null;
             double[] maxMBR = null;
+            long totalTuples = 0L;
             try {
                 cursor.open(null, null);
                 try {
@@ -166,6 +167,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                         cursor.next();
                         ITupleReference frameTuple = cursor.getTuple();
                         componentBulkLoader.add(frameTuple);
+                        totalTuples++;
                         double[] mbr = getMBRFromTuple(frameTuple);
                         int dim = mbr.length / 2;
                         if (minMBR == null) {
@@ -197,6 +199,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             }
             component.setMinKey(doublesToBytes(minMBR));
             component.setMaxKey(doublesToBytes(maxMBR));
+            component.setTupleCount(totalTuples);
             if (component.getLSMComponentFilter() != null) {
                 List<ITupleReference> filterTuples = new ArrayList<>();
                 filterTuples.add(flushingComponent.getLSMComponentFilter().getMinTuple());
@@ -262,11 +265,13 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                 component.createBulkLoader(mergeOp, 1.0f, false, 0L, false, false, false);
         double[] minMBR = null;
         double[] maxMBR = null;
+        long totalTuples = 0L;
         try {
             while (cursor.hasNext()) {
                 cursor.next();
                 ITupleReference frameTuple = cursor.getTuple();
                 componentBulkLoader.add(frameTuple);
+                totalTuples++;
                 double[] mbr = getMBRFromTuple(frameTuple);
                 int dim = mbr.length / 2;
                 if (minMBR == null) {
@@ -295,6 +300,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         }
         component.setMinKey(doublesToBytes(minMBR));
         component.setMaxKey(doublesToBytes(maxMBR));
+        component.setTupleCount(totalTuples);
         if (component.getLSMComponentFilter() != null) {
             List<ITupleReference> filterTuples = new ArrayList<>();
             for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
@@ -348,16 +354,5 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
         ILSMIndexAccessor accessor = new LSMTreeIndexAccessor(getHarness(), opCtx, cursorFactory);
         return new LSMRTreeMergeOperation(accessor, cursor, mergeFileRefs.getInsertIndexFileReference(), null, null,
                 callback, getIndexIdentifier());
-    }
-
-    public static String doubles2Str(double[] ds) {
-        if (ds == null || ds.length == 0) {
-            return "";
-        }
-        String m = Double.toString(ds[0]);
-        for (int i = 1; i < ds.length; i++) {
-            m += "," + Double.toString(ds[i]);
-        }
-        return m;
     }
 }

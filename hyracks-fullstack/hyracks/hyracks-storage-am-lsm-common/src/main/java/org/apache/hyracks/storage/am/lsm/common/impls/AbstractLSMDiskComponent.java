@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.data.std.primitive.LongPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.storage.am.common.api.IMetadataPageManager;
 import org.apache.hyracks.storage.am.common.freepage.MutableArrayValueReference;
@@ -55,8 +56,12 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     private static final MutableArrayValueReference TUPLE_MAX_KEY =
             new MutableArrayValueReference("Tuple_Key_Max".getBytes());
 
+    private static final MutableArrayValueReference TUPLE_COUNT_KEY =
+            new MutableArrayValueReference("Tuple_Count".getBytes());
+
     private byte[] minKey;
     private byte[] maxKey;
+    private long tupleCount;
 
     public AbstractLSMDiskComponent(AbstractLSMIndex lsmIndex, IMetadataPageManager mdPageManager,
             ILSMComponentFilter filter) {
@@ -65,6 +70,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         metadata = new DiskComponentMetadata(mdPageManager);
         minKey = null;
         maxKey = null;
+        tupleCount = 0L;
     }
 
     @Override
@@ -303,6 +309,29 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         synchronized (this) {
             metadata.put(TUPLE_MAX_KEY, new MutableArrayValueReference(key));
             maxKey = key;
+        }
+    }
+
+    @Override
+    public long getTupleCount() throws HyracksDataException {
+        if (tupleCount > -1) {
+            return tupleCount;
+        }
+        synchronized (this) {
+            if (tupleCount == -1L) {
+                ArrayBackedValueStorage cntBuf = new ArrayBackedValueStorage();
+                metadata.get(TUPLE_COUNT_KEY, cntBuf);
+                tupleCount = LongPointable.getLong(cntBuf.getByteArray(), cntBuf.getStartOffset());
+            }
+        }
+        return tupleCount;
+    }
+
+    @Override
+    public void setTupleCount(long count) throws HyracksDataException {
+        synchronized (this) {
+            metadata.put(TUPLE_COUNT_KEY, LongPointable.FACTORY.createPointable(count));
+            tupleCount = count;
         }
     }
 }

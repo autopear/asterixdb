@@ -61,6 +61,10 @@ public interface ILSMDiskComponent extends ILSMComponent {
 
     void setMaxKey(byte[] key) throws HyracksDataException;
 
+    long getTupleCount() throws HyracksDataException;
+
+    void setTupleCount(long count) throws HyracksDataException;
+
     /**
      * @return the level sequence of the component
      */

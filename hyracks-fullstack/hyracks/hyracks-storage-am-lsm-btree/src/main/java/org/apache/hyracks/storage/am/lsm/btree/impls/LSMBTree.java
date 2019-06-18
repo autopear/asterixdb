@@ -44,7 +44,6 @@ import org.apache.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.common.impls.NoOpOperationCallback;
 import org.apache.hyracks.storage.am.lsm.btree.tuples.LSMBTreeTupleReference;
-import org.apache.hyracks.storage.am.lsm.common.api.AbstractLSMWithBloomFilterDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilterFrameFactory;
@@ -355,9 +354,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             accessor.search(scanCursor, nullPred);
             byte[] minKey = null;
             byte[] maxKey = null;
-
-            String[] tmp = getIndexIdentifier().split("/");
-            String dirName = tmp[tmp.length - 1];
+            long totalTuples = 0L;
 
             try {
                 while (scanCursor.hasNext()) {
@@ -369,6 +366,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                         continue;
                     }
                     componentBulkLoader.add(tuple);
+                    totalTuples++;
                     byte[] key = getKeyBytes(tuple);
                     if (key != null) {
                         if (minKey == null) {
@@ -396,6 +394,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             }
             component.setMinKey(minKey);
             component.setMaxKey(maxKey);
+            component.setTupleCount(totalTuples);
         } finally {
             accessor.destroy();
         }
@@ -424,6 +423,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         ILSMDiskComponentBulkLoader componentBulkLoader = null;
         ITupleReference minTuple = null;
         ITupleReference maxTuple = null;
+        long totalTuples = 0L;
         try {
             try {
                 RangePredicate rangePred = new RangePredicate(null, null, true, true, null, null);
@@ -441,6 +441,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                         cursor.next();
                         ITupleReference frameTuple = cursor.getTuple();
                         componentBulkLoader.add(frameTuple);
+                        totalTuples++;
                         byte[] key = getKeyBytes(frameTuple);
                         if (key != null) {
                             if (minKey == null) {
@@ -461,6 +462,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                     }
                     newComponent.setMinKey(minKey);
                     newComponent.setMaxKey(maxKey);
+                    newComponent.setTupleCount(totalTuples);
                     if (newComponent.getLSMComponentFilter() != null) {
                         MultiComparator filterCmp =
                                 MultiComparator.create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
@@ -522,12 +524,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
 
     private long getNumberOfElements(List<ILSMComponent> mergedComponents) throws HyracksDataException {
         long numElements = 0L;
-        if (hasBloomFilter) {
-            //count elements in btree for creating Bloomfilter
-            for (int i = 0; i < mergedComponents.size(); ++i) {
-                numElements += ((AbstractLSMWithBloomFilterDiskComponent) mergedComponents.get(i)).getBloomFilter()
-                        .getNumElements();
-            }
+        for (ILSMComponent c : mergedComponents) {
+            numElements += ((ILSMDiskComponent) c).getTupleCount();
         }
         return numElements;
     }
