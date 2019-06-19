@@ -460,54 +460,46 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         });
 
         int numVSlices = (int) Math.ceil(Math.sqrt(numPartitions));
-        int sliceCapacity = (int) Math.ceil((double) tuples.size() / numVSlices);
+        int sliceCapacity = (int)partitionTuples * numVSlices;
         List<TupleWithMBR>[] vSlices = new List[numVSlices];
         for (int i = 0; i < numVSlices; i++) {
             vSlices[i] = new ArrayList<>();
-            for (int j = 0; j < sliceCapacity; j++) {
-                int idx = i * sliceCapacity + j;
-                if (idx < tuples.size()) {
-                    vSlices[i].add(tuples.get(idx));
-                } else {
-                    break;
-                }
+            int bound = (i+1) * sliceCapacity <= tuples.size() ? sliceCapacity : tuples.size() - i * sliceCapacity;
+            for (int j = 0; j < bound; j++) {
+                vSlices[i].add(tuples.get(i * sliceCapacity + j));
             }
+            vSlices[i].sort(new Comparator<TupleWithMBR>() {
+                @Override
+                public int compare(TupleWithMBR t1, TupleWithMBR t2) {
+                    double[] c1 = t1.getCenter();
+                    double[] c2 = t2.getCenter();
+                    return Double.compare(c1[1], c2[1]);
+                }
+            });
         }
 
-        int index = 0;
         List<TuplesWithMBR> partitions = new ArrayList<>();
-        for (int i = 0; i < numVSlices && index < tuples.size(); i++) {
-            index = createPartitionsFromAVerticalSlice(vSlices[i], sliceCapacity, index, partitions);
+        for (int i=0; i<numPartitions; i++) {
+            partitions.add(new TuplesWithMBR(2));
+        }
+
+        int current = 0;
+        TuplesWithMBR t = partitions.get(current);
+        for (int i=0; i<numVSlices; i++) {
+            List<TupleWithMBR> slice = vSlices[i];
+            for (int j=0; j<slice.size(); j++) {
+                t.addTuple(slice.get(j));
+                if (t.getTuples().size() == partitionTuples) {
+                    if (++current >= numPartitions) {
+                        break;
+                    } else {
+                        t = partitions.get(current);
+                    }
+                }
+            }
         }
 
         return partitions;
-    }
-
-    private static int createPartitionsFromAVerticalSlice(List<TupleWithMBR> vSliceTuples, int sliceCapacity, int index,
-            List<TuplesWithMBR> partitions) {
-        vSliceTuples.sort(new Comparator<TupleWithMBR>() {
-            @Override
-            public int compare(TupleWithMBR t1, TupleWithMBR t2) {
-                double[] c1 = t1.getCenter();
-                double[] c2 = t2.getCenter();
-                for (int i = 1; i < c1.length; i++) {
-                    if (c1[i] < c2[i]) {
-                        return -1;
-                    }
-                    if (c1[i] > c2[i]) {
-                        return 1;
-                    }
-                }
-                return 0;
-            }
-        });
-        for (TupleWithMBR t : vSliceTuples) {
-            partitions.get(index).addTuple(t);
-            if (partitions.get(index).getTuples().size() >= sliceCapacity && index < partitions.size() - 1) {
-                index++;
-            }
-        }
-        return index;
     }
 
     static class TupleWithMBR {
