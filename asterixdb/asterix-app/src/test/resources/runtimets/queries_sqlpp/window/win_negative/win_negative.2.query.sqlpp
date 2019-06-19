@@ -17,9 +17,9 @@
  * under the License.
  */
 /*
- * Description  : Test RATIO_TO_REPORT()
- * Expected Res : FAILURE (unexpected ORDER BY)
+ * Description  : Function that doesn't support FROM FIRST/LAST
+ * Expected Res : FAILURE
  */
 
-FROM range(1, 4) x, range(1, 2) y
-SELECT ratio_to_report(x) over (order by y)
+from range(1, 4) x
+select value first_value(x) from last over (order by x)

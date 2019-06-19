@@ -464,87 +464,6 @@
         <output-dir compare="Text">count_distinct</output-dir>
       </compilation-unit>
     </test-case>
-    <!--
-        <test-case FilePath="aggregate">
-          <compilation-unit name="droptype">
-            <output-dir compare="Text">droptype</output-dir>
-          </compilation-unit>
-        </test-case>
-        -->
-    <!-- TODO(madhusudancs): These tests that test for local_<agg>/global_<agg> functions should be removed, but
-        before that we should modify the code to make sure those built-in functions are still defined but not exposed
-        by AQL, so leaving these test cases commented.
-        <test-case FilePath="aggregate">
-          <compilation-unit name="global-avg_01">
-            <output-dir compare="Text">global-avg_01</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="global-avg_null">
-            <output-dir compare="Text">global-avg_null</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_double">
-            <output-dir compare="Text">local-avg_double</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_double_null">
-            <output-dir compare="Text">local-avg_double_null</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_float">
-            <output-dir compare="Text">local-avg_float</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_float_null">
-            <output-dir compare="Text">local-avg_float_null</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_int16">
-            <output-dir compare="Text">local-avg_int16</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_int16_null">
-            <output-dir compare="Text">local-avg_int16_null</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_int32">
-            <output-dir compare="Text">local-avg_int32</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_int32_null">
-            <output-dir compare="Text">local-avg_int32_null</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_int64">
-            <output-dir compare="Text">local-avg_int64</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_int64_null">
-            <output-dir compare="Text">local-avg_int64_null</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_int8">
-            <output-dir compare="Text">local-avg_int8</output-dir>
-          </compilation-unit>
-        </test-case>
-        <test-case FilePath="aggregate">
-          <compilation-unit name="local-avg_int8_null">
-            <output-dir compare="Text">local-avg_int8_null</output-dir>
-          </compilation-unit>
-        </test-case>
-        -->
     <test-case FilePath="aggregate">
       <compilation-unit name="kurtosis_double">
         <output-dir compare="Text">kurtosis_double</output-dir>
@@ -6046,6 +5965,12 @@
     <test-case FilePath="misc">
       <compilation-unit name="dump_index">
         <output-dir compare="Text">dump_index</output-dir>
+        <expected-error>Cannot find index with name noindex</expected-error>
+        <expected-error>Cannot find dataset with name nodataset in dataverse test</expected-error>
+        <expected-error>Cannot find dataset with name ds in dataverse nodataverse</expected-error>
+        <expected-error>Unsupported type: dump-index cannot process input type null</expected-error>
+        <expected-error>Unsupported type: dump-index cannot process input type null</expected-error>
+        <expected-error>Unsupported type: dump-index cannot process input type null</expected-error>
       </compilation-unit>
     </test-case>
     <test-case FilePath="misc">
@@ -7307,6 +7232,41 @@
     <test-case FilePath="numeric">
       <compilation-unit name="round4">
         <output-dir compare="Text">round4</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="round5_with_digit_int8">
+        <output-dir compare="Text">round5_with_digit_int8</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="round6_with_digit_int16">
+        <output-dir compare="Text">round6_with_digit_int16</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="round7_with_digit_int32">
+        <output-dir compare="Text">round7_with_digit_int32</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="round8_with_digit_int64">
+        <output-dir compare="Text">round8_with_digit_int64</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="round9_with_digit_float">
+        <output-dir compare="Text">round9_with_digit_float</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="round10_with_digit_double">
+        <output-dir compare="Text">round10_with_digit_double</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="numeric">
+      <compilation-unit name="round11_invalid">
+        <output-dir compare="Text">round11_invalid</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="numeric">
@@ -10439,13 +10399,12 @@
       <compilation-unit name="win_negative">
         <output-dir compare="Text">misc_01</output-dir>
         <expected-error>ASX0002: Type mismatch</expected-error>
-        <expected-error>ASX1101: Unexpected ORDER BY clause in window expression</expected-error>
+        <expected-error>ASX1104: Invalid modifier FROM FIRST/LAST for function</expected-error>
         <expected-error>ASX1037: Invalid query parameter compiler.windowmemory</expected-error>
         <expected-error>ASX1102: Expected window or aggregate function, got: unknown_func</expected-error>
         <expected-error>ASX1079: Compilation error: count is a SQL-92 aggregate function</expected-error>
         <expected-error>ASX1104: Invalid modifier RESPECT/IGNORE NULLS for function</expected-error>
         <expected-error>ASX1104: Invalid modifier RESPECT/IGNORE NULLS for function</expected-error>
-        <expected-error>ASX1104: Invalid modifier FROM FIRST/LAST for function</expected-error>
         <expected-error>ASX1104: Invalid modifier FROM FIRST/LAST for function</expected-error>
         <source-location>false</source-location>
       </compilation-unit>
@@ -12380,6 +12339,13 @@
         <output-dir compare="Text">unsupported-subfield</output-dir>
         <expected-error>ASX1097: Subfield(s) [unknown-subfield] in "merge-policy" unsupported in the with clause</expected-error>
         <source-location>false</source-location>
+      </compilation-unit>
+    </test-case>
+  </test-group>
+  <test-group name="metrics">
+    <test-case FilePath="metrics">
+      <compilation-unit name="full-scan">
+        <output-dir compare="Text">full-scan</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
