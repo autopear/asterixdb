@@ -34,12 +34,8 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper;
 import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper.Distribution;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class LevelMergePolicy implements ILSMMergePolicy {
-    private static final Logger LOGGER = LogManager.getLogger();
-
     protected ILevelMergePolicyHelper helper;
     protected String pickStrategy;
     protected long level0Components;
@@ -74,6 +70,44 @@ public class LevelMergePolicy implements ILSMMergePolicy {
             ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
             accessor.scheduleMerge(componentsToMerge);
         }
+        /*
+        if (newComponents.isEmpty()) {
+            return;
+        }
+        long level = newComponents.get(0).getLevel();
+        List<ILSMDiskComponent> components = helper.getComponents(index.getDiskComponents(), level);
+        if (level == 0) {
+            if (components.size() > level0Components) {
+                ILSMDiskComponent picked = helper.getOldestComponent(index.getDiskComponents(), 0);
+                List<ILSMDiskComponent> mergableComponents =
+                        new ArrayList<>(helper.getOverlappingComponents(picked, index.getDiskComponents()));
+                mergableComponents.add(0, picked);
+                ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+                accessor.scheduleMerge(mergableComponents);
+            }
+        } else {
+            if (components.size() > Math.pow(level1Components, level)) {
+                ILSMDiskComponent picked = null;
+                if (pickStrategy.compareTo(LevelMergePolicyFactory.NEWEST) == 0) {
+                    picked = helper.getNewestComponent(components, level);
+                } else if (dist.containsKey(pickStrategy)) {
+                    picked = helper.getRandomComponent(components, level, dist.get(pickStrategy));
+                } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MIN_OVERLAP) == 0) {
+                    ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+                    accessor.scheduleMerge(helper.getMinimumOverlappingComponents(components, level));
+                } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MAX_OVERLAP) == 0) {
+                    ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+                    accessor.scheduleMerge(helper.getMaximumOverlappingComponents(components, level));
+                } else {
+                    picked = helper.getOldestComponent(index.getDiskComponents(), level);
+                }
+                List<ILSMDiskComponent> mergableComponents =
+                        new ArrayList<>(helper.getOverlappingComponents(picked, index.getDiskComponents()));
+                mergableComponents.add(0, picked);
+                ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+                accessor.scheduleMerge(mergableComponents);
+            }
+        }*/
     }
 
     @Override

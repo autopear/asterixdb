@@ -676,7 +676,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
     }
 
     @Override
-    public String componentToString(ILSMDiskComponent component) {
+    public String componentToString(ILSMDiskComponent component, int indent) {
         String basename;
         String minKey;
         String maxKey;
@@ -722,7 +722,9 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         } catch (HyracksDataException ex) {
             numTuples = -1L;
         }
-        return "{ name: " + basename + ", size: " + component.getComponentSize() + ", min: " + minKey + ", max: "
-                + maxKey + ", tuples: " + numTuples + " }";
+        String spaces = getIndent(indent);
+        return spaces + "{\n" + spaces + "  name: " + basename + ",\n" + spaces + "  size: "
+                + component.getComponentSize() + ",\n" + spaces + "  min: " + minKey + ",\n" + spaces + "  max: "
+                + maxKey + ",\n" + spaces + "  tuples: " + numTuples + "\n" + spaces + "}";
     }
 }

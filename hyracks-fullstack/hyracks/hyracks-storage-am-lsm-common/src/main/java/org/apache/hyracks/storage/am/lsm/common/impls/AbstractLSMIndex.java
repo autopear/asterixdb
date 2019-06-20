@@ -1140,21 +1140,31 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 tuple.getFieldStart(0) + tuple.getFieldLength(0));
     }
 
-    public String componentToString(ILSMDiskComponent component) {
+    public static String getIndent(int indent) {
+        String spaces = "";
+        for (int i = 0; i < indent; i++) {
+            spaces += "  ";
+        }
+        return spaces;
+    }
+
+    public String componentToString(ILSMDiskComponent component, int indent) {
         String basename;
         try {
             basename = component.getId().toString();
         } catch (HyracksDataException ex) {
             basename = "Unknown";
         }
-        return "{ name: " + basename + ", size: " + component.getComponentSize() + " }";
+        String spaces = getIndent(indent);
+        return spaces + "{\n" + spaces + "  name: " + basename + ",\n" + spaces + "  size: "
+                + component.getComponentSize() + "\n" + spaces + "}";
     }
 
     public String componentsToString() {
-        String dirStr = "{ dir: " + fileManager.getBaseDir().getFile().getName() + " }";
-        String memStr = "{ Mem: " + memoryComponents.size() + " }";
+        String dirStr = "{\n  dir: " + fileManager.getBaseDir().getFile().getName() + "\n}";
+        String memStr = "{\n  Mem: " + memoryComponents.size() + "\n}";
         if (diskComponents.isEmpty()) {
-            return dirStr + "," + memStr;
+            return dirStr + ",\n" + memStr;
         }
         String diskStr = "";
         if (isLeveled) {
@@ -1164,35 +1174,35 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 long level = component.getLevel();
                 if (level == currentLevel) {
                     if (levelStr.isEmpty()) {
-                        levelStr = componentToString(component);
+                        levelStr = componentToString(component, 2);
                     } else {
-                        levelStr += ", " + componentToString(component);
+                        levelStr += ",\n" + componentToString(component, 2);
                     }
                 } else {
                     if (!levelStr.isEmpty()) {
                         if (diskStr.isEmpty()) {
-                            diskStr = currentLevel + ": [ " + levelStr + " ]";
+                            diskStr = "  " + currentLevel + ": [\n" + levelStr + "\n  ]";
                         } else {
-                            diskStr += ", " + currentLevel + ": [ " + levelStr + " ]";
+                            diskStr += ",\n  " + currentLevel + ": [\n" + levelStr + "\n  ]";
                         }
                     }
                     currentLevel = level;
-                    levelStr = componentToString(component);
+                    levelStr = componentToString(component, 2);
                 }
             }
             if (!levelStr.isEmpty()) {
                 if (diskStr.isEmpty()) {
-                    diskStr = currentLevel + ": [ " + levelStr + " ]";
+                    diskStr = "  " + currentLevel + ": [\n" + levelStr + "\n  ]";
                 } else {
-                    diskStr += ", " + currentLevel + ": [ " + levelStr + " ]";
+                    diskStr += ",\n  " + currentLevel + ": [\n" + levelStr + "\n  ]";
                 }
             }
         } else {
-            diskStr = componentToString(diskComponents.get(0));
+            diskStr = componentToString(diskComponents.get(0), 1);
             for (int i = 1; i < diskComponents.size(); i++) {
-                diskStr += ", " + componentToString(diskComponents.get(i));
+                diskStr += ",\n" + componentToString(diskComponents.get(i), 1);
             }
         }
-        return dirStr + "," + memStr + ", [ " + diskStr + " ]";
+        return dirStr + ",\n" + memStr + ",\n[\n" + diskStr + "\n]";
     }
 }

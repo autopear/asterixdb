@@ -39,6 +39,7 @@ import org.apache.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilterFrameFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFactory;
@@ -345,13 +346,14 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
     }
 
     @Override
-    public String componentToString(ILSMDiskComponent component) {
+    public String componentToString(ILSMDiskComponent component, int indent) {
         String basename;
         String minKey;
         String maxKey;
         long numTuples;
         try {
-            basename = component.getId().toString();
+            ILSMComponentId cid = component.getId();
+            basename = cid.getMinId() + "_" + cid.getMaxId();
         } catch (HyracksDataException ex) {
             basename = "Unknown";
         }
@@ -390,7 +392,9 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         } catch (HyracksDataException ex) {
             numTuples = -1L;
         }
-        return "{ name: " + basename + ", size: " + component.getComponentSize() + ", min: " + minKey + ", max: "
-                + maxKey + ", tuples: " + numTuples + " }";
+        String spaces = getIndent(indent);
+        return spaces + "{\n" + spaces + "  name: " + basename + ",\n" + spaces + "  size: "
+                + component.getComponentSize() + ",\n" + spaces + "  min: " + minKey + ",\n" + spaces + "  max: "
+                + maxKey + ",\n" + spaces + "  tuples: " + numTuples + "\n" + spaces + "}";
     }
 }

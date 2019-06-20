@@ -434,6 +434,74 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         return doSTROrderMerge(operation);
     }
 
+    public static void orderTuplesBySTR(List<TupleWithMBR> tuples, List<TuplesWithMBR> partitions, long partitionTuples,
+            int startDim) {
+        if (tuples == null || tuples.isEmpty()) {
+            return;
+        }
+        int numPartitions = partitions.size();
+        int dim = tuples.get(0).getDim();
+        // Handle the last dimension, place tuples into partitions
+        if (dim < 2 || startDim >= dim) {
+            for (int i = 0; i < numPartitions; i++) {
+                TuplesWithMBR p = partitions.get(i);
+                long empties = partitionTuples - p.getTuples().size(); // Number of available space in the partition
+                if (empties > 0) {
+                    if (empties >= tuples.size()) {
+                        // Place all tuples in the slice to the partition
+                        for (int j = 0; j < tuples.size(); j++) {
+                            p.addTuple(tuples.get(j));
+                        }
+                        return;
+                    } else {
+                        // Place some tuples in the slice to the partition, then check the next partition
+                        for (int j = 0; j < empties; j++) {
+                            p.addTuple(tuples.get(0));
+                            tuples.remove(0);
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
+        int thisDim = dim - startDim; // The number of dimensions to check
+
+        int numSlices = (int) Math.ceil(Math.pow(numPartitions, 1.0 / thisDim));
+        int sliceCapacity =
+                (int) partitionTuples * (int) Math.ceil(Math.pow(numPartitions, (double) (thisDim - 1) / thisDim));
+        for (int i = 0; i < numSlices; i++) {
+            // Place tuples sorted by startDim-1 into slices
+            List<TupleWithMBR> slice = new ArrayList<>();
+            int bound = (i + 1) * sliceCapacity <= tuples.size() ? sliceCapacity : tuples.size() - i * sliceCapacity;
+            for (int j = 0; j < bound; j++) {
+                TupleWithMBR t = tuples.get(i * sliceCapacity + j);
+                slice.add(t);
+            }
+            // Sort tuples in the slice by startDim
+            slice.sort(new Comparator<TupleWithMBR>() {
+                @Override
+                public int compare(TupleWithMBR t1, TupleWithMBR t2) {
+                    double[] c1 = t1.getCenter();
+                    double[] c2 = t2.getCenter();
+                    return Double.compare(c1[startDim], c2[startDim]);
+                }
+            });
+            // Recursively process the slice using the next dimension
+            orderTuplesBySTR(slice, partitions, partitionTuples, startDim + 1);
+        }
+    }
+
+    public static boolean intersect(double[] mbr1, double[] mbr2) {
+        int dim = mbr1.length / 2;
+        for (int i = 0; i < dim; i++) {
+            if (mbr1[i] > mbr2[dim + i] || mbr2[i] > mbr1[dim + i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static List<TuplesWithMBR> partitionTuplesBySTR(List<TupleWithMBR> tuples, long partitionTuples) {
         if (tuples == null || tuples.isEmpty()) {
             return Collections.emptyList();
@@ -442,6 +510,8 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         if (numPartitions == 1) {
             return Collections.singletonList(new TuplesWithMBR(tuples));
         }
+
+        int dim = tuples.get(0).getDim();
 
         tuples.sort(new Comparator<TupleWithMBR>() {
             @Override
@@ -452,16 +522,21 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             }
         });
 
+        List<TuplesWithMBR> partitions = new ArrayList<>();
+        for (int i = 0; i < numPartitions; i++) {
+            partitions.add(new TuplesWithMBR(dim));
+        }
+        orderTuplesBySTR(tuples, partitions, partitionTuples, 0);
+
+        /*
         int numVSlices = (int) Math.ceil(Math.sqrt(numPartitions));
         int sliceCapacity = (int) partitionTuples * numVSlices;
         List<List<TupleWithMBR>> vSlices = new ArrayList<>();
-        int dim = -1;
         for (int i = 0; i < numVSlices; i++) {
             List<TupleWithMBR> sliceTuples = new ArrayList<>();
             int bound = (i + 1) * sliceCapacity <= tuples.size() ? sliceCapacity : tuples.size() - i * sliceCapacity;
             for (int j = 0; j < bound; j++) {
                 TupleWithMBR t = tuples.get(i * sliceCapacity + j);
-                dim = t.getDim();
                 sliceTuples.add(t);
             }
             sliceTuples.sort(new Comparator<TupleWithMBR>() {
@@ -490,7 +565,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         if (!currentPartition.getTuples().isEmpty()) {
             partitions.add(currentPartition);
         }
-
+        */
         return partitions;
     }
 
