@@ -57,22 +57,12 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         if (min1 == null || max1 == null || min2 == null || max2 == null) {
             return true;
         }
-        boolean c1 = true;
         for (int i = 0; i < min1.length; i++) {
-            if (min1[i] <= max2[i]) {
-                c1 = false;
-                break;
+            if (min1[i] > max2[i] || min2[i] > max1[i]) {
+                return false;
             }
         }
-
-        boolean c2 = true;
-        for (int i = 0; i < min2.length; i++) {
-            if (min2[i] <= max1[i]) {
-                c2 = false;
-                break;
-            }
-        }
-        return !(c1 || c2);
+        return true;
     }
 
     public List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component,
@@ -366,6 +356,9 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 lsmRTree.getFilterManager().writeFilter(newComponent.getLSMComponentFilter(),
                         newComponent.getMetadataHolder());
             }
+            componentBulkLoader.end();
+            mergeOp.setTarget(refs.getInsertIndexFileReference());
+            mergeOp.setBloomFilterTarget(refs.getBloomFilterFileReference());
             return Collections.singletonList(newComponent);
         } else {
             long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1;
@@ -392,8 +385,8 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 ILSMDiskComponent newComponent = lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(), null,
                         refs.getBloomFilterFileReference(), true);
                 newComponents.add(newComponent);
-                ILSMDiskComponentBulkLoader componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false,
-                        tuples.getTuples().size(), false, false, false);
+                ILSMDiskComponentBulkLoader componentBulkLoader =
+                        newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
                 MultiComparator filterCmp = newComponent.getLSMComponentFilter() == null ? null
                         : MultiComparator.create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
                 ITupleReference minTuple = null;
@@ -460,15 +453,18 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         });
 
         int numVSlices = (int) Math.ceil(Math.sqrt(numPartitions));
-        int sliceCapacity = (int)partitionTuples * numVSlices;
-        List<TupleWithMBR>[] vSlices = new List[numVSlices];
+        int sliceCapacity = (int) partitionTuples * numVSlices;
+        List<List<TupleWithMBR>> vSlices = new ArrayList<>();
+        int dim = -1;
         for (int i = 0; i < numVSlices; i++) {
-            vSlices[i] = new ArrayList<>();
-            int bound = (i+1) * sliceCapacity <= tuples.size() ? sliceCapacity : tuples.size() - i * sliceCapacity;
+            List<TupleWithMBR> sliceTuples = new ArrayList<>();
+            int bound = (i + 1) * sliceCapacity <= tuples.size() ? sliceCapacity : tuples.size() - i * sliceCapacity;
             for (int j = 0; j < bound; j++) {
-                vSlices[i].add(tuples.get(i * sliceCapacity + j));
+                TupleWithMBR t = tuples.get(i * sliceCapacity + j);
+                dim = t.getDim();
+                sliceTuples.add(t);
             }
-            vSlices[i].sort(new Comparator<TupleWithMBR>() {
+            sliceTuples.sort(new Comparator<TupleWithMBR>() {
                 @Override
                 public int compare(TupleWithMBR t1, TupleWithMBR t2) {
                     double[] c1 = t1.getCenter();
@@ -476,27 +472,23 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     return Double.compare(c1[1], c2[1]);
                 }
             });
+            vSlices.add(sliceTuples);
         }
 
         List<TuplesWithMBR> partitions = new ArrayList<>();
-        for (int i=0; i<numPartitions; i++) {
-            partitions.add(new TuplesWithMBR(2));
-        }
-
-        int current = 0;
-        TuplesWithMBR t = partitions.get(current);
-        for (int i=0; i<numVSlices; i++) {
-            List<TupleWithMBR> slice = vSlices[i];
-            for (int j=0; j<slice.size(); j++) {
-                t.addTuple(slice.get(j));
-                if (t.getTuples().size() == partitionTuples) {
-                    if (++current >= numPartitions) {
-                        break;
-                    } else {
-                        t = partitions.get(current);
-                    }
+        TuplesWithMBR currentPartition = new TuplesWithMBR(dim);
+        for (int i = 0; i < numVSlices; i++) {
+            List<TupleWithMBR> sliceTuples = vSlices.get(i);
+            for (int j = 0; j < sliceTuples.size(); j++) {
+                currentPartition.addTuple(sliceTuples.get(j));
+                if (currentPartition.getTuples().size() == partitionTuples) {
+                    partitions.add(currentPartition);
+                    currentPartition = new TuplesWithMBR(dim);
                 }
             }
+        }
+        if (!currentPartition.getTuples().isEmpty()) {
+            partitions.add(currentPartition);
         }
 
         return partitions;

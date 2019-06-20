@@ -680,6 +680,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         String basename;
         String minKey;
         String maxKey;
+        long numTuples;
         try {
             ILSMComponentId cid = component.getId();
             basename = cid.getMinId() + "_" + cid.getMaxId();
@@ -716,7 +717,12 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         } catch (HyracksDataException ex) {
             maxKey = "Unknown";
         }
+        try {
+            numTuples = component.getTupleCount();
+        } catch (HyracksDataException ex) {
+            numTuples = -1L;
+        }
         return "{ name: " + basename + ", size: " + component.getComponentSize() + ", min: " + minKey + ", max: "
-                + maxKey + " }";
+                + maxKey + ", tuples: " + numTuples + " }";
     }
 }
