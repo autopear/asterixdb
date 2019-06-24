@@ -44,13 +44,18 @@ import org.apache.hyracks.storage.am.rtree.impls.SearchPredicate;
 import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelper {
+    private static final Logger LOGGER = LogManager.getLogger();
     protected final AbstractLSMRTree lsmRTree;
+    private Map<Long, Integer> lastCurveValue;
 
     public LSMRTreeLevelMergePolicyHelper(AbstractLSMIndex index) {
         super(index);
         lsmRTree = (AbstractLSMRTree) index;
+        lastCurveValue = new HashMap<>();
     }
 
     public static boolean isOverlapping(double[] min1, double[] max1, double[] min2, double[] max2) {
@@ -65,6 +70,12 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         return true;
     }
 
+    @Override
+    public ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level) {
+        return pickNextZCurveComponent(components, level);
+    }
+
+    @Override
     public List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component,
             List<ILSMDiskComponent> components) {
         long levelTo = component.getLevel() + 1;
@@ -108,6 +119,77 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             }
         }
         return overlapped;
+    }
+
+    private ILSMDiskComponent pickNextZCurveComponent(List<ILSMDiskComponent> components, long level) {
+        try {
+            List<ILSMDiskComponent> selectedComponents = getComponents(components, level);
+            ZCurvePartitioner curve = new ZCurvePartitioner(selectedComponents);
+            if (lastCurveValue.containsKey(level)) {
+                int lastZ = lastCurveValue.get(level);
+                int minZ = -1;
+                int nextZ = -1;
+                ILSMDiskComponent minPicked = null;
+                ILSMDiskComponent nextPicked = null;
+                for (ILSMDiskComponent c : selectedComponents) {
+                    int z = curve.getValue(c);
+                    if (minPicked == null) {
+                        minPicked = c;
+                        minZ = z;
+                    } else {
+                        if (z > minZ) {
+                            minZ = z;
+                            minPicked = c;
+                        }
+                        if (z == minZ) {
+                            if (c.getLevelSequence() < minPicked.getLevelSequence()) {
+                                minPicked = c;
+                            }
+                        }
+                    }
+                    if (z > lastZ) {
+                        if (nextPicked == null) {
+                            nextPicked = c;
+                            nextZ = z;
+                        } else {
+                            if (z < nextZ) {
+                                nextZ = z;
+                                nextPicked = c;
+                            }
+                            if (z == nextZ) {
+                                if (c.getLevelSequence() < nextPicked.getLevelSequence()) {
+                                    nextPicked = c;
+                                }
+                            }
+                        }
+                    }
+                }
+                return nextPicked == null ? minPicked : nextPicked;
+            } else {
+                int minZ = -1;
+                ILSMDiskComponent picked = null;
+                for (ILSMDiskComponent c : selectedComponents) {
+                    int z = curve.getValue(c);
+                    if (picked == null) {
+                        picked = c;
+                        minZ = z;
+                    } else {
+                        if (z > minZ) {
+                            minZ = z;
+                            picked = c;
+                        }
+                        if (z == minZ) {
+                            if (c.getLevelSequence() < picked.getLevelSequence()) {
+                                picked = c;
+                            }
+                        }
+                    }
+                }
+                return picked;
+            }
+        } catch (HyracksDataException ex) {
+            return getOldestComponent(components, level);
+        }
     }
 
     private List<ILSMDiskComponent> doZOrderMerge(ILSMIOOperation operation) throws HyracksDataException {
@@ -293,6 +375,18 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         return newComponents;
     }
 
+    public static long getMaxNumTuplesPerComponent(List<? extends ILSMComponent> components)
+            throws HyracksDataException {
+        long m = 0L;
+        for (ILSMComponent c : components) {
+            ILSMDiskComponent d = (ILSMDiskComponent) c;
+            if (d.getTupleCount() > m) {
+                m = d.getTupleCount();
+            }
+        }
+        return m;
+    }
+
     private List<ILSMDiskComponent> doSTROrderMerge(ILSMIOOperation operation) throws HyracksDataException {
         LSMRTreeMergeOperation mergeOp = (LSMRTreeMergeOperation) operation;
         IIndexCursor cursor = mergeOp.getCursor();
@@ -301,6 +395,10 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         lsmRTree.search(opCtx, cursor, rtreeSearchPred);
 
         List<ILSMComponent> mergedComponents = mergeOp.getMergingComponents();
+        long totalNum = 0L;
+        for (ILSMComponent c : mergedComponents) {
+            totalNum += ((ILSMDiskComponent) c).getTupleCount();
+        }
 
         if (mergedComponents.size() == 1) {
             LSMComponentFileReferences refs = lsmRTree
@@ -366,7 +464,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             List<FileReference> mergeFileTargets = new ArrayList<>();
             List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
             List<TupleWithMBR> allTuples = new ArrayList<>();
-            long numTuplesInPartition = lsmRTree.getMaxNumTuplesPerComponent();
+            long numTuplesInPartition = getMaxNumTuplesPerComponent(mergedComponents);
             try {
                 while (cursor.hasNext()) {
                     cursor.next();
@@ -377,6 +475,12 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 cursor.close();
             }
             List<TuplesWithMBR> partitionedTuples = partitionTuplesBySTR(allTuples, numTuplesInPartition);
+            String partitionStr = Long.toString(partitionedTuples.get(0).getTuples().size());
+            for (int i = 1; i < partitionedTuples.size(); i++) {
+                partitionStr += ", " + partitionedTuples.get(i).getTuples().size();
+            }
+            LOGGER.info("[HELPER]\tSRC=" + totalNum + ", scanned=" + allTuples.size() + ", partitioned=[ "
+                    + partitionStr + " ]");
             List<ILSMDiskComponent> newComponents = new ArrayList<>();
             for (TuplesWithMBR tuples : partitionedTuples) {
                 LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo, start++);
@@ -385,8 +489,8 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 ILSMDiskComponent newComponent = lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(), null,
                         refs.getBloomFilterFileReference(), true);
                 newComponents.add(newComponent);
-                ILSMDiskComponentBulkLoader componentBulkLoader =
-                        newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
+                ILSMDiskComponentBulkLoader componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false,
+                        tuples.getTuples().size(), false, false, false);
                 MultiComparator filterCmp = newComponent.getLSMComponentFilter() == null ? null
                         : MultiComparator.create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
                 ITupleReference minTuple = null;
@@ -430,6 +534,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         }
     }
 
+    @Override
     public List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException {
         return doSTROrderMerge(operation);
     }
@@ -492,16 +597,6 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         }
     }
 
-    public static boolean intersect(double[] mbr1, double[] mbr2) {
-        int dim = mbr1.length / 2;
-        for (int i = 0; i < dim; i++) {
-            if (mbr1[i] > mbr2[dim + i] || mbr2[i] > mbr1[dim + i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     public static List<TuplesWithMBR> partitionTuplesBySTR(List<TupleWithMBR> tuples, long partitionTuples) {
         if (tuples == null || tuples.isEmpty()) {
             return Collections.emptyList();
@@ -549,7 +644,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             });
             vSlices.add(sliceTuples);
         }
-
+        
         List<TuplesWithMBR> partitions = new ArrayList<>();
         TuplesWithMBR currentPartition = new TuplesWithMBR(dim);
         for (int i = 0; i < numVSlices; i++) {
@@ -564,8 +659,8 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         }
         if (!currentPartition.getTuples().isEmpty()) {
             partitions.add(currentPartition);
-        }
-        */
+        }*/
+
         return partitions;
     }
 
@@ -640,7 +735,6 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 }
                 this.tuples.add(tuple.getTuple());
             }
-            dim = mbr.length / 2;
         }
 
         public List<ITupleReference> getTuples() {

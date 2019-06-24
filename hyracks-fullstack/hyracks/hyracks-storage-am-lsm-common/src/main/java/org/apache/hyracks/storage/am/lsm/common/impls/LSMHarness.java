@@ -575,6 +575,22 @@ public class LSMHarness implements ILSMHarness {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Started a merge operation for index: {}", lsmIndex);
         }
+        String[] paths = lsmIndex.getIndexIdentifier().replace("\\", "/").split("/");
+        String indexName = paths[paths.length - 1];
+        if (indexName.compareTo("rtreeidx") == 0) {
+            LOGGER.info("[BeforeMerge]-[" + indexName + "]-" + Thread.currentThread().getId() + "\t"
+                    + ((AbstractLSMIndex) lsmIndex).componentsToString());
+
+            MergeOperation mop = (MergeOperation) operation;
+            List<ILSMComponent> componentsToMerge = mop.getMergingComponents();
+            String logMsg =
+                    ((AbstractLSMIndex) lsmIndex).componentToString((ILSMDiskComponent) (componentsToMerge.get(0)), 0);
+            for (int i = 1; i < componentsToMerge.size(); i++) {
+                logMsg += ",\n" + ((AbstractLSMIndex) lsmIndex)
+                        .componentToString((ILSMDiskComponent) componentsToMerge.get(i), 0);
+            }
+            LOGGER.info("[Picked]-[" + indexName + "]-" + Thread.currentThread().getId() + "\t" + logMsg);
+        }
         synchronized (opTracker) {
             enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE);
         }
@@ -618,6 +634,10 @@ public class LSMHarness implements ILSMHarness {
             opTracker.completeOperation(lsmIndex, LSMOperationType.MERGE,
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
+        }
+        if (indexName.compareTo("rtreeidx") == 0) {
+            LOGGER.info("[AfterMerge]-[" + indexName + "]-" + Thread.currentThread().getId() + "t"
+                    + ((AbstractLSMIndex) lsmIndex).componentsToString());
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
