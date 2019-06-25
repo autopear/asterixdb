@@ -636,7 +636,7 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
         if (indexName.compareTo("rtreeidx") == 0) {
-            LOGGER.info("[AfterMerge]-[" + indexName + "]-" + Thread.currentThread().getId() + "t"
+            LOGGER.info("[AfterMerge]-[" + indexName + "]-" + Thread.currentThread().getId() + "\t"
                     + ((AbstractLSMIndex) lsmIndex).componentsToString());
         }
         if (LOGGER.isDebugEnabled()) {

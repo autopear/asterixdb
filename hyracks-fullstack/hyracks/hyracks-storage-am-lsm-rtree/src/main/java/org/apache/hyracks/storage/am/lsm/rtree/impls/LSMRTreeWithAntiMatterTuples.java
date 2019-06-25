@@ -171,21 +171,19 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                         double[] mbr = getMBRFromTuple(frameTuple);
                         int dim = mbr.length / 2;
                         if (minMBR == null) {
-                            minMBR = new double[dim];
-                            System.arraycopy(mbr, 0, minMBR, 0, dim);
+                            minMBR = LSMRTreeLevelMergePolicyHelper.clone(mbr, 0, dim);
                         } else {
                             for (int i = 0; i < dim; i++) {
-                                if (mbr[i] < minMBR[i]) {
+                                if (Double.compare(mbr[i], minMBR[i]) < 0) {
                                     minMBR[i] = mbr[i];
                                 }
                             }
                         }
                         if (maxMBR == null) {
-                            maxMBR = new double[dim];
-                            System.arraycopy(mbr, dim, maxMBR, 0, dim);
+                            maxMBR = LSMRTreeLevelMergePolicyHelper.clone(mbr, dim, dim);
                         } else {
                             for (int i = 0; i < dim; i++) {
-                                if (mbr[dim + i] > maxMBR[i]) {
+                                if (Double.compare(mbr[dim + i], maxMBR[i]) > 0) {
                                     maxMBR[i] = mbr[dim + i];
                                 }
                             }
@@ -275,21 +273,19 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                 double[] mbr = getMBRFromTuple(frameTuple);
                 int dim = mbr.length / 2;
                 if (minMBR == null) {
-                    minMBR = new double[dim];
-                    System.arraycopy(mbr, 0, minMBR, 0, dim);
+                    minMBR = LSMRTreeLevelMergePolicyHelper.clone(mbr, 0, dim);
                 } else {
                     for (int i = 0; i < dim; i++) {
-                        if (mbr[i] < minMBR[i]) {
+                        if (Double.compare(mbr[i], minMBR[i]) < 0) {
                             minMBR[i] = mbr[i];
                         }
                     }
                 }
                 if (maxMBR == null) {
-                    maxMBR = new double[dim];
-                    System.arraycopy(mbr, dim, maxMBR, 0, dim);
+                    maxMBR = LSMRTreeLevelMergePolicyHelper.clone(mbr, dim, dim);
                 } else {
                     for (int i = 0; i < dim; i++) {
-                        if (mbr[dim + i] > maxMBR[i]) {
+                        if (Double.compare(mbr[dim + i], maxMBR[i]) > 0) {
                             maxMBR[i] = mbr[dim + i];
                         }
                     }

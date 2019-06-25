@@ -44,11 +44,8 @@ import org.apache.hyracks.storage.am.rtree.impls.SearchPredicate;
 import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelper {
-    private static final Logger LOGGER = LogManager.getLogger();
     protected final AbstractLSMRTree lsmRTree;
     private Map<Long, Integer> lastCurveValue;
 
@@ -58,12 +55,30 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         lastCurveValue = new HashMap<>();
     }
 
+    public static double[] clone(double[] src) {
+        if (src == null) {
+            return null;
+        }
+        double[] dst = new double[src.length];
+        System.arraycopy(src, 0, dst, 0, src.length);
+        return dst;
+    }
+
+    public static double[] clone(double[] src, int start, int len) {
+        if (src == null || start < 0 || start >= src.length || len < 1 || start + len > src.length) {
+            return null;
+        }
+        double[] dst = new double[len];
+        System.arraycopy(src, start, dst, 0, len);
+        return dst;
+    }
+
     public static boolean isOverlapping(double[] min1, double[] max1, double[] min2, double[] max2) {
         if (min1 == null || max1 == null || min2 == null || max2 == null) {
             return true;
         }
         for (int i = 0; i < min1.length; i++) {
-            if (min1[i] > max2[i] || min2[i] > max1[i]) {
+            if (Double.compare(min1[i], max2[i]) > 0 || Double.compare(min2[i], max1[i]) > 0) {
                 return false;
             }
         }
@@ -226,21 +241,19 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     double[] mbr = lsmRTree.getMBRFromTuple(frameTuple);
                     int dim = mbr.length / 2;
                     if (minMBR == null) {
-                        minMBR = new double[dim];
-                        System.arraycopy(mbr, 0, minMBR, 0, dim);
+                        minMBR = clone(mbr, 0, dim);
                     } else {
                         for (int i = 0; i < dim; i++) {
-                            if (mbr[i] < minMBR[i]) {
+                            if (Double.compare(mbr[i], minMBR[i]) < 0) {
                                 minMBR[i] = mbr[i];
                             }
                         }
                     }
                     if (maxMBR == null) {
-                        maxMBR = new double[dim];
-                        System.arraycopy(mbr, dim, maxMBR, 0, dim);
+                        maxMBR = clone(mbr, dim, dim);
                     } else {
                         for (int i = 0; i < dim; i++) {
-                            if (mbr[dim + i] > maxMBR[i]) {
+                            if (Double.compare(mbr[dim + i], maxMBR[i]) > 0) {
                                 maxMBR[i] = mbr[dim + i];
                             }
                         }
@@ -279,21 +292,19 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     double[] mbr = lsmRTree.getMBRFromTuple(frameTuple);
                     int dim = mbr.length / 2;
                     if (minMBR == null) {
-                        minMBR = new double[dim];
-                        System.arraycopy(mbr, 0, minMBR, 0, dim);
+                        minMBR = clone(mbr, 0, dim);
                     } else {
                         for (int i = 0; i < dim; i++) {
-                            if (mbr[i] < minMBR[i]) {
+                            if (Double.compare(mbr[i], minMBR[i]) < 0) {
                                 minMBR[i] = mbr[i];
                             }
                         }
                     }
                     if (maxMBR == null) {
-                        maxMBR = new double[dim];
-                        System.arraycopy(mbr, dim, maxMBR, 0, dim);
+                        maxMBR = clone(mbr, dim, dim);
                     } else {
                         for (int i = 0; i < dim; i++) {
-                            if (mbr[dim + i] > maxMBR[i]) {
+                            if (Double.compare(mbr[dim + i], maxMBR[i]) > 0) {
                                 maxMBR[i] = mbr[dim + i];
                             }
                         }
@@ -395,11 +406,6 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         lsmRTree.search(opCtx, cursor, rtreeSearchPred);
 
         List<ILSMComponent> mergedComponents = mergeOp.getMergingComponents();
-        long totalNum = 0L;
-        for (ILSMComponent c : mergedComponents) {
-            totalNum += ((ILSMDiskComponent) c).getTupleCount();
-        }
-
         if (mergedComponents.size() == 1) {
             LSMComponentFileReferences refs = lsmRTree
                     .getNextMergeFileReferencesAtLevel(((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1, 1);
@@ -407,43 +413,20 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(), null, null, true);
             ILSMDiskComponentBulkLoader componentBulkLoader =
                     newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
-            double[] minMBR = null;
-            double[] maxMBR = null;
+            byte[] minKey = ((ILSMDiskComponent) mergedComponents.get(0)).getMinKey();
+            byte[] maxKey = ((ILSMDiskComponent) mergedComponents.get(0)).getMaxKey();
             long totalTuples = 0L;
             try {
                 while (cursor.hasNext()) {
                     cursor.next();
-                    ITupleReference frameTuple = cursor.getTuple();
-                    componentBulkLoader.add(frameTuple);
+                    componentBulkLoader.add(cursor.getTuple());
                     totalTuples++;
-                    double[] mbr = lsmRTree.getMBRFromTuple(frameTuple);
-                    int dim = mbr.length / 2;
-                    if (minMBR == null) {
-                        minMBR = new double[dim];
-                        System.arraycopy(mbr, 0, minMBR, 0, dim);
-                    } else {
-                        for (int i = 0; i < dim; i++) {
-                            if (mbr[i] < minMBR[i]) {
-                                minMBR[i] = mbr[i];
-                            }
-                        }
-                    }
-                    if (maxMBR == null) {
-                        maxMBR = new double[dim];
-                        System.arraycopy(mbr, dim, maxMBR, 0, dim);
-                    } else {
-                        for (int i = 0; i < dim; i++) {
-                            if (mbr[dim + i] > maxMBR[i]) {
-                                maxMBR[i] = mbr[dim + i];
-                            }
-                        }
-                    }
                 }
             } finally {
                 cursor.close();
             }
-            newComponent.setMinKey(AbstractLSMRTree.doublesToBytes(minMBR));
-            newComponent.setMaxKey(AbstractLSMRTree.doublesToBytes(maxMBR));
+            newComponent.setMinKey(minKey);
+            newComponent.setMaxKey(maxKey);
             newComponent.setTupleCount(totalTuples);
             if (newComponent.getLSMComponentFilter() != null) {
                 ITupleReference minTuple = mergedComponents.get(0).getLSMComponentFilter().getMinTuple();
@@ -474,28 +457,27 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             } finally {
                 cursor.close();
             }
-            List<TuplesWithMBR> partitionedTuples = partitionTuplesBySTR(allTuples, numTuplesInPartition);
-            String partitionStr = Long.toString(partitionedTuples.get(0).getTuples().size());
-            for (int i = 1; i < partitionedTuples.size(); i++) {
-                partitionStr += ", " + partitionedTuples.get(i).getTuples().size();
-            }
-            LOGGER.info("[HELPER]\tSRC=" + totalNum + ", scanned=" + allTuples.size() + ", partitioned=[ "
-                    + partitionStr + " ]");
+            List<Partition> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);
             List<ILSMDiskComponent> newComponents = new ArrayList<>();
-            for (TuplesWithMBR tuples : partitionedTuples) {
+            List<ILSMDiskComponentBulkLoader> componentBulkLoaders = new ArrayList<>();
+            for (int i = 0; i < partitions.size(); i++) {
+                Partition partition = partitions.get(i);
+                int dim = partition.getDim();
                 LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo, start++);
                 mergeFileTargets.add(refs.getInsertIndexFileReference());
                 mergeBloomFilterTargets.add(refs.getBloomFilterFileReference());
                 ILSMDiskComponent newComponent = lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(), null,
                         refs.getBloomFilterFileReference(), true);
                 newComponents.add(newComponent);
-                ILSMDiskComponentBulkLoader componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false,
-                        tuples.getTuples().size(), false, false, false);
+                ILSMDiskComponentBulkLoader componentBulkLoader =
+                        newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
+                componentBulkLoaders.add(componentBulkLoader);
                 MultiComparator filterCmp = newComponent.getLSMComponentFilter() == null ? null
                         : MultiComparator.create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
                 ITupleReference minTuple = null;
                 ITupleReference maxTuple = null;
-                for (ITupleReference tuple : tuples.getTuples()) {
+                for (int j = 0; j < partition.size(); j++) {
+                    ITupleReference tuple = partition.getTuple(j);
                     if (minTuple == null) {
                         minTuple = tuple;
                     } else {
@@ -512,13 +494,11 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     }
                     componentBulkLoader.add(tuple);
                 }
-                double[] minMBR = new double[tuples.getDim()];
-                double[] maxMBR = new double[tuples.getDim()];
-                System.arraycopy(tuples.getMBR(), 0, minMBR, 0, tuples.getDim());
-                System.arraycopy(tuples.getMBR(), tuples.getDim(), maxMBR, 0, tuples.getDim());
+                double[] minMBR = clone(partition.getMBR(), 0, dim);
+                double[] maxMBR = clone(partition.getMBR(), dim, dim);
                 newComponent.setMinKey(AbstractLSMRTree.doublesToBytes(minMBR));
                 newComponent.setMaxKey(AbstractLSMRTree.doublesToBytes(maxMBR));
-                newComponent.setTupleCount(tuples.getTuples().size());
+                newComponent.setTupleCount(partition.size());
                 if (filterCmp != null) {
                     List<ITupleReference> filterTuples = Arrays.asList(minTuple, maxTuple);
                     lsmRTree.getFilterManager().updateFilter(newComponent.getLSMComponentFilter(), filterTuples,
@@ -526,10 +506,12 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     lsmRTree.getFilterManager().writeFilter(newComponent.getLSMComponentFilter(),
                             newComponent.getMetadataHolder());
                 }
-                componentBulkLoader.end();
             }
             mergeOp.setTargets(mergeFileTargets);
             mergeOp.setBloomFilterTargets(mergeBloomFilterTargets);
+            for (ILSMDiskComponentBulkLoader componentBulkLoader : componentBulkLoaders) {
+                componentBulkLoader.end();
+            }
             return newComponents;
         }
     }
@@ -539,30 +521,30 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         return doSTROrderMerge(operation);
     }
 
-    public static void orderTuplesBySTR(List<TupleWithMBR> tuples, List<TuplesWithMBR> partitions, long partitionTuples,
-            int startDim) {
-        if (tuples == null || tuples.isEmpty()) {
+    public static void orderTuplesBySTR(List<TupleWithMBR> tuplesToPartition, List<Partition> partitions,
+            long numTuplesInPartition, int startDim) {
+        if (tuplesToPartition == null || tuplesToPartition.isEmpty()) {
             return;
         }
         int numPartitions = partitions.size();
-        int dim = tuples.get(0).getDim();
+        int dim = tuplesToPartition.get(0).getDim();
         // Handle the last dimension, place tuples into partitions
         if (dim < 2 || startDim >= dim) {
             for (int i = 0; i < numPartitions; i++) {
-                TuplesWithMBR p = partitions.get(i);
-                long empties = partitionTuples - p.getTuples().size(); // Number of available space in the partition
+                Partition p = partitions.get(i);
+                long empties = numTuplesInPartition - p.getTuples().size(); // Number of available space in the partition
                 if (empties > 0) {
-                    if (empties >= tuples.size()) {
+                    if (empties >= tuplesToPartition.size()) {
                         // Place all tuples in the slice to the partition
-                        for (int j = 0; j < tuples.size(); j++) {
-                            p.addTuple(tuples.get(j));
+                        for (int j = 0; j < tuplesToPartition.size(); j++) {
+                            p.addTuple(tuplesToPartition.get(j));
                         }
                         return;
                     } else {
                         // Place some tuples in the slice to the partition, then check the next partition
                         for (int j = 0; j < empties; j++) {
-                            p.addTuple(tuples.get(0));
-                            tuples.remove(0);
+                            p.addTuple(tuplesToPartition.get(0));
+                            tuplesToPartition.remove(0);
                         }
                     }
                 }
@@ -574,13 +556,14 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
 
         int numSlices = (int) Math.ceil(Math.pow(numPartitions, 1.0 / thisDim));
         int sliceCapacity =
-                (int) partitionTuples * (int) Math.ceil(Math.pow(numPartitions, (double) (thisDim - 1) / thisDim));
+                (int) numTuplesInPartition * (int) Math.ceil(Math.pow(numPartitions, (double) (thisDim - 1) / thisDim));
         for (int i = 0; i < numSlices; i++) {
             // Place tuples sorted by startDim-1 into slices
             List<TupleWithMBR> slice = new ArrayList<>();
-            int bound = (i + 1) * sliceCapacity <= tuples.size() ? sliceCapacity : tuples.size() - i * sliceCapacity;
+            int bound = (i + 1) * sliceCapacity <= tuplesToPartition.size() ? sliceCapacity
+                    : tuplesToPartition.size() - i * sliceCapacity;
             for (int j = 0; j < bound; j++) {
-                TupleWithMBR t = tuples.get(i * sliceCapacity + j);
+                TupleWithMBR t = tuplesToPartition.get(i * sliceCapacity + j);
                 slice.add(t);
             }
             // Sort tuples in the slice by startDim
@@ -593,22 +576,23 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 }
             });
             // Recursively process the slice using the next dimension
-            orderTuplesBySTR(slice, partitions, partitionTuples, startDim + 1);
+            orderTuplesBySTR(slice, partitions, numTuplesInPartition, startDim + 1);
         }
     }
 
-    public static List<TuplesWithMBR> partitionTuplesBySTR(List<TupleWithMBR> tuples, long partitionTuples) {
-        if (tuples == null || tuples.isEmpty()) {
+    public static List<Partition> partitionTuplesBySTR(List<TupleWithMBR> tuplesToPartition,
+            long numTuplesInPartition) {
+        if (tuplesToPartition == null || tuplesToPartition.isEmpty()) {
             return Collections.emptyList();
         }
-        int numPartitions = (int) Math.ceil((double) tuples.size() / partitionTuples);
+        int numPartitions = (int) Math.ceil((double) tuplesToPartition.size() / numTuplesInPartition);
         if (numPartitions == 1) {
-            return Collections.singletonList(new TuplesWithMBR(tuples));
+            return Collections.singletonList(new Partition(tuplesToPartition));
         }
 
-        int dim = tuples.get(0).getDim();
+        int dim = tuplesToPartition.get(0).getDim();
 
-        tuples.sort(new Comparator<TupleWithMBR>() {
+        tuplesToPartition.sort(new Comparator<TupleWithMBR>() {
             @Override
             public int compare(TupleWithMBR t1, TupleWithMBR t2) {
                 double[] c1 = t1.getCenter();
@@ -617,21 +601,21 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             }
         });
 
-        List<TuplesWithMBR> partitions = new ArrayList<>();
+        List<Partition> partitions = new ArrayList<>();
         for (int i = 0; i < numPartitions; i++) {
-            partitions.add(new TuplesWithMBR(dim));
+            partitions.add(new Partition(dim));
         }
-        orderTuplesBySTR(tuples, partitions, partitionTuples, 0);
+        orderTuplesBySTR(tuplesToPartition, partitions, numTuplesInPartition, 0);
 
         /*
         int numVSlices = (int) Math.ceil(Math.sqrt(numPartitions));
-        int sliceCapacity = (int) partitionTuples * numVSlices;
+        int sliceCapacity = (int) numTuplesInPartition * numVSlices;
         List<List<TupleWithMBR>> vSlices = new ArrayList<>();
         for (int i = 0; i < numVSlices; i++) {
             List<TupleWithMBR> sliceTuples = new ArrayList<>();
-            int bound = (i + 1) * sliceCapacity <= tuples.size() ? sliceCapacity : tuples.size() - i * sliceCapacity;
+            int bound = (i + 1) * sliceCapacity <= tuplesToPartition.size() ? sliceCapacity : tuplesToPartition.size() - i * sliceCapacity;
             for (int j = 0; j < bound; j++) {
-                TupleWithMBR t = tuples.get(i * sliceCapacity + j);
+                TupleWithMBR t = tuplesToPartition.get(i * sliceCapacity + j);
                 sliceTuples.add(t);
             }
             sliceTuples.sort(new Comparator<TupleWithMBR>() {
@@ -651,7 +635,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             List<TupleWithMBR> sliceTuples = vSlices.get(i);
             for (int j = 0; j < sliceTuples.size(); j++) {
                 currentPartition.addTuple(sliceTuples.get(j));
-                if (currentPartition.getTuples().size() == partitionTuples) {
+                if (currentPartition.getTuples().size() == numTuplesInPartition) {
                     partitions.add(currentPartition);
                     currentPartition = new TuplesWithMBR(dim);
                 }
@@ -672,7 +656,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
 
         public TupleWithMBR(ITupleReference tuple, double[] mbr) {
             this.tuple = tuple;
-            this.mbr = mbr;
+            this.mbr = LSMRTreeLevelMergePolicyHelper.clone(mbr);
             dim = mbr.length / 2;
             center = new double[dim];
             for (int i = 0; i < dim; i++) {
@@ -697,38 +681,39 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         }
     }
 
-    static class TuplesWithMBR {
+    static class Partition {
         private List<ITupleReference> tuples;
-        private double[] mbr = null;
+        private double[] mbr;
         private int dim;
 
-        public TuplesWithMBR(int dim) {
+        public Partition(int dim) {
             this.tuples = new ArrayList<>();
-            this.mbr = new double[dim * 2];
+            this.mbr = null;
             this.dim = dim;
         }
 
-        public TuplesWithMBR(List<ITupleReference> tuples, double[] mbr) {
+        public Partition(List<ITupleReference> tuples, double[] mbr) {
             this.tuples = new ArrayList<>(tuples);
-            this.mbr = mbr;
+            this.mbr = LSMRTreeLevelMergePolicyHelper.clone(mbr);
             dim = mbr.length / 2;
         }
 
-        public TuplesWithMBR(List<TupleWithMBR> tuples) {
+        public Partition(List<TupleWithMBR> tuples) {
             this.tuples = new ArrayList<>();
+            mbr = null;
             for (TupleWithMBR tuple : tuples) {
                 double[] tupleMBR = tuple.getMBR();
                 if (mbr == null) {
-                    mbr = tupleMBR;
                     dim = tupleMBR.length / 2;
+                    mbr = LSMRTreeLevelMergePolicyHelper.clone(tupleMBR);
                 } else {
                     for (int i = 0; i < dim; i++) {
-                        if (tupleMBR[i] < mbr[i]) {
+                        if (Double.compare(tupleMBR[i], mbr[i]) < 0) {
                             mbr[i] = tupleMBR[i];
                         }
                     }
                     for (int i = dim; i < dim * 2; i++) {
-                        if (tupleMBR[i] > mbr[i]) {
+                        if (Double.compare(tupleMBR[i], mbr[i]) > 0) {
                             mbr[i] = tupleMBR[i];
                         }
                     }
@@ -749,17 +734,29 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             return dim;
         }
 
+        public int size() {
+            return tuples.size();
+        }
+
+        public ITupleReference getTuple(int i) {
+            return tuples.get(i);
+        }
+
         public void addTuple(TupleWithMBR tuple) {
             tuples.add(tuple.getTuple());
             double[] tupleMBR = tuple.getMBR();
-            for (int i = 0; i < dim; i++) {
-                if (tupleMBR[i] < mbr[i]) {
-                    mbr[i] = tupleMBR[i];
+            if (mbr == null) {
+                mbr = LSMRTreeLevelMergePolicyHelper.clone(tupleMBR);
+            } else {
+                for (int i = 0; i < dim; i++) {
+                    if (Double.compare(tupleMBR[i], mbr[i]) < 0) {
+                        mbr[i] = tupleMBR[i];
+                    }
                 }
-            }
-            for (int i = dim; i < dim * 2; i++) {
-                if (tupleMBR[i] > mbr[i]) {
-                    mbr[i] = tupleMBR[i];
+                for (int i = dim; i < dim * 2; i++) {
+                    if (Double.compare(tupleMBR[i], mbr[i]) > 0) {
+                        mbr[i] = tupleMBR[i];
+                    }
                 }
             }
         }
