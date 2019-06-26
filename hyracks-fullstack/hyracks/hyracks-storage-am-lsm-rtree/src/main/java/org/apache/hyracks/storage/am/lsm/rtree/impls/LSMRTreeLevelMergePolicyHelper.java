@@ -85,6 +85,32 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         return true;
     }
 
+    public static boolean isOverlapping(double[] mbr1, double[] mbr2) {
+        if (mbr1 == null || mbr2 == null) {
+            return true;
+        }
+        int dim = mbr1.length / 2;
+        for (int i = 0; i < dim; i++) {
+            if (Double.compare(mbr1[i], mbr2[dim + i]) > 0 || Double.compare(mbr2[i], mbr1[dim + i]) > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isOverlapping(double[] min, double[] max, double[] mbr) {
+        if (min == null || max == null || mbr == null) {
+            return true;
+        }
+        int dim = min.length;
+        for (int i = 0; i < dim; i++) {
+            if (Double.compare(min[i], mbr[dim + i]) > 0 || Double.compare(mbr[i], max[i]) > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level) {
         return pickNextZCurveComponent(components, level);
@@ -179,7 +205,13 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         }
                     }
                 }
-                return nextPicked == null ? minPicked : nextPicked;
+                if (nextPicked == null) {
+                    lastCurveValue.put(level, minZ);
+                    return minPicked;
+                } else {
+                    lastCurveValue.put(level, nextZ);
+                    return nextPicked;
+                }
             } else {
                 int minZ = -1;
                 ILSMDiskComponent picked = null;
@@ -200,6 +232,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         }
                     }
                 }
+                lastCurveValue.put(level, minZ);
                 return picked;
             }
         } catch (HyracksDataException ex) {

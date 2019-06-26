@@ -278,20 +278,14 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
 
     @Override
     public boolean mayMatchSearchPredicate(ILSMDiskComponent component, ISearchPredicate predicate) {
-        double[] key = bytesToDoubles(getKeyBytes(predicate.getLowKey()));
-        if (key == null) {
+        double[] keyMBR = getMBRFromTuple(predicate.getLowKey());
+        if (keyMBR == null) {
             return true;
         }
-        int dim = key.length / 2;
-        double[] minMBR = new double[dim];
-        double[] maxMBR = new double[dim];
-        System.arraycopy(key, 0, minMBR, 0, dim);
-        System.arraycopy(key, dim, maxMBR, 0, dim);
-
         try {
             double[] minCMBR = bytesToDoubles(component.getMinKey());
             double[] maxCMBR = bytesToDoubles(component.getMaxKey());
-            if (LSMRTreeLevelMergePolicyHelper.isOverlapping(minMBR, maxMBR, minCMBR, maxCMBR)) {
+            if (LSMRTreeLevelMergePolicyHelper.isOverlapping(minCMBR, maxCMBR, keyMBR)) {
                 return true;
             }
         } catch (HyracksDataException ex) {

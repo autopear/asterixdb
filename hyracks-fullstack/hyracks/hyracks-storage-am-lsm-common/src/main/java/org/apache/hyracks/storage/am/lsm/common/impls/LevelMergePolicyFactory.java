@@ -44,6 +44,7 @@ public class LevelMergePolicyFactory implements ILSMMergePolicyFactory {
 
     public static final String OLDEST = "oldest";
     public static final String NEWEST = "newest";
+    public static final String BEST = "best";
     public static final String MIN_OVERLAP = "min-overlap";
     public static final String MAX_OVERLAP = "max-overlap";
     public static final String RAND_UNIFORM = "rand-uniform";

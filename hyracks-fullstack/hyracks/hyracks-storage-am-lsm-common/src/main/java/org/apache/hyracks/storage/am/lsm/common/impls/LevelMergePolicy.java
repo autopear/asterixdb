@@ -132,6 +132,8 @@ public class LevelMergePolicy implements ILSMMergePolicy {
                 if (components.size() > Math.pow(level1Components, level)) {
                     if (pickStrategy.compareTo(LevelMergePolicyFactory.NEWEST) == 0) {
                         picked = helper.getNewestComponent(components, level);
+                    } else if (pickStrategy.compareTo(LevelMergePolicyFactory.BEST) == 0) {
+                        picked = helper.getBestComponent(components, level);
                     } else if (dist.containsKey(pickStrategy)) {
                         picked = helper.getRandomComponent(components, level, dist.get(pickStrategy));
                     } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MIN_OVERLAP) == 0) {
@@ -156,7 +158,7 @@ public class LevelMergePolicy implements ILSMMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
-        pickStrategy = "oldest";
+        pickStrategy = "best";
         level0Components = 2;
         level1Components = 4;
         //        pickStrategy = properties.getOrDefault(LevelMergePolicyFactory.PICK, "oldest").toLowerCase();
