@@ -628,9 +628,16 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             LSMComponentFileReferences mergeFileRefs, ILSMIOOperationCallback callback) {
         boolean returnDeletedTuples = false;
         List<ILSMComponent> mergingComponents = opCtx.getComponentHolder();
-        if (!isLeveled && mergingComponents.get(mergingComponents.size() - 1) != diskComponents
-                .get(diskComponents.size() - 1)) {
-            returnDeletedTuples = true;
+        if (isLeveled) {
+            ILSMDiskComponent lastMergingComponent =
+                    (ILSMDiskComponent) (mergingComponents.get(mergingComponents.size() - 1));
+            if (lastMergingComponent.getLevel() < diskComponents.get(diskComponents.size() - 1).getLevel()) {
+                returnDeletedTuples = true;
+            }
+        } else {
+            if (mergingComponents.get(mergingComponents.size() - 1) != diskComponents.get(diskComponents.size() - 1)) {
+                returnDeletedTuples = true;
+            }
         }
         ILSMIndexAccessor accessor = createAccessor(opCtx);
         LSMBTreeRangeSearchCursor cursor = new LSMBTreeRangeSearchCursor(opCtx, returnDeletedTuples);

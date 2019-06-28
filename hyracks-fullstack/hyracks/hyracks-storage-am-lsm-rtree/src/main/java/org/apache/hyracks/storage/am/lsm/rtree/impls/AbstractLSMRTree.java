@@ -51,6 +51,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTracker;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.am.lsm.common.freepage.VirtualFreePageManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
+import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
@@ -269,11 +270,25 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
     @Override
     protected LSMComponentFileReferences getMergeFileReferences(List<ILSMDiskComponent> components)
             throws HyracksDataException {
-        RTree firstTree = (RTree) components.get(0).getIndex();
-        RTree lastTree = (RTree) components.get(components.size() - 1).getIndex();
-        FileReference firstFile = firstTree.getFileReference();
-        FileReference lastFile = lastTree.getFileReference();
-        return fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
+        if (isLeveled) {
+            long levelFrom = components.get(0).getLevel();
+            long levelTo = components.get(components.size() - 1).getLevel();
+            if (levelFrom == levelTo) {
+                // Move to the next level
+                String newName = (levelTo + 1) + AbstractLSMIndexFileManager.DELIMITER + "1";
+                return fileManager.getRelMergeFileReference(newName);
+            } else {
+                long maxLevelId = getMaxLevelId(levelTo);
+                String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + (maxLevelId + 1);
+                return fileManager.getRelMergeFileReference(newName);
+            }
+        } else {
+            RTree firstTree = (RTree) components.get(0).getIndex();
+            RTree lastTree = (RTree) components.get(components.size() - 1).getIndex();
+            FileReference firstFile = firstTree.getFileReference();
+            FileReference lastFile = lastTree.getFileReference();
+            return fileManager.getRelMergeFileReference(firstFile.getFile().getName(), lastFile.getFile().getName());
+        }
     }
 
     @Override

@@ -342,8 +342,16 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             LSMComponentFileReferences mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
         boolean returnDeletedTuples = false;
         List<ILSMComponent> mergingComponents = opCtx.getComponentHolder();
-        if (mergingComponents.get(mergingComponents.size() - 1) != diskComponents.get(diskComponents.size() - 1)) {
-            returnDeletedTuples = true;
+        if (isLeveled) {
+            ILSMDiskComponent lastMergingComponent =
+                    (ILSMDiskComponent) (mergingComponents.get(mergingComponents.size() - 1));
+            if (lastMergingComponent.getLevel() < diskComponents.get(diskComponents.size() - 1).getLevel()) {
+                returnDeletedTuples = true;
+            }
+        } else {
+            if (mergingComponents.get(mergingComponents.size() - 1) != diskComponents.get(diskComponents.size() - 1)) {
+                returnDeletedTuples = true;
+            }
         }
         LSMRTreeWithAntiMatterTuplesSearchCursor cursor =
                 new LSMRTreeWithAntiMatterTuplesSearchCursor(opCtx, returnDeletedTuples);

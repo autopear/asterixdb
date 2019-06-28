@@ -158,7 +158,7 @@ public class LevelMergePolicy implements ILSMMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
-        pickStrategy = "best";
+        pickStrategy = "oldest";
         level0Components = 2;
         level1Components = 4;
         //        pickStrategy = properties.getOrDefault(LevelMergePolicyFactory.PICK, "oldest").toLowerCase();
