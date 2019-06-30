@@ -32,7 +32,6 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.LSMComponentType;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
-import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMIndexSearchCursor;
 import org.apache.hyracks.storage.am.rtree.api.IRTreeInteriorFrame;
 import org.apache.hyracks.storage.am.rtree.api.IRTreeLeafFrame;
@@ -265,20 +264,7 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
     @Override
     protected int compare(MultiComparator cmp, ITupleReference tupleA, ITupleReference tupleB)
             throws HyracksDataException {
-        int r = cmp.selectiveFieldCompare(tupleA, tupleB, comparatorFields);
-        if (((AbstractLSMIndex) opCtx.getIndex()).isLeveledLSM()) {
-            return r == 0 ? -1 : r;
-        } else {
-            return r;
-        }
-    }
-
-    public int compare(ITupleReference tupleA, ITupleReference tupleB) {
-        try {
-            return cmp.selectiveFieldCompare(tupleA, tupleB, comparatorFields);
-        } catch (HyracksDataException ex) {
-            throw new IllegalArgumentException(ex);
-        }
+        return cmp.selectiveFieldCompare(tupleA, tupleB, comparatorFields);
     }
 
     private boolean searchMemBTrees(ITupleReference tuple, int lastBTreeToSearch) throws HyracksDataException {
