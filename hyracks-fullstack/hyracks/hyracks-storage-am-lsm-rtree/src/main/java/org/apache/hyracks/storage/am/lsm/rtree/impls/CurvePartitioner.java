@@ -26,14 +26,15 @@ import java.util.Map;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 
-public class CurvePartitioner {
+public abstract class CurvePartitioner {
 
-    protected Map<ILSMDiskComponent, Integer> curveValues;
+    protected Map<ILSMDiskComponent, Long> curveValues;
     protected List<ILSMDiskComponent> components;
 
     public CurvePartitioner(List<ILSMDiskComponent> components) throws HyracksDataException {
         this.curveValues = new HashMap<>();
         this.components = components;
+        initialize();
         compute();
     }
 
@@ -45,14 +46,16 @@ public class CurvePartitioner {
                 this.components.add(c);
             }
         }
+        initialize();
         compute();
     }
 
-    protected void compute() throws HyracksDataException {
-    }
+    protected abstract void initialize() throws HyracksDataException;
 
-    public Integer getValue(ILSMDiskComponent component) {
-        return curveValues.getOrDefault(component, -1);
+    protected abstract void compute() throws HyracksDataException;
+
+    public long getValue(ILSMDiskComponent component) {
+        return curveValues.getOrDefault(component, -1L);
     }
 
     public static double[] getCenter(ILSMDiskComponent component) throws HyracksDataException {

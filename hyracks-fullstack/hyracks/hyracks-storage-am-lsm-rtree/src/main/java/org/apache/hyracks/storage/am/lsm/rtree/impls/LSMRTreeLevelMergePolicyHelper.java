@@ -44,13 +44,10 @@ import org.apache.hyracks.storage.am.rtree.impls.SearchPredicate;
 import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelper {
-    private static final Logger LOGGER = LogManager.getLogger();
     protected final AbstractLSMRTree lsmRTree;
-    private Map<Long, Integer> lastCurveValue;
+    private Map<Long, Long> lastCurveValue;
 
     public LSMRTreeLevelMergePolicyHelper(AbstractLSMIndex index) {
         super(index);
@@ -170,22 +167,13 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             List<ILSMDiskComponent> selectedComponents = getComponents(components, level);
             ZCurvePartitioner curve = new ZCurvePartitioner(selectedComponents);
             if (lastCurveValue.containsKey(level)) {
-                int lastZ = lastCurveValue.get(level);
-                int minZ = -1;
-                int nextZ = -1;
+                long lastZ = lastCurveValue.get(level);
+                long minZ = -1L;
+                long nextZ = -1L;
                 ILSMDiskComponent minPicked = null;
                 ILSMDiskComponent nextPicked = null;
-                String zsStr = "";
                 for (ILSMDiskComponent c : selectedComponents) {
-                    String name = c.getLevel() + "_" + c.getLevelSequence();
-                    int z = curve.getValue(c);
-
-                    if (zsStr.isEmpty()) {
-                        zsStr = name + ":" + z;
-                    } else {
-                        zsStr += ", " + name + ":" + z;
-                    }
-
+                    long z = curve.getValue(c);
                     if (minPicked == null) {
                         minPicked = c;
                         minZ = z;
@@ -217,32 +205,18 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         }
                     }
                 }
-                zsStr += " ]";
                 if (nextPicked == null) {
                     lastCurveValue.put(level, minZ);
-                    LOGGER.info(
-                            "[Z]\tlv=" + level + ", last=" + lastZ + ", picked=" + minZ + ", all=[ " + zsStr + " ]");
                     return minPicked;
                 } else {
                     lastCurveValue.put(level, nextZ);
-                    LOGGER.info(
-                            "[Z]\tlv=" + level + ", last=" + lastZ + ", picked=" + nextZ + ", all=[ " + zsStr + " ]");
                     return nextPicked;
                 }
             } else {
-                int minZ = -1;
+                long minZ = -1L;
                 ILSMDiskComponent picked = null;
-                String zsStr = "";
                 for (ILSMDiskComponent c : selectedComponents) {
-                    String name = c.getLevel() + "_" + c.getLevelSequence();
-                    int z = curve.getValue(c);
-
-                    if (zsStr.isEmpty()) {
-                        zsStr = name + ":" + z;
-                    } else {
-                        zsStr += ", " + name + ":" + z;
-                    }
-
+                    long z = curve.getValue(c);
                     if (picked == null) {
                         picked = c;
                         minZ = z;
@@ -259,7 +233,6 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     }
                 }
                 lastCurveValue.put(level, minZ);
-                LOGGER.info("[Z]\tlv=" + level + ", picked=" + minZ + ", all=[ " + zsStr + " ]");
                 return picked;
             }
         } catch (HyracksDataException ex) {

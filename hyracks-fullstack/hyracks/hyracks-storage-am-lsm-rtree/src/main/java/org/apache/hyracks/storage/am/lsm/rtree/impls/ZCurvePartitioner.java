@@ -18,18 +18,17 @@
  */
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.data.std.primitive.DoublePointable;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 
 public class ZCurvePartitioner extends CurvePartitioner {
+
+    private int dim;
+    private double[] bounds;
+    private double worldWidth;
+    private double worldHeight;
 
     public ZCurvePartitioner(List<ILSMDiskComponent> components) throws HyracksDataException {
         super(components);
@@ -40,74 +39,47 @@ public class ZCurvePartitioner extends CurvePartitioner {
     }
 
     @Override
-    protected void compute() throws HyracksDataException {
-        Map<String, ArrayList<ILSMDiskComponent>> centersMap = new HashMap<>();
-        Map<String, double[]> centers = new HashMap<>();
-        int dim = -1;
+    protected void initialize() throws HyracksDataException {
+        dim = getCenter(components.get(0)).length;
+        bounds = null;
         for (ILSMDiskComponent c : components) {
-            double[] center = getCenter(c);
-            dim = center.length;
-            String key = doubleArrayToKey(center);
-            ArrayList<ILSMDiskComponent> t = centersMap.getOrDefault(key, new ArrayList<>());
-            t.add(c);
-            centersMap.put(key, t);
-            centers.put(key, center);
-        }
-
-        if (centersMap.isEmpty()) {
-            return;
-        }
-
-        double stepSize = Double.MAX_VALUE / 2;
-        double[] bounds = new double[dim];
-
-        while (true) {
-            Map<String, Integer> quadrants = new HashMap<>();
-            int changed = dim - 1;
-            for (int i = dim - 1; i >= 0; i--) {
-                for (String key : centers.keySet()) {
-                    double[] center = centers.get(key);
-                    int quadrant = quadrants.getOrDefault(key, 0);
-                    if (center[i] >= bounds[i]) {
-                        quadrant ^= (1 << (dim - i - 1));
-                        quadrants.put(key, quadrant);
-                    }
-                    if (changed == i) {
-                        if (center[i] >= bounds[i]) {
-                            bounds[i] += stepSize;
-                        } else {
-                            bounds[i] -= stepSize;
-                        }
-                        changed--;
-                    }
+            double[] minMBR = AbstractLSMRTree.bytesToDoubles(c.getMinKey());
+            double[] maxMBR = AbstractLSMRTree.bytesToDoubles(c.getMaxKey());
+            if (bounds == null) {
+                bounds = new double[4];
+                bounds[0] = minMBR[0];
+                bounds[1] = minMBR[1];
+                bounds[2] = maxMBR[0];
+                bounds[3] = maxMBR[1];
+            } else {
+                for (int i = 0; i < 2; i++) {
+                    bounds[i] = Math.min(bounds[i], minMBR[i]);
+                    bounds[2 + i] = Math.max(bounds[2 + i], maxMBR[i]);
                 }
             }
-
-            Set<Integer> uniques = new HashSet<>();
-            for (String key : quadrants.keySet()) {
-                int quadrant = quadrants.get(key);
-                for (ILSMDiskComponent c : centersMap.get(key)) {
-                    curveValues.put(c, quadrant);
-                }
-                uniques.add(quadrant);
-            }
-
-            stepSize /= 2;
-
-            if (uniques.size() == centers.size() || stepSize <= 2 * DoublePointable.getEpsilon()) {
-                return;
-            }
         }
+        worldWidth = bounds[2] - bounds[0];
+        worldHeight = bounds[3] - bounds[1];
     }
 
-    public String doubleArrayToKey(double[] doubles) {
-        if (doubles == null) {
-            return "null";
+    private int[] getCenterKey(double[] center) {
+        int x = (int) ((center[0] - bounds[0]) * Integer.MAX_VALUE / worldWidth);
+        int y = (int) ((center[1] - bounds[1]) * Integer.MAX_VALUE / worldHeight);
+        return new int[] { x, y };
+    }
+
+    @Override
+    protected void compute() throws HyracksDataException {
+        for (ILSMDiskComponent c : components) {
+            int[] center = getCenterKey(getCenter(c));
+
+            long morton = 0;
+            for (long pos = 0; pos < Integer.SIZE; pos++) {
+                long mask = 1L << pos;
+                morton |= ((long) center[0] & mask) << (pos + 1);
+                morton |= ((long) center[1] & mask) << pos;
+            }
+            curveValues.put(c, morton);
         }
-        String s = Double.toString(doubles[0]);
-        for (int i = 1; i < doubles.length; i++) {
-            s += "+" + Double.toString(doubles[i]);
-        }
-        return s;
     }
 }
