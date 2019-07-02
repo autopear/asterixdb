@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,6 +39,12 @@ public class ConstantMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String NUM_COMPONENTS = "num-components";
     public static final Set<String> PROPERTIES_NAMES = Collections.singleton(NUM_COMPONENTS);
 
+    public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
+        {
+            put(NUM_COMPONENTS, "4");
+        }
+    };
+
     @Override
     public String getName() {
         return NAME;
@@ -46,6 +53,26 @@ public class ConstantMergePolicyFactory implements ILSMMergePolicyFactory {
     @Override
     public Set<String> getPropertiesNames() {
         return PROPERTIES_NAMES;
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForPrimaryIndex() {
+        return DEFAULT_PROPERTIES;
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForBTreeIndex() {
+        return DEFAULT_PROPERTIES;
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForInvertedIndex() {
+        return DEFAULT_PROPERTIES;
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForRTreeIndex() {
+        return DEFAULT_PROPERTIES;
     }
 
     @Override

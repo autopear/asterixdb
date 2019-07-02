@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.hyracks.storage.am.common.api.ITreeIndexFrame;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
+import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
 
 /**
  * A static class that stores storage constants
@@ -43,7 +44,7 @@ public class StorageConstants {
     public static final float DEFAULT_TREE_FILL_FACTOR = 1.00f;
     public static final String DEFAULT_COMPACTION_POLICY_NAME = "prefix";
     public static final String DEFAULT_FILTERED_DATASET_COMPACTION_POLICY_NAME = "correlated-prefix";
-    public static final Map<String, String> DEFAULT_COMPACTION_POLICY_PROPERTIES;
+    public static final Map<String, String> DEFAULT_COMPACTION_POLICY_PROPERTIES = PrefixMergePolicyFactory.DEFAULT_PROPERTIES;
 
     /**
      * The storage version of AsterixDB related artifacts (e.g. log files, checkpoint files, etc..).
@@ -54,12 +55,6 @@ public class StorageConstants {
      * The storage version of AsterixDB stack.
      */
     public static final int VERSION = LOCAL_STORAGE_VERSION + ITreeIndexFrame.Constants.VERSION;
-
-    static {
-        DEFAULT_COMPACTION_POLICY_PROPERTIES = new LinkedHashMap<>();
-        DEFAULT_COMPACTION_POLICY_PROPERTIES.put("max-mergable-component-size", "1073741824"); // 1GB
-        DEFAULT_COMPACTION_POLICY_PROPERTIES.put("max-tolerance-component-count", "5"); // 5 components
-    }
 
     private StorageConstants() {
     }

@@ -49,6 +49,26 @@ public class NoMergePolicyFactory implements ILSMMergePolicyFactory {
     }
 
     @Override
+    public Map<String, String> getDefaultPropertiesForPrimaryIndex() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForBTreeIndex() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForInvertedIndex() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForRTreeIndex() {
+        return Collections.emptyMap();
+    }
+
+    @Override
     public ILSMMergePolicy createMergePolicy(Map<String, String> configuration, INCServiceContext ctx) {
         ILSMMergePolicy policy = new NoMergePolicy();
         policy.configure(configuration);

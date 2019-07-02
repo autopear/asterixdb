@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.asterix.common.config.DatasetConfig;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.ExternalFilePendingOp;
 import org.apache.asterix.common.config.OptimizationConfUtil;
@@ -76,6 +77,7 @@ import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDropOperatorDescriptor.DropOption;
 import org.apache.hyracks.storage.am.common.dataflow.TreeIndexBulkLoadOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 
 @SuppressWarnings("rawtypes")
 // TODO: We should eventually have a hierarchy of classes that can create all
@@ -212,10 +214,15 @@ public abstract class SecondaryIndexOperationsHelper {
         }
         setSecondaryRecDescAndComparators();
         numElementsHint = metadataProvider.getCardinalityPerPartitionHint(dataset);
-        Pair<ILSMMergePolicyFactory, Map<String, String>> compactionInfo =
-                DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
-        mergePolicyFactory = compactionInfo.first;
-        mergePolicyProperties = compactionInfo.second;
+        if (index.getIndexType() == DatasetConfig.IndexType.RTREE && dataset.getDatasetType() == DatasetType.INTERNAL) {
+            mergePolicyFactory = new LevelMergePolicyFactory();
+            mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForRTreeIndex();
+        } else {
+            Pair<ILSMMergePolicyFactory, Map<String, String>> compactionInfo =
+                    DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
+            mergePolicyFactory = compactionInfo.first;
+            mergePolicyProperties = compactionInfo.second;
+        }
         if (numFilterFields > 0) {
             setFilterTypeTraitsAndComparators();
         }

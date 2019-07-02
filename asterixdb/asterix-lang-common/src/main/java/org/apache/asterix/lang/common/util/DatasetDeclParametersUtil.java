@@ -25,6 +25,8 @@ import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.AUnionType;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
+import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
 
 public class DatasetDeclParametersUtil {
     /* ***********************************************
@@ -37,6 +39,22 @@ public class DatasetDeclParametersUtil {
     public static final String MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME = "max-mergable-component-size";
     public static final String MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME = "max-tolerance-component-count";
     public static final String MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME = "num-components";
+    public static final String MERGE_POLICY_LOW_BUCKET_PARAMETER_NAME = SizeTieredMergePolicyFactory.LOW_BUCKET;
+    public static final String MERGE_POLICY_HIGH_BUCKET_PARAMETER_NAME = SizeTieredMergePolicyFactory.HIGH_BUCKET;
+    public static final String MERGE_POLICY_MIN_COMPONENTS_PARAMETER_NAME = SizeTieredMergePolicyFactory.MIN_COMPONENTS;
+    public static final String MERGE_POLICY_MAX_COMPONENTS_PARAMETER_NAME = SizeTieredMergePolicyFactory.MAX_COMPONENTS;
+    public static final String MERGE_POLICY_MIN_SSTABLE_SIZE_PARAMETER_NAME =
+            SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE;
+
+    /* ***********************************************
+     * Level Merge Policy Parameters
+     * ***********************************************
+     */
+    public static final String LEVEL_MERGE_POLICY_PICK_PARAMETER_NAME = LevelMergePolicyFactory.PICK;
+    public static final String LEVEL_MERGE_POLICY_NUM_COMPONENTS_0_PARAMETER_NAME =
+            LevelMergePolicyFactory.NUM_COMPONENTS_0;
+    public static final String LEVEL_MERGE_POLICY_NUM_COMPONENTS_1_PARAMETER_NAME =
+            LevelMergePolicyFactory.NUM_COMPONENTS_1;
 
     /* ***********************************************
      * Storage Block Compression Parameters
@@ -74,9 +92,22 @@ public class DatasetDeclParametersUtil {
 
     private static ARecordType getMergePolicyType() {
         //merge-policy.parameters
-        final String[] parameterNames = { MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME,
-                MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME, MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME };
+        final String[] parameterNames =
+                { MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME, MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME,
+                        MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME, MERGE_POLICY_LOW_BUCKET_PARAMETER_NAME,
+                        MERGE_POLICY_HIGH_BUCKET_PARAMETER_NAME, MERGE_POLICY_MIN_COMPONENTS_PARAMETER_NAME,
+                        MERGE_POLICY_MAX_COMPONENTS_PARAMETER_NAME, MERGE_POLICY_MIN_SSTABLE_SIZE_PARAMETER_NAME,
+                        LEVEL_MERGE_POLICY_PICK_PARAMETER_NAME, LEVEL_MERGE_POLICY_NUM_COMPONENTS_0_PARAMETER_NAME,
+                        LEVEL_MERGE_POLICY_NUM_COMPONENTS_1_PARAMETER_NAME };
         final IAType[] parametersTypes = { AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.ADOUBLE),
+                AUnionType.createUnknownableType(BuiltinType.ADOUBLE),
+                AUnionType.createUnknownableType(BuiltinType.AINT32),
+                AUnionType.createUnknownableType(BuiltinType.AINT32),
+                AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.ASTRING),
                 AUnionType.createUnknownableType(BuiltinType.AINT64),
                 AUnionType.createUnknownableType(BuiltinType.AINT64) };
         final ARecordType parameters =

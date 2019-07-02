@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.Arrays;
@@ -35,19 +34,25 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class PrefixMergePolicyFactory implements ILSMMergePolicyFactory {
+public class SizeTieredMergePolicyFactory implements ILSMMergePolicyFactory {
 
     private static final long serialVersionUID = 1L;
-    public static final String NAME = "prefix";
-    public static final String MAX_MERGABLE_SIZE = "max-mergable-component-size";
-    public static final String MAX_TOLERANCE_COUNT = "max-tolerance-component-count";
-    public static final Set<String> PROPERTIES_NAMES =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(MAX_MERGABLE_SIZE, MAX_TOLERANCE_COUNT)));
+    public static final String NAME = "size-tiered";
+    public static final String LOW_BUCKET = "low-bucket";
+    public static final String HIGH_BUCKET = "hight-bucket";
+    public static final String MIN_COMPONENTS = "min-components";
+    public static final String MAX_COMPONENTS = "max-components";
+    public static final String MIN_SSTABLE_SIZE = "min-sstable-size";
+    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList(LOW_BUCKET, HIGH_BUCKET, MIN_COMPONENTS, MAX_COMPONENTS, MIN_SSTABLE_SIZE)));
 
     public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
         {
-            put(MAX_MERGABLE_SIZE, "1073741824");
-            put(MAX_TOLERANCE_COUNT, "5");
+            put(LOW_BUCKET, "0.5");
+            put(HIGH_BUCKET, "1.5");
+            put(MIN_COMPONENTS, "4");
+            put(MAX_COMPONENTS, "32");
+            put(MIN_SSTABLE_SIZE, "52428800"); // 50 MB
         }
     };
 
@@ -83,7 +88,7 @@ public class PrefixMergePolicyFactory implements ILSMMergePolicyFactory {
 
     @Override
     public ILSMMergePolicy createMergePolicy(Map<String, String> configuration, INCServiceContext ctx) {
-        ILSMMergePolicy policy = new PrefixMergePolicy();
+        ILSMMergePolicy policy = new SizeTieredMergePolicy();
         policy.configure(configuration);
         return policy;
     }
@@ -95,6 +100,6 @@ public class PrefixMergePolicyFactory implements ILSMMergePolicyFactory {
 
     @SuppressWarnings("squid:S1172") // unused parameter
     public static IJsonSerializable fromJson(IPersistedResourceRegistry registry, JsonNode json) {
-        return new PrefixMergePolicyFactory();
+        return new SizeTieredMergePolicyFactory();
     }
 }

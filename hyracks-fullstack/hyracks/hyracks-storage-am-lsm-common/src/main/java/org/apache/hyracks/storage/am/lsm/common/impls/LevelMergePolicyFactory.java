@@ -18,7 +18,10 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,9 +41,8 @@ public class LevelMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String PICK = "pick";
     public static final String NUM_COMPONENTS_0 = "num-components-0";
     public static final String NUM_COMPONENTS_1 = "num-components-1";
-    //    public static final Set<String> PROPERTIES_NAMES =
-    //            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(PICK, NUM_COMPONENTS_0, NUM_COMPONENTS_1)));
-    public static final Set<String> PROPERTIES_NAMES = Collections.emptySet();
+    public static final Set<String> PROPERTIES_NAMES =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(PICK, NUM_COMPONENTS_0, NUM_COMPONENTS_1)));
 
     public static final String OLDEST = "oldest";
     public static final String NEWEST = "newest";
@@ -52,6 +54,23 @@ public class LevelMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String RAND_OLDEST = "rand-oldest";
     public static final String RAND_LATEST = "rand-latest";
 
+    public static final Map<String, String> DEFAULT_PROPERTIES_FOR_PRIMARY_INDEX = new LinkedHashMap<String, String>() {
+        {
+            put(NUM_COMPONENTS_0, "10");
+            put(NUM_COMPONENTS_1, "10");
+            put(PICK, MIN_OVERLAP);
+        }
+    };
+
+    public static final Map<String, String> DEFAULT_PROPERTIES_FOR_SECONDARY_INDEX =
+            new LinkedHashMap<String, String>() {
+                {
+                    put(NUM_COMPONENTS_0, "2");
+                    put(NUM_COMPONENTS_1, "4");
+                    put(PICK, MIN_OVERLAP);
+                }
+            };
+
     @Override
     public String getName() {
         return NAME;
@@ -60,6 +79,26 @@ public class LevelMergePolicyFactory implements ILSMMergePolicyFactory {
     @Override
     public Set<String> getPropertiesNames() {
         return PROPERTIES_NAMES;
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForPrimaryIndex() {
+        return DEFAULT_PROPERTIES_FOR_PRIMARY_INDEX;
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForBTreeIndex() {
+        return DEFAULT_PROPERTIES_FOR_SECONDARY_INDEX;
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForInvertedIndex() {
+        return DEFAULT_PROPERTIES_FOR_SECONDARY_INDEX;
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertiesForRTreeIndex() {
+        return DEFAULT_PROPERTIES_FOR_SECONDARY_INDEX;
     }
 
     @Override

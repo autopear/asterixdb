@@ -82,6 +82,10 @@
       <artifactId>hyracks-dataflow-common</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.apache.hyracks</groupId>
+      <artifactId>hyracks-storage-am-lsm-common</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.apache.asterix</groupId>
       <artifactId>asterix-om</artifactId>
       <version>${project.version}</version>

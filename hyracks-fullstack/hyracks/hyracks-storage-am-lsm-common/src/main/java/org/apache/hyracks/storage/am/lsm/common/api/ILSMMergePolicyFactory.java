@@ -31,4 +31,12 @@ public interface ILSMMergePolicyFactory extends Serializable, IJsonSerializable 
     String getName();
 
     Set<String> getPropertiesNames();
+
+    Map<String, String> getDefaultPropertiesForPrimaryIndex();
+
+    Map<String, String> getDefaultPropertiesForBTreeIndex();
+
+    Map<String, String> getDefaultPropertiesForInvertedIndex();
+
+    Map<String, String> getDefaultPropertiesForRTreeIndex();
 }

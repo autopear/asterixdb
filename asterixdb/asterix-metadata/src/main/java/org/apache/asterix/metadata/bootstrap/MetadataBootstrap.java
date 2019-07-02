@@ -86,6 +86,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicyFactory
 import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
 import org.apache.hyracks.storage.common.ILocalResourceRepository;
 import org.apache.hyracks.storage.common.LocalResource;
 import org.apache.hyracks.storage.common.compression.NoOpCompressorDecompressorFactory;
@@ -266,7 +267,8 @@ public class MetadataBootstrap {
             throws AlgebricksException {
         String[] builtInCompactionPolicyClassNames = new String[] { ConstantMergePolicyFactory.class.getName(),
                 PrefixMergePolicyFactory.class.getName(), NoMergePolicyFactory.class.getName(),
-                LevelMergePolicyFactory.class.getName(), CorrelatedPrefixMergePolicyFactory.class.getName() };
+                LevelMergePolicyFactory.class.getName(), SizeTieredMergePolicyFactory.class.getName(),
+                CorrelatedPrefixMergePolicyFactory.class.getName() };
         for (String policyClassName : builtInCompactionPolicyClassNames) {
             CompactionPolicy compactionPolicy = getCompactionPolicyEntity(policyClassName);
             MetadataManager.INSTANCE.addCompactionPolicy(mdTxnCtx, compactionPolicy);

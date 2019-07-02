@@ -36,6 +36,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper;
 import org.apache.hyracks.storage.am.lsm.common.api.ILevelMergePolicyHelper.Distribution;
 
 public class LevelMergePolicy implements ILSMMergePolicy {
+
     protected ILevelMergePolicyHelper helper;
     protected String pickStrategy;
     protected long level0Components;
@@ -65,7 +66,11 @@ public class LevelMergePolicy implements ILSMMergePolicy {
     @Override
     public void diskComponentAdded(ILSMIndex index, List<ILSMDiskComponent> newComponents, boolean fullMergeIsRequested,
             boolean wasMerge) throws HyracksDataException {
-        List<ILSMDiskComponent> componentsToMerge = getMergableComponents(index.getDiskComponents());
+        List<ILSMDiskComponent> immutableComponents = new ArrayList<>(index.getDiskComponents());
+        if (!areComponentsReadableWritableState(immutableComponents)) {
+            return;
+        }
+        List<ILSMDiskComponent> componentsToMerge = getMergableComponents(immutableComponents);
         if (!componentsToMerge.isEmpty()) {
             ILSMIndexAccessor accessor = index.createAccessor(NoOpIndexAccessParameters.INSTANCE);
             accessor.scheduleMerge(componentsToMerge);
@@ -158,12 +163,9 @@ public class LevelMergePolicy implements ILSMMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
-        pickStrategy = "oldest";
-        level0Components = 2;
-        level1Components = 4;
-        //        pickStrategy = properties.getOrDefault(LevelMergePolicyFactory.PICK, "oldest").toLowerCase();
-        //        level0Components = Long.getLong(properties.getOrDefault(LevelMergePolicyFactory.NUM_COMPONENTS_0, "10"));
-        //        level1Components = Long.getLong(properties.getOrDefault(LevelMergePolicyFactory.NUM_COMPONENTS_1, "10"));
+        pickStrategy = properties.get(LevelMergePolicyFactory.PICK).toLowerCase();
+        level0Components = Long.parseLong(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_0));
+        level1Components = Long.parseLong(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_1));
     }
 
     @Override
