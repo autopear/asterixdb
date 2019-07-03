@@ -57,6 +57,9 @@ public abstract class LSMIndexSearchCursor extends EnforcedIndexCursor implement
 
     protected List<ILSMComponent> operationalComponents;
 
+    protected String[] diskNames;
+    protected long[] diskTimes;
+
     public LSMIndexSearchCursor(ILSMIndexOperationContext opCtx, boolean returnDeletedTuples) {
         this.opCtx = opCtx;
         this.returnDeletedTuples = returnDeletedTuples;
@@ -65,6 +68,8 @@ public abstract class LSMIndexSearchCursor extends EnforcedIndexCursor implement
         switchComponentTupleBuilders = new ArrayTupleBuilder[opCtx.getIndex().getNumberOfAllMemoryComponents()];
         switchRequest = new boolean[switchComponentTupleBuilders.length];
         switchedElements = new PriorityQueueElement[switchComponentTupleBuilders.length];
+        diskTimes = null;
+        diskNames = null;
     }
 
     public ILSMIndexOperationContext getOpCtx() {
@@ -185,13 +190,20 @@ public abstract class LSMIndexSearchCursor extends EnforcedIndexCursor implement
 
     protected void pushIntoQueueFromCursorAndReplaceThisElement(PriorityQueueElement e) throws HyracksDataException {
         int cursorIndex = e.getCursorIndex();
+        long start = System.nanoTime();
         if (rangeCursors[cursorIndex].hasNext()) {
             rangeCursors[cursorIndex].next();
             e.reset(rangeCursors[cursorIndex].getTuple());
             outputPriorityQueue.offer(e);
+            if (diskTimes != null) {
+                diskTimes[cursorIndex] += (System.nanoTime() - start);
+            }
             return;
         }
         rangeCursors[cursorIndex].close();
+        if (diskTimes != null) {
+            diskTimes[cursorIndex] += (System.nanoTime() - start);
+        }
         if (cursorIndex == 0) {
             includeMutableComponent = false;
         }

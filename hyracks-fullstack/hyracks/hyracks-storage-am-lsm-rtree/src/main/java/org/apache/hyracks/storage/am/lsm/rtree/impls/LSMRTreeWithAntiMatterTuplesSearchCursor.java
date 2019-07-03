@@ -19,6 +19,9 @@
 
 package org.apache.hyracks.storage.am.lsm.rtree.impls;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.btree.api.IBTreeLeafFrame;
@@ -31,7 +34,9 @@ import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.LSMComponentType;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
+import org.apache.hyracks.storage.am.lsm.common.impls.LSMHarness;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMIndexSearchCursor;
 import org.apache.hyracks.storage.am.rtree.api.IRTreeInteriorFrame;
 import org.apache.hyracks.storage.am.rtree.api.IRTreeLeafFrame;
@@ -62,6 +67,14 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
     protected ISearchOperationCallback searchCallback;
     private boolean resultOfsearchCallBackProceed = false;
 
+    private long startTime;
+    private String allComponents;
+    private String availComponents;
+    private boolean isSearch;
+    private String searchKey;
+    private long[] memTimes;
+    private long lastMemStart;
+
     public LSMRTreeWithAntiMatterTuplesSearchCursor(ILSMIndexOperationContext opCtx) {
         this(opCtx, false);
     }
@@ -73,6 +86,8 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
 
     @Override
     public void doOpen(ICursorInitialState initialState, ISearchPredicate searchPred) throws HyracksDataException {
+        isSearch = (searchPred != null && searchPred.getLowKey() != null);
+
         LSMRTreeCursorInitialState lsmInitialState = (LSMRTreeCursorInitialState) initialState;
         cmp = lsmInitialState.getHilbertCmp();
         btreeCmp = lsmInitialState.getBTreeCmp();
@@ -81,6 +96,43 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
         operationalComponents = lsmInitialState.getOperationalComponents();
         rtreeSearchPredicate = (SearchPredicate) searchPred;
         searchCallback = lsmInitialState.getSearchOperationCallback();
+
+        if (isSearch) {
+            AbstractLSMRTree lsmRTree = (AbstractLSMRTree) (operationalComponents.get(0).getLsmIndex());
+            double[] key = lsmRTree.getMBRFromTuple(searchPred.getLowKey());
+            searchKey = "[" + key[0];
+            for (int i = 1; i < key.length; i++) {
+                searchKey += "," + key[i];
+            }
+            searchKey += "]";
+
+            List<ILSMComponent> cs = new ArrayList<>();
+            for (ILSMComponent c : operationalComponents) {
+                if (c.getType() == LSMComponentType.MEMORY) {
+                    cs.add(c);
+                }
+            }
+            cs.addAll(operationalComponents.get(0).getLsmIndex().getDiskComponents());
+            allComponents = LSMHarness.getComponentSizes(cs);
+            availComponents = "";
+            for (int i = 0; i < operationalComponents.size(); i++) {
+                String s;
+                ILSMComponent c = operationalComponents.get(i);
+                if (c.getType() == LSMComponentType.MEMORY) {
+                    s = "Mem";
+                } else {
+                    ILSMDiskComponent d = (ILSMDiskComponent) c;
+                    s = d.getLevel() + "_" + d.getLevelSequence();
+                }
+                if (i == 0) {
+                    availComponents = s;
+                } else {
+                    availComponents += ";" + s;
+                }
+            }
+            startTime = System.nanoTime();
+        }
+
         numMemoryComponents = 0;
         int numImmutableComponents = 0;
         for (ILSMComponent component : operationalComponents) {
@@ -98,6 +150,7 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
         mutableRTreeAccessors = new ITreeIndexAccessor[numMemoryComponents];
         btreeCursors = new BTreeRangeSearchCursor[numMemoryComponents];
         btreeAccessors = new ITreeIndexAccessor[numMemoryComponents];
+        memTimes = new long[numMemoryComponents];
         for (int i = 0; i < numMemoryComponents; i++) {
             ILSMComponent component = operationalComponents.get(i);
             RTree rtree = ((LSMRTreeMemoryComponent) component).getIndex();
@@ -109,20 +162,25 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
                     (IBTreeLeafFrame) lsmInitialState.getBTreeLeafFrameFactory().createFrame(), false);
             btreeAccessors[i] = btree.createAccessor(NoOpIndexAccessParameters.INSTANCE);
             mutableRTreeAccessors[i] = rtree.createAccessor(NoOpIndexAccessParameters.INSTANCE);
+            memTimes[i] = 0L;
         }
 
         rangeCursors = new RTreeSearchCursor[numImmutableComponents];
+        diskNames = new String[numImmutableComponents];
+        diskTimes = new long[numImmutableComponents];
         ITreeIndexAccessor[] immutableRTreeAccessors = new ITreeIndexAccessor[numImmutableComponents];
         int j = 0;
         try {
             for (int i = numMemoryComponents; i < operationalComponents.size(); i++) {
-                ILSMComponent component = operationalComponents.get(i);
+                ILSMDiskComponent component = (ILSMDiskComponent) operationalComponents.get(i);
                 rangeCursors[j] = new RTreeSearchCursor(
                         (IRTreeInteriorFrame) lsmInitialState.getRTreeInteriorFrameFactory().createFrame(),
                         (IRTreeLeafFrame) lsmInitialState.getRTreeLeafFrameFactory().createFrame());
                 RTree rtree = ((LSMRTreeWithAntimatterDiskComponent) component).getIndex();
                 immutableRTreeAccessors[j] = rtree.createAccessor(NoOpIndexAccessParameters.INSTANCE);
                 immutableRTreeAccessors[j].search(rangeCursors[j], searchPred);
+                diskNames[j] = component.getLevel() + "_" + component.getLevelSequence();
+                diskTimes[j] = 0L;
                 j++;
             }
             searchNextCursor();
@@ -137,6 +195,7 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
     }
 
     private void searchNextCursor() throws HyracksDataException {
+        lastMemStart = System.nanoTime();
         if (currentCursor < numMemoryComponents) {
             mutableRTreeCursors[currentCursor].close();
             mutableRTreeAccessors[currentCursor].search(mutableRTreeCursors[currentCursor], rtreeSearchPredicate);
@@ -159,14 +218,16 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
 
                     // Call proceed() to do necessary operations before returning this tuple.
                     resultOfsearchCallBackProceed = searchCallback.proceed(currentTuple);
-                    if (searchMemBTrees(currentTuple, currentCursor)) {
-                        // anti-matter tuple is NOT found
-                        foundNext = true;
-                        frameTuple = currentTuple;
-                        return true;
-                    }
+                    // if (searchMemBTrees(currentTuple, currentCursor)) {
+                    // anti-matter tuple is NOT found
+                    foundNext = true;
+                    frameTuple = currentTuple;
+                    memTimes[currentCursor] += (System.nanoTime() - lastMemStart);
+                    return true;
+                    // }
                 }
                 mutableRTreeCursors[currentCursor].close();
+                memTimes[currentCursor] += (System.nanoTime() - lastMemStart);
                 currentCursor++;
                 searchNextCursor();
             }
@@ -178,12 +239,12 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
 
                 // Call proceed() to do necessary operations before returning this tuple.
                 resultOfsearchCallBackProceed = true;
-                if (searchMemBTrees(diskRTreeTuple, numMemoryComponents)) {
-                    // anti-matter tuple is NOT found
-                    foundNext = true;
-                    frameTuple = diskRTreeTuple;
-                    return true;
-                }
+                // if (searchMemBTrees(diskRTreeTuple, numMemoryComponents)) {
+                // anti-matter tuple is NOT found
+                foundNext = true;
+                frameTuple = diskRTreeTuple;
+                return true;
+                // }
             }
         } else {
             if (super.doHasNext()) {
@@ -231,6 +292,38 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
 
     @Override
     public void doClose() throws HyracksDataException {
+        if (isSearch) {
+            long duration = System.nanoTime() - startTime;
+
+            String timesStr = "[]";
+            if (numMemoryComponents == 0) {
+                if (diskTimes.length > 0) {
+                    timesStr = "[" + diskNames[0] + ":" + diskTimes[0];
+                    for (int i = 1; i < diskTimes.length; i++) {
+                        timesStr += ";" + diskNames[i] + ":" + diskTimes[i];
+                    }
+                    timesStr += "]";
+                }
+            } else {
+                timesStr = "[Mem:" + memTimes[0];
+                for (int i = 1; i < memTimes.length; i++) {
+                    timesStr += ";Mem:" + memTimes[i];
+                }
+                for (int i = 0; i < diskTimes.length; i++) {
+                    timesStr += ";" + diskNames[i] + ":" + diskTimes[i];
+                }
+                timesStr += "]";
+            }
+
+            String[] paths =
+                    operationalComponents.get(0).getLsmIndex().getIndexIdentifier().replace("\\", "/").split("/");
+            if (paths[paths.length - 1].compareTo("rtreeidx") == 0) {
+                LSMHarness.writeLog("[SEARCH]\tthread=" + Thread.currentThread().getId() + "\tkey=" + searchKey
+                        + "\ttime=" + duration + "\tall=" + allComponents + "\tavail=" + availComponents + "\ttimes="
+                        + timesStr);
+            }
+        }
+
         if (!open) {
             return;
         }

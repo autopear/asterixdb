@@ -18,7 +18,6 @@
  */
 package org.apache.asterix.common.utils;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.hyracks.storage.am.common.api.ITreeIndexFrame;
@@ -44,7 +43,8 @@ public class StorageConstants {
     public static final float DEFAULT_TREE_FILL_FACTOR = 1.00f;
     public static final String DEFAULT_COMPACTION_POLICY_NAME = "prefix";
     public static final String DEFAULT_FILTERED_DATASET_COMPACTION_POLICY_NAME = "correlated-prefix";
-    public static final Map<String, String> DEFAULT_COMPACTION_POLICY_PROPERTIES = PrefixMergePolicyFactory.DEFAULT_PROPERTIES;
+    public static final Map<String, String> DEFAULT_COMPACTION_POLICY_PROPERTIES =
+            PrefixMergePolicyFactory.DEFAULT_PROPERTIES;
 
     /**
      * The storage version of AsterixDB related artifacts (e.g. log files, checkpoint files, etc..).

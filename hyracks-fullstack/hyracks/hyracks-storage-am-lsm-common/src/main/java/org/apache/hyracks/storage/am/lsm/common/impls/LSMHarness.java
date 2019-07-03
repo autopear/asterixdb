@@ -575,22 +575,12 @@ public class LSMHarness implements ILSMHarness {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Started a merge operation for index: {}", lsmIndex);
         }
-        String[] paths = lsmIndex.getIndexIdentifier().replace("\\", "/").split("/");
-        String indexName = paths[paths.length - 1];
-        if (indexName.compareTo("rtreeidx") == 0) {
-            LOGGER.info("[BeforeMerge]-[" + indexName + "]-" + Thread.currentThread().getId() + "\t"
-                    + ((AbstractLSMIndex) lsmIndex).componentsToString());
 
-            MergeOperation mop = (MergeOperation) operation;
-            List<ILSMComponent> componentsToMerge = mop.getMergingComponents();
-            String logMsg =
-                    ((AbstractLSMIndex) lsmIndex).componentToString((ILSMDiskComponent) (componentsToMerge.get(0)), 0);
-            for (int i = 1; i < componentsToMerge.size(); i++) {
-                logMsg += ",\n" + ((AbstractLSMIndex) lsmIndex)
-                        .componentToString((ILSMDiskComponent) componentsToMerge.get(i), 0);
-            }
-            LOGGER.info("[Picked]-[" + indexName + "]-" + Thread.currentThread().getId() + "\t" + logMsg);
-        }
+        String before = getComponentSizes(lsmIndex.getDiskComponents());
+        String toMerge = getComponentSizes(((MergeOperation) operation).getMergingComponents());
+        String news = "";
+        long start = System.nanoTime();
+
         synchronized (opTracker) {
             enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE);
         }
@@ -599,6 +589,7 @@ public class LSMHarness implements ILSMHarness {
             try {
                 operation.getCallback().beforeOperation(operation);
                 newComponents = lsmIndex.merge(operation);
+                news = getComponentSizes(newComponents);
                 operation.setNewComponents(newComponents);
                 operation.getCallback().afterOperation(operation);
                 if (!newComponents.isEmpty()) {
@@ -635,9 +626,13 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
-        if (indexName.compareTo("rtreeidx") == 0) {
-            LOGGER.info("[AfterMerge]-[" + indexName + "]-" + Thread.currentThread().getId() + "\t"
-                    + ((AbstractLSMIndex) lsmIndex).componentsToString());
+
+        long duration = System.nanoTime() - start;
+        String[] paths = lsmIndex.getIndexIdentifier().replace("\\", "/").split("/");
+        if (paths[paths.length - 1].compareTo("rtreeidx") == 0) {
+            String after = getComponentSizes(lsmIndex.getDiskComponents());
+            LOGGER.info("[MERGE]\tthread=" + Thread.currentThread().getId() + "\ttime=" + duration + "\tbefore="
+                    + before + "\tmerge=" + toMerge + "\tnews=" + news + "\tafter=" + after);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
@@ -952,5 +947,29 @@ public class LSMHarness implements ILSMHarness {
                 componentReplacementCtx.replace(ctx);
             }
         }
+    }
+
+    public static String getComponentSizes(List<? extends ILSMComponent> components) {
+        String str = "";
+        for (int i = 0; i < components.size(); i++) {
+            String s;
+            ILSMComponent c = components.get(i);
+            if (c.getType() == LSMComponentType.MEMORY) {
+                s = "Mem:0";
+            } else {
+                ILSMDiskComponent d = (ILSMDiskComponent) c;
+                s = d.getLevel() + "_" + d.getLevelSequence() + ":" + d.getComponentSize();
+            }
+            if (i == 0) {
+                str = s;
+            } else {
+                str += ";" + s;
+            }
+        }
+        return "[" + str + "]";
+    }
+
+    public static void writeLog(String msg) {
+        LOGGER.info(msg);
     }
 }
