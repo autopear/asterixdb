@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
@@ -75,6 +76,11 @@ public class LSMHarness implements ILSMHarness {
     protected ITracer tracer;
     protected long traceCategory;
 
+    private AtomicLong flushCnt;
+    private AtomicLong mergeCnt;
+    private AtomicLong totalFlushed;
+    private AtomicLong totalMerged;
+
     public LSMHarness(ILSMIndex lsmIndex, ILSMIOOperationScheduler ioScheduler, ILSMMergePolicy mergePolicy,
             ILSMOperationTracker opTracker, boolean replicationEnabled, ITracer tracer) {
         this.lsmIndex = lsmIndex;
@@ -90,6 +96,11 @@ public class LSMHarness implements ILSMHarness {
             this.componentsToBeReplicated = new ArrayList<>();
         }
         componentReplacementCtx = new ComponentReplacementContext(lsmIndex);
+
+        flushCnt = new AtomicLong(0);
+        mergeCnt = new AtomicLong(0);
+        totalFlushed = new AtomicLong(0);
+        totalMerged = new AtomicLong(0);
     }
 
     protected boolean getAndEnterComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -565,6 +576,8 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
+        flushCnt.incrementAndGet();
+        totalFlushed.getAndAdd(operation.getNewComponent().getComponentSize());
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the flush operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }
@@ -579,6 +592,7 @@ public class LSMHarness implements ILSMHarness {
         String before = getComponentSizes(lsmIndex.getDiskComponents());
         String toMerge = getComponentSizes(((MergeOperation) operation).getMergingComponents());
         String news = "";
+        long mergedSize = 0;
         long start = System.nanoTime();
 
         synchronized (opTracker) {
@@ -592,10 +606,9 @@ public class LSMHarness implements ILSMHarness {
                 news = getComponentSizes(newComponents);
                 operation.setNewComponents(newComponents);
                 operation.getCallback().afterOperation(operation);
-                if (!newComponents.isEmpty()) {
-                    for (ILSMDiskComponent newComponent : newComponents) {
-                        newComponent.markAsValid(lsmIndex.isDurable(), operation);
-                    }
+                for (ILSMDiskComponent newComponent : newComponents) {
+                    newComponent.markAsValid(lsmIndex.isDurable(), operation);
+                    mergedSize += newComponent.getComponentSize();
                 }
             } catch (Throwable e) { // NOSONAR Must catch all
                 operation.setStatus(LSMIOOperationStatus.FAILURE);
@@ -628,11 +641,17 @@ public class LSMHarness implements ILSMHarness {
         }
 
         long duration = System.nanoTime() - start;
+
+        mergeCnt.incrementAndGet();
+        totalMerged.getAndAdd(mergedSize);
+
         String[] paths = lsmIndex.getIndexIdentifier().replace("\\", "/").split("/");
         if (paths[paths.length - 1].compareTo("rtreeidx") == 0) {
             String after = getComponentSizes(lsmIndex.getDiskComponents());
             LOGGER.info("[MERGE]\tthread=" + Thread.currentThread().getId() + "\ttime=" + duration + "\tbefore="
-                    + before + "\tmerge=" + toMerge + "\tnews=" + news + "\tafter=" + after);
+                    + before + "\tsrc=" + toMerge + "\tdst=" + news + "\tafter=" + after + "\tflushes=" + flushCnt.get()
+                    + "\tflushed=" + totalFlushed.get() + "\tmerges=" + mergeCnt.get() + "\tmerged="
+                    + totalMerged.get());
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
