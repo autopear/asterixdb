@@ -2734,10 +2734,6 @@
         <output-dir compare="Text">array_errors</output-dir>
         <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
         <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
-        <expected-error>Invalid number of arguments for function array-range (in line 25, at column 8)</expected-error>
-        <expected-error>Invalid number of arguments for function array-range (in line 25, at column 8)</expected-error>
-        <expected-error>Invalid number of arguments for function array-replace (in line 25, at column 8)</expected-error>
-        <expected-error>Invalid number of arguments for function array-replace (in line 25, at column 8)</expected-error>
         <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
         <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
         <expected-error>Input contains different list types (in line 25, at column 8)</expected-error>
@@ -2762,6 +2758,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="bitwise">
+      <compilation-unit name="bit_and_04">
+        <output-dir compare="Text">bit_and_04</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
       <compilation-unit name="bit_or_01">
         <output-dir compare="Text">bit_or_01</output-dir>
       </compilation-unit>
@@ -2775,6 +2776,11 @@
       <compilation-unit name="bit_or_03">
         <output-dir compare="Text">bit_or_03</output-dir>
         <expected-error>Invalid number of arguments for function</expected-error>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_or_04">
+        <output-dir compare="Text">bit_or_04</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="bitwise">
@@ -2794,6 +2800,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="bitwise">
+      <compilation-unit name="bit_xor_04">
+        <output-dir compare="Text">bit_xor_04</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
       <compilation-unit name="bit_not_01">
         <output-dir compare="Text">bit_not_01</output-dir>
       </compilation-unit>
@@ -2801,6 +2812,11 @@
     <test-case FilePath="bitwise">
       <compilation-unit name="bit_not_02">
         <output-dir compare="Text">bit_not_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_not_03">
+        <output-dir compare="Text">bit_not_03</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="bitwise">
@@ -2814,6 +2830,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="bitwise">
+      <compilation-unit name="bit_count_03">
+        <output-dir compare="Text">bit_count_03</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
       <compilation-unit name="bit_set_01">
         <output-dir compare="Text">bit_set_01</output-dir>
       </compilation-unit>
@@ -2821,6 +2842,11 @@
     <test-case FilePath="bitwise">
       <compilation-unit name="bit_set_02">
         <output-dir compare="Text">bit_set_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_set_03">
+        <output-dir compare="Text">bit_set_03</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="bitwise">
@@ -2834,6 +2860,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="bitwise">
+      <compilation-unit name="bit_clear_03">
+        <output-dir compare="Text">bit_clear_03</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
       <compilation-unit name="bit_shift_01">
         <output-dir compare="Text">bit_shift_01</output-dir>
       </compilation-unit>
@@ -2841,6 +2872,16 @@
     <test-case FilePath="bitwise">
       <compilation-unit name="bit_shift_02">
         <output-dir compare="Text">bit_shift_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_shift_03">
+        <output-dir compare="Text">bit_shift_03</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_shift_04">
+        <output-dir compare="Text">bit_shift_04</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="bitwise">
@@ -2854,6 +2895,16 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="bitwise">
+      <compilation-unit name="bit_test_03">
+        <output-dir compare="Text">bit_test_03</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="bit_test_04">
+        <output-dir compare="Text">bit_test_04</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
       <compilation-unit name="is_bit_set_01">
         <output-dir compare="Text">is_bit_set_01</output-dir>
       </compilation-unit>
@@ -2861,6 +2912,11 @@
     <test-case FilePath="bitwise">
       <compilation-unit name="is_bit_set_02">
         <output-dir compare="Text">is_bit_set_02</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="bitwise">
+      <compilation-unit name="is_bit_set_03">
+        <output-dir compare="Text">is_bit_set_03</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -5022,6 +5078,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="group-by">
+      <compilation-unit name="two-step-agg-01">
+        <output-dir compare="Text">two-step-agg-01</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="group-by">
       <compilation-unit name="null">
         <output-dir compare="Text">null</output-dir>
       </compilation-unit>
@@ -5097,6 +5158,11 @@
     <test-case FilePath="group-by">
       <compilation-unit name="redundant-var-in-groupby">
         <output-dir compare="Text">redundant-var-in-groupby</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="group-by">
+      <compilation-unit name="group-by-all-ASTERIXDB-2611">
+        <output-dir compare="Text">group-by-all-ASTERIXDB-2611</output-dir>
       </compilation-unit>
     </test-case>
   </test-group>
@@ -5690,6 +5756,11 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="misc">
+      <compilation-unit name="record-serialization-ASTERIXDB-2613">
+        <output-dir compare="Text">record-serialization-ASTERIXDB-2613</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
       <compilation-unit name="field_access-ASTERIXDB-2289">
         <output-dir compare="Text">field_access-ASTERIXDB-2289</output-dir>
       </compilation-unit>
@@ -5950,6 +6021,11 @@
     <test-case FilePath="misc">
       <compilation-unit name="p_sort_num_samples">
         <output-dir compare="Text">p_sort_num_samples</output-dir>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="misc">
+      <compilation-unit name="p_sort_static_range_map">
+        <output-dir compare="Text">p_sort_static_range_map</output-dir>
       </compilation-unit>
     </test-case>
     <test-case FilePath="misc">
@@ -12347,6 +12423,11 @@
       <compilation-unit name="inapplicable-hint-warning">
         <output-dir compare="Text">inapplicable-hint-warning</output-dir>
         <expected-warn>HYR10006: Could not apply Group By hint: hash</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: indexnl. "hash" expected at this location</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: hash. "indexnl", "skip-index", "bcast" expected at this location</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: auto. "indexnl", "skip-index" expected at this location</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: hash. "indexnl", "skip-index" expected at this location</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: hash. None expected at this location</expected-warn>
       </compilation-unit>
     </test-case>
     <test-case FilePath="warnings" check-warnings="true">
@@ -12357,12 +12438,19 @@
       </compilation-unit>
     </test-case>
     <test-case FilePath="warnings" check-warnings="true">
+      <compilation-unit name="plan-warning">
+        <output-dir compare="Text">plan-warning</output-dir>
+        <expected-warn>HYR10007: Encountered a cross product join</expected-warn>
+      </compilation-unit>
+    </test-case>
+    <test-case FilePath="warnings" check-warnings="true">
       <compilation-unit name="unknown-hint-warning">
         <output-dir compare="Text">unknown-hint-warning</output-dir>
-        <expected-warn>ASX1107: Unknown hint: unknown_hint_groupby. Supported hints are: hash</expected-warn>
-        <expected-warn>ASX1107: Unknown hint: unknown_hint_relexpr. Supported hints are: indexnl, skip-index, bcast</expected-warn>
-        <expected-warn>ASX1107: Unknown hint: unknown_hint_between. Supported hints are: indexnl, skip-index</expected-warn>
-        <expected-warn>ASX1107: Unknown hint: unknown_hint_funcall. Supported hints are: indexnl, skip-index</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: unknown_hint_groupby. "hash" expected at this location</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: unknown_hint_relexpr. "indexnl", "skip-index", "bcast" expected at this location</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: unknown_hint_between. "indexnl", "skip-index" expected at this location</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: unknown_hint_funcall. "indexnl", "skip-index" expected at this location</expected-warn>
+        <expected-warn>ASX1107: Unexpected hint: unknown_hint_elsewhere. None expected at this location</expected-warn>
       </compilation-unit>
     </test-case>
   </test-group>

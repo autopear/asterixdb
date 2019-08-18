@@ -116,14 +116,15 @@ public class LSMHarness implements ILSMHarness {
 
         String[] paths = lsmIndex.getIndexIdentifier().replace("\\", "/").split("/");
         indexName = paths[paths.length - 1];
-        if (indexName.compareTo("rtreeidx") == 0) {
-            currentFlushes = 0;
-            flushFlagFile = Paths.get(lsmIndex.getIndexIdentifier(), "is_flushing").toAbsolutePath().toString();
-            flushLock = new Semaphore(1);
-            currentMerges = 0;
-            mergeFlagFile = Paths.get(lsmIndex.getIndexIdentifier(), "is_merging").toAbsolutePath().toString();
-            mergeLock = new Semaphore(1);
-        }
+        currentFlushes = 0;
+        flushFlagFile = Paths.get(lsmIndex.getIndexIdentifier(), "is_flushing").toAbsolutePath().toString();
+        flushLock = new Semaphore(1);
+        currentMerges = 0;
+        mergeFlagFile = Paths.get(lsmIndex.getIndexIdentifier(), "is_merging").toAbsolutePath().toString();
+        mergeLock = new Semaphore(1);
+
+        LOGGER.info("Index: " + lsmIndex.getIndexIdentifier() + ", merge-policy: "
+                + mergePolicy.getClass().getCanonicalName() + ", properties: " + mergePolicy.getProperties());
     }
 
     protected boolean getAndEnterComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
@@ -529,20 +530,18 @@ public class LSMHarness implements ILSMHarness {
 
     @Override
     public ILSMIOOperation scheduleFlush(ILSMIndexOperationContext ctx) throws HyracksDataException {
-        if (indexName.compareTo("rtreeidx") == 0) {
+        try {
+            flushLock.acquire();
+            currentFlushes++;
+            File f = new File(flushFlagFile);
             try {
-                flushLock.acquire();
-                currentFlushes++;
-                File f = new File(flushFlagFile);
-                try {
-                    if (!(f.exists())) {
-                        f.createNewFile();
-                    }
-                } catch (IOException ex) {
+                if (!(f.exists())) {
+                    f.createNewFile();
                 }
-                flushLock.release();
-            } catch (InterruptedException ex) {
+            } catch (IOException ex) {
             }
+            flushLock.release();
+        } catch (InterruptedException ex) {
         }
         ILSMIOOperation flush;
         LOGGER.debug("Flush is being scheduled on {}", lsmIndex);
@@ -616,17 +615,15 @@ public class LSMHarness implements ILSMHarness {
         }
         flushCnt.incrementAndGet();
         totalFlushed.getAndAdd(operation.getNewComponent().getComponentSize());
-        if (indexName.compareTo("rtreeidx") == 0) {
-            try {
-                flushLock.acquire();
-                currentFlushes--;
-                File f = new File(flushFlagFile);
-                if (currentFlushes == 0 && f.exists()) {
-                    f.delete();
-                }
-                flushLock.release();
-            } catch (InterruptedException ex) {
+        try {
+            flushLock.acquire();
+            currentFlushes--;
+            File f = new File(flushFlagFile);
+            if (currentFlushes == 0 && f.exists()) {
+                f.delete();
             }
+            flushLock.release();
+        } catch (InterruptedException ex) {
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the flush operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
@@ -700,16 +697,16 @@ public class LSMHarness implements ILSMHarness {
                     + before + "\tsrc=" + toMerge + "\tdst=" + news + "\tafter=" + after + "\tflushes=" + flushCnt.get()
                     + "\tflushed=" + totalFlushed.get() + "\tmerges=" + mergeCnt.get() + "\tmerged="
                     + totalMerged.get());
-            try {
-                mergeLock.acquire();
-                currentMerges--;
-                File f = new File(mergeFlagFile);
-                if (currentMerges == 0 && f.exists()) {
-                    f.delete();
-                }
-                mergeLock.release();
-            } catch (InterruptedException ex) {
+        }
+        try {
+            mergeLock.acquire();
+            currentMerges--;
+            File f = new File(mergeFlagFile);
+            if (currentMerges == 0 && f.exists()) {
+                f.delete();
             }
+            mergeLock.release();
+        } catch (InterruptedException ex) {
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
@@ -718,20 +715,18 @@ public class LSMHarness implements ILSMHarness {
 
     @Override
     public ILSMIOOperation scheduleMerge(ILSMIndexOperationContext ctx) throws HyracksDataException {
-        if (indexName.compareTo("rtreeidx") == 0) {
+        try {
+            mergeLock.acquire();
+            currentMerges++;
+            File f = new File(mergeFlagFile);
             try {
-                mergeLock.acquire();
-                currentMerges++;
-                File f = new File(mergeFlagFile);
-                try {
-                    if (!(f.exists())) {
-                        f.createNewFile();
-                    }
-                } catch (IOException ex) {
+                if (!(f.exists())) {
+                    f.createNewFile();
                 }
-                mergeLock.release();
-            } catch (InterruptedException ex) {
+            } catch (IOException ex) {
             }
+            mergeLock.release();
+        } catch (InterruptedException ex) {
         }
         ILSMIOOperation operation;
         synchronized (opTracker) {

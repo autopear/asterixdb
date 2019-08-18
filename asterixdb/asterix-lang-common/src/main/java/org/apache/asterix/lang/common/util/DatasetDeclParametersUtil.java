@@ -55,6 +55,7 @@ public class DatasetDeclParametersUtil {
             LevelMergePolicyFactory.NUM_COMPONENTS_0;
     public static final String LEVEL_MERGE_POLICY_NUM_COMPONENTS_1_PARAMETER_NAME =
             LevelMergePolicyFactory.NUM_COMPONENTS_1;
+    public static final String LEVEL_MERGE_POLICY_OVERLAP_MODE_PARAMETER_NAME = LevelMergePolicyFactory.OVERLAP_MODE;
 
     /* ***********************************************
      * Storage Block Compression Parameters
@@ -92,13 +93,13 @@ public class DatasetDeclParametersUtil {
 
     private static ARecordType getMergePolicyType() {
         //merge-policy.parameters
-        final String[] parameterNames =
-                { MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME, MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME,
-                        MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME, MERGE_POLICY_LOW_BUCKET_PARAMETER_NAME,
-                        MERGE_POLICY_HIGH_BUCKET_PARAMETER_NAME, MERGE_POLICY_MIN_COMPONENTS_PARAMETER_NAME,
-                        MERGE_POLICY_MAX_COMPONENTS_PARAMETER_NAME, MERGE_POLICY_MIN_SSTABLE_SIZE_PARAMETER_NAME,
-                        LEVEL_MERGE_POLICY_PICK_PARAMETER_NAME, LEVEL_MERGE_POLICY_NUM_COMPONENTS_0_PARAMETER_NAME,
-                        LEVEL_MERGE_POLICY_NUM_COMPONENTS_1_PARAMETER_NAME };
+        final String[] parameterNames = { MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME,
+                MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME, MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME,
+                MERGE_POLICY_LOW_BUCKET_PARAMETER_NAME, MERGE_POLICY_HIGH_BUCKET_PARAMETER_NAME,
+                MERGE_POLICY_MIN_COMPONENTS_PARAMETER_NAME, MERGE_POLICY_MAX_COMPONENTS_PARAMETER_NAME,
+                MERGE_POLICY_MIN_SSTABLE_SIZE_PARAMETER_NAME, LEVEL_MERGE_POLICY_PICK_PARAMETER_NAME,
+                LEVEL_MERGE_POLICY_NUM_COMPONENTS_0_PARAMETER_NAME, LEVEL_MERGE_POLICY_NUM_COMPONENTS_1_PARAMETER_NAME,
+                LEVEL_MERGE_POLICY_OVERLAP_MODE_PARAMETER_NAME };
         final IAType[] parametersTypes = { AUnionType.createUnknownableType(BuiltinType.AINT64),
                 AUnionType.createUnknownableType(BuiltinType.AINT64),
                 AUnionType.createUnknownableType(BuiltinType.AINT64),
@@ -109,7 +110,8 @@ public class DatasetDeclParametersUtil {
                 AUnionType.createUnknownableType(BuiltinType.AINT64),
                 AUnionType.createUnknownableType(BuiltinType.ASTRING),
                 AUnionType.createUnknownableType(BuiltinType.AINT64),
-                AUnionType.createUnknownableType(BuiltinType.AINT64) };
+                AUnionType.createUnknownableType(BuiltinType.AINT64),
+                AUnionType.createUnknownableType(BuiltinType.ASTRING) };
         final ARecordType parameters =
                 new ARecordType(MERGE_POLICY_PARAMETERS_PARAMETER_NAME, parameterNames, parametersTypes, false);
 

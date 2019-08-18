@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
@@ -146,6 +147,10 @@ public class ConstantMergePolicy extends StackMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
+        this.properties = StringUtils.join(properties).replaceAll("\n", " ");
+        while (this.properties.contains("  ")) {
+            this.properties = this.properties.replaceAll("  ", " ");
+        }
         numComponents = Integer.parseInt(properties.get(ConstantMergePolicyFactory.NUM_COMPONENTS));
     }
 }

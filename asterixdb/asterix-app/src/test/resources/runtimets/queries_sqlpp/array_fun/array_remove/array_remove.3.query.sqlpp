@@ -17,17 +17,19 @@
  * under the License.
  */
 
-use TinySocial;
+USE TinySocial;
 
-{
-  "t1": (select array_remove(t.`referred-topics`, "t-mobile") from TweetMessages t order by t.tweetid),
-  "t2": (array_remove([3], 7, null, missing)),    // missing
-  "t3": (array_remove("non_array", 5)),           // null
-  "t4": (array_remove("non_array", 5, missing)),  // missing
-  "t5": (array_remove([], 5, 10, 12.0, "sth")),   // OK
-  "t6": (array_remove(missing, 3, 9)),            // missing
-  "t7": (array_remove(null, 3, 9)),               // null
-  "t8": (array_remove([3,2,"sth"], 3, 9, 9, 3, "sth")), // OK
-  "t9": (array_remove([3,2,"sth"], 1, null)),      // null
-  "t10": (select array_remove(d.followers, "sth1", "John Green") from d1 d)
-};
+FROM [
+  {"id": 1, "t1": (select array_remove(t.`referred-topics`, "t-mobile") from TweetMessages t order by t.tweetid)},
+  {"id": 2, "t2": (array_remove([3], 7, null, missing))},    // missing
+  {"id": 3, "t3": (array_remove("non_array", 5))},           // null
+  {"id": 4, "t4": (array_remove("non_array", 5, missing))},  // missing
+  {"id": 5, "t5": (array_remove([], 5, 10, 12.0, "sth"))},   // OK
+  {"id": 6, "t6": (array_remove(missing, 3, 9))},            // missing
+  {"id": 7, "t7": (array_remove(null, 3, 9))},               // null
+  {"id": 8, "t8": (array_remove([3,2,"sth"], 3, 9, 9, 3, "sth"))}, // OK
+  {"id": 9, "t9": (array_remove([3,2,"sth"], 1, null))},      // null
+  {"id": 10, "t10": (select array_remove(d.followers, "sth1", "John Green") from d1 d)}
+] AS d
+SELECT VALUE d
+ORDER BY d.id;

@@ -534,7 +534,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             }
         } else {
             for (Map.Entry<String, String> entry : compactionPolicyProperties.entrySet()) {
-                if (!mergePolicyFactory.getPropertiesNames().contains(entry.getKey())) {
+                if (!mergePolicyFactory.getPropertiesNames().contains(entry.getKey())
+                        && !ILSMMergePolicyFactory.INDEX_PROPERTIES_NAMES.contains(entry.getKey())) {
                     throw new CompilationException(ErrorCode.COMPILATION_ERROR, sourceLoc,
                             "Invalid compaction policy property: " + entry.getKey());
                 }

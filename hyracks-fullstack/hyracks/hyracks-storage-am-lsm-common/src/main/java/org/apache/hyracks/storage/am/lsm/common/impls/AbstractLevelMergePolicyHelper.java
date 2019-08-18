@@ -21,6 +21,7 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.commons.math3.distribution.BinomialDistribution;
@@ -87,66 +88,75 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
         return newest;
     }
 
-    public List<ILSMDiskComponent> getMinimumOverlappingComponents(List<ILSMDiskComponent> components, long level) {
-        List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
+    public List<ILSMDiskComponent> getMinimumOverlappingComponents(List<ILSMDiskComponent> components, long level,
+            boolean absolute) {
+        List<ILSMDiskComponent> thisLevelComponents = getComponents(components, level);
+        List<ILSMDiskComponent> nextLevelComponents = getComponents(components, level + 1);
+        if (nextLevelComponents.isEmpty()) {
+            return Collections.singletonList(getOldestComponent(thisLevelComponents, level));
+        }
+
+        thisLevelComponents.sort(new Comparator<ILSMDiskComponent>() {
+            @Override
+            public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
+                return Long.compare(c1.getLevelSequence(), c2.getLevelSequence());
+            }
+        });
+
         long overlapped = components.size();
-        List<ILSMDiskComponent> nextLevelComponents = new ArrayList<>();
-        for (ILSMDiskComponent c : components) {
-            if (c.getLevel() == level) {
-                if (nextLevelComponents.isEmpty()) {
-                    for (ILSMDiskComponent c1 : components) {
-                        if (c1.getLevel() == level + 1) {
-                            nextLevelComponents.add(c1);
-                        }
-                    }
-                    if (nextLevelComponents.isEmpty()) {
-                        return Collections.singletonList(getOldestComponent(components, level));
-                    }
-                    overlapped = nextLevelComponents.size();
-                }
-                List<ILSMDiskComponent> overlapComponents = getOverlappingComponents(c, nextLevelComponents);
-                if (overlapComponents.size() <= overlapped) {
-                    overlapped = overlapComponents.size();
-                    mergableComponents.clear();
-                    mergableComponents.add(c);
-                    mergableComponents.addAll(overlapComponents);
-                }
+        List<ILSMDiskComponent> toMerge = new ArrayList<>();
+        for (ILSMDiskComponent picked : thisLevelComponents) {
+            List<ILSMDiskComponent> overlappedComponents =
+                    getOverlappingComponents(picked, nextLevelComponents, absolute);
+            if (overlappedComponents.isEmpty()) {
+                return Collections.singletonList(picked);
+            }
+            if (overlappedComponents.size() < overlapped) {
+                overlapped = overlappedComponents.size();
+                toMerge.clear();
+                toMerge.add(picked);
+                toMerge.addAll(overlappedComponents);
             }
         }
-        return mergableComponents;
+        return toMerge;
     }
 
-    public List<ILSMDiskComponent> getMaximumOverlappingComponents(List<ILSMDiskComponent> components, long level) {
-        List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
-        long overlapped = 0;
-        List<ILSMDiskComponent> nextLevelComponents = new ArrayList<>();
-        for (ILSMDiskComponent c : components) {
-            if (c.getLevel() == level) {
-                if (nextLevelComponents.isEmpty()) {
-                    for (ILSMDiskComponent c1 : components) {
-                        if (c1.getLevel() == level + 1) {
-                            nextLevelComponents.add(c1);
-                        }
-                    }
-                    if (nextLevelComponents.isEmpty()) {
-                        return Collections.singletonList(getOldestComponent(components, level));
-                    }
-                }
-                List<ILSMDiskComponent> overlapComponents = getOverlappingComponents(c, nextLevelComponents);
-                if (overlapComponents.size() >= overlapped) {
-                    overlapped = overlapComponents.size();
-                    mergableComponents.clear();
-                    mergableComponents.add(c);
-                    mergableComponents.addAll(overlapComponents);
-                }
+    public List<ILSMDiskComponent> getMaximumOverlappingComponents(List<ILSMDiskComponent> components, long level,
+            boolean absolute) {
+        List<ILSMDiskComponent> thisLevelComponents = getComponents(components, level);
+        List<ILSMDiskComponent> nextLevelComponents = getComponents(components, level + 1);
+        if (nextLevelComponents.isEmpty()) {
+            return Collections.singletonList(getOldestComponent(thisLevelComponents, level));
+        }
+
+        thisLevelComponents.sort(new Comparator<ILSMDiskComponent>() {
+            @Override
+            public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
+                return Long.compare(c1.getLevelSequence(), c2.getLevelSequence());
+            }
+        });
+
+        long overlapped = -1L;
+        List<ILSMDiskComponent> toMerge = new ArrayList<>();
+        for (ILSMDiskComponent picked : thisLevelComponents) {
+            List<ILSMDiskComponent> overlappedComponents =
+                    getOverlappingComponents(picked, nextLevelComponents, absolute);
+            if (overlappedComponents.size() > overlapped) {
+                overlapped = overlappedComponents.size();
+                toMerge.clear();
+                toMerge.add(picked);
+                toMerge.addAll(overlappedComponents);
             }
         }
-        return mergableComponents;
+        return toMerge;
     }
 
-    public ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level) {
+    public List<ILSMDiskComponent> getBestComponents(List<ILSMDiskComponent> components, long level, boolean absolute) {
         if (level == 0) {
-            return getOldestComponent(components, level);
+            ILSMDiskComponent picked = getOldestComponent(components, level);
+            List<ILSMDiskComponent> toMerge = new ArrayList<>(getOverlappingComponents(picked, components, absolute));
+            toMerge.add(0, picked);
+            return toMerge;
         }
         List<ILSMDiskComponent> srcComponents = new ArrayList<>();
         List<ILSMDiskComponent> dstComponents = new ArrayList<>();
@@ -159,21 +169,32 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
             }
         }
         if (srcComponents.size() == 1) {
-            return srcComponents.get(0);
+            List<ILSMDiskComponent> toMerge =
+                    new ArrayList<>(getOverlappingComponents(srcComponents.get(0), components, absolute));
+            toMerge.add(0, srcComponents.get(0));
+            return toMerge;
         }
         if (dstComponents.isEmpty()) {
-            return getOldestComponent(components, level);
+            ILSMDiskComponent picked = getOldestComponent(components, level);
+            List<ILSMDiskComponent> toMerge = new ArrayList<>(getOverlappingComponents(picked, components, absolute));
+            toMerge.add(0, picked);
+            return toMerge;
         }
         ILSMDiskComponent best = null;
         int cnt = -1;
         for (ILSMDiskComponent component : srcComponents) {
-            int t = getOverlappingComponents(component, dstComponents).size();
+            int t = getOverlappingComponents(component, dstComponents, absolute).size();
             if (best == null || t > cnt) {
                 best = component;
                 cnt = t;
             }
         }
-        return best == null ? getOldestComponent(srcComponents, level) : best;
+        if (best == null) {
+            best = getOldestComponent(srcComponents, level);
+        }
+        List<ILSMDiskComponent> toMerge = new ArrayList<>(getOverlappingComponents(best, components, absolute));
+        toMerge.add(0, best);
+        return toMerge;
     }
 
     public ILSMDiskComponent getRandomComponent(List<ILSMDiskComponent> components, long level,

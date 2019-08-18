@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
@@ -111,6 +112,10 @@ public class SizeTieredMergePolicy extends StackMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
+        this.properties = StringUtils.join(properties).replaceAll("\n", " ");
+        while (this.properties.contains("  ")) {
+            this.properties = this.properties.replaceAll("  ", " ");
+        }
         lowBucket = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.LOW_BUCKET));
         highBucket = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.HIGH_BUCKET));
         minComponents = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.MIN_COMPONENTS));

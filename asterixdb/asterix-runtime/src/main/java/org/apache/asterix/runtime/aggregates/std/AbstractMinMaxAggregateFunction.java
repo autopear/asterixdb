@@ -18,11 +18,14 @@
  */
 package org.apache.asterix.runtime.aggregates.std;
 
+import static org.apache.asterix.om.types.ATypeTag.VALUE_TYPE_MAPPING;
+
 import java.io.IOException;
 
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.common.exceptions.WarningUtil;
 import org.apache.asterix.dataflow.data.common.ILogicalBinaryComparator;
+import org.apache.asterix.dataflow.data.common.TaggedValueReference;
 import org.apache.asterix.dataflow.data.nontagged.comparators.ComparatorUtil;
 import org.apache.asterix.om.types.ATypeTag;
 import org.apache.asterix.om.types.EnumDeserializer;
@@ -30,9 +33,9 @@ import org.apache.asterix.om.types.IAType;
 import org.apache.asterix.om.types.hierachy.ATypeHierarchy;
 import org.apache.asterix.om.types.hierachy.ITypeConvertComputer;
 import org.apache.asterix.runtime.exceptions.UnsupportedItemTypeException;
+import org.apache.hyracks.algebricks.runtime.base.IEvaluatorContext;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
-import org.apache.hyracks.api.context.IHyracksTaskContext;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.exceptions.SourceLocation;
 import org.apache.hyracks.data.std.api.IPointable;
@@ -45,15 +48,17 @@ public abstract class AbstractMinMaxAggregateFunction extends AbstractAggregateF
     private final IPointable inputVal = new VoidPointable();
     private final ArrayBackedValueStorage outputVal = new ArrayBackedValueStorage();
     private final ArrayBackedValueStorage tempValForCasting = new ArrayBackedValueStorage();
+    private final TaggedValueReference value1 = new TaggedValueReference();
+    private final TaggedValueReference value2 = new TaggedValueReference();
     private final IScalarEvaluator eval;
     private final boolean isMin;
     private final IAType aggFieldType;
     protected final Type type;
-    protected final IHyracksTaskContext context;
+    protected final IEvaluatorContext context;
     protected ATypeTag aggType;
     private ILogicalBinaryComparator cmp;
 
-    AbstractMinMaxAggregateFunction(IScalarEvaluatorFactory[] args, IHyracksTaskContext context, boolean isMin,
+    AbstractMinMaxAggregateFunction(IScalarEvaluatorFactory[] args, IEvaluatorContext context, boolean isMin,
             SourceLocation sourceLoc, Type type, IAType aggFieldType) throws HyracksDataException {
         super(sourceLoc);
         this.context = context;
@@ -156,19 +161,29 @@ public abstract class AbstractMinMaxAggregateFunction extends AbstractAggregateF
     }
 
     private void handleIncompatibleInput(ATypeTag typeTag) {
-        context.warn(WarningUtil.forAsterix(sourceLoc, ErrorCode.TYPE_INCOMPATIBLE, "min/max", aggType, typeTag));
+        context.getWarningCollector()
+                .warn(WarningUtil.forAsterix(sourceLoc, ErrorCode.TYPE_INCOMPATIBLE, "min/max", aggType, typeTag));
         this.aggType = ATypeTag.NULL;
     }
 
     private void handleUnsupportedInput(ATypeTag typeTag) {
-        context.warn(WarningUtil.forAsterix(sourceLoc, ErrorCode.TYPE_UNSUPPORTED, "min/max", typeTag));
+        context.getWarningCollector()
+                .warn(WarningUtil.forAsterix(sourceLoc, ErrorCode.TYPE_UNSUPPORTED, "min/max", typeTag));
         this.aggType = ATypeTag.NULL;
     }
 
     private void compareAndUpdate(ILogicalBinaryComparator c, IPointable newVal, ArrayBackedValueStorage currentVal,
             ATypeTag typeTag) throws HyracksDataException {
         // newVal is never NULL/MISSING here. it's already checked up. current value is the first encountered non-null.
-        ILogicalBinaryComparator.Result result = c.compare(newVal, currentVal);
+        byte[] newValByteArray = newVal.getByteArray();
+        int newValStartOffset = newVal.getStartOffset();
+        byte[] currentValByteArray = currentVal.getByteArray();
+        int currentValStartOffset = currentVal.getStartOffset();
+        value1.set(newValByteArray, newValStartOffset + 1, newVal.getLength() - 1,
+                VALUE_TYPE_MAPPING[newValByteArray[newValStartOffset]]);
+        value2.set(currentValByteArray, currentValStartOffset + 1, currentVal.getLength() - 1,
+                VALUE_TYPE_MAPPING[newValByteArray[newValStartOffset]]);
+        ILogicalBinaryComparator.Result result = c.compare(value1, value2);
         switch (result) {
             case LT:
                 if (isMin) {

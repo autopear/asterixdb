@@ -75,6 +75,7 @@ public class ErrorCode {
     public static final int NO_STATEMENT_PROVIDED = 40;
     public static final int REQUEST_CANCELLED = 41;
     public static final int TPCDS_INVALID_TABLE_NAME = 42;
+    public static final int VALUE_OUT_OF_RANGE = 43;
 
     public static final int UNSUPPORTED_JRE = 100;
 
@@ -187,7 +188,7 @@ public class ErrorCode {
     public static final int INVALID_FUNCTION_MODIFIER = 1104;
     public static final int OPERATION_NOT_SUPPORTED_ON_PRIMARY_INDEX = 1105;
     public static final int EXPECTED_CONSTANT_VALUE = 1106;
-    public static final int UNKNOWN_HINT = 1107;
+    public static final int UNEXPECTED_HINT = 1107;
 
     // Feed errors
     public static final int DATAFLOW_ILLEGAL_STATE = 3001;
@@ -296,6 +297,11 @@ public class ErrorCode {
     public static final int FEED_FAILED_WHILE_GETTING_A_NEW_RECORD = 3110;
     public static final int FEED_START_FEED_WITHOUT_CONNECTION = 3111;
     public static final int PARSER_COLLECTION_ITEM_CANNOT_BE_NULL = 3112;
+    public static final int FAILED_TO_PARSE_RECORD = 3113;
+    public static final int FAILED_TO_PARSE_RECORD_CONTENT = 3114;
+    public static final int FAILED_TO_PARSE_METADATA = 3115;
+    public static final int INPUT_DECODE_FAILURE = 3116;
+    public static final int FAILED_TO_PARSE_MALFORMED_LOG_RECORD = 3117;
 
     // Lifecycle management errors
     public static final int DUPLICATE_PARTITION_ID = 4000;

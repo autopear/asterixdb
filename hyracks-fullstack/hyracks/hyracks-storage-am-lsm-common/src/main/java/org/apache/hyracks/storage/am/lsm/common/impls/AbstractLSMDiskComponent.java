@@ -286,7 +286,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     public void setMinKey(byte[] key) throws HyracksDataException {
         synchronized (this) {
             metadata.put(TUPLE_MIN_KEY, new MutableArrayValueReference(key));
-            minKey = key;
+            minKey = key.clone();
         }
     }
 
@@ -308,7 +308,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     public void setMaxKey(byte[] key) throws HyracksDataException {
         synchronized (this) {
             metadata.put(TUPLE_MAX_KEY, new MutableArrayValueReference(key));
-            maxKey = key;
+            maxKey = key.clone();
         }
     }
 

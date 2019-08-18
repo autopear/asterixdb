@@ -112,27 +112,21 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
     }
 
     @Override
-    public ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level) {
-        return pickNextZCurveComponent(components, level);
+    public List<ILSMDiskComponent> getBestComponents(List<ILSMDiskComponent> components, long level, boolean absolute) {
+        ILSMDiskComponent picked = pickNextZCurveComponent(components, level);
+        List<ILSMDiskComponent> toMerge = new ArrayList<>(getOverlappingComponents(picked, components, absolute));
+        toMerge.add(0, picked);
+        return toMerge;
     }
 
     @Override
     public List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component,
-            List<ILSMDiskComponent> components) {
+            List<ILSMDiskComponent> components, boolean absolute) {
         long levelTo = component.getLevel() + 1;
-        Map<Long, ILSMDiskComponent> map = new HashMap<>();
-        for (ILSMDiskComponent c : components) {
-            if (c.getLevel() == levelTo) {
-                map.put(c.getLevelSequence(), c);
-            }
-        }
-        if (map.isEmpty()) {
+        List<ILSMDiskComponent> nextLevelComponents = getComponents(components, levelTo);
+        if (nextLevelComponents.isEmpty()) {
             return Collections.emptyList();
         }
-        List<Long> seqs = new ArrayList<>(map.keySet());
-        seqs.sort(Collections.reverseOrder());
-        List<ILSMDiskComponent> overlapped = new ArrayList<>();
-
         double[] minMBR = null;
         double[] maxMBR = null;
 
@@ -140,23 +134,55 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             minMBR = LSMRTree.bytesToDoubles(component.getMinKey());
             maxMBR = LSMRTree.bytesToDoubles(component.getMaxKey());
         } catch (HyracksDataException ex) {
-            for (long levelSeq : seqs) {
-                ILSMDiskComponent c = map.get(levelSeq);
-                overlapped.add(c);
-            }
-            return overlapped;
+            return nextLevelComponents;
         }
 
-        for (long levelSeq : seqs) {
-            ILSMDiskComponent c = map.get(levelSeq);
-            try {
-                double[] cMinMBR = LSMRTree.bytesToDoubles(c.getMinKey());
-                double[] cMaxMBR = LSMRTree.bytesToDoubles(c.getMaxKey());
-                if (isOverlapping(minMBR, maxMBR, cMinMBR, cMaxMBR)) {
+        int dim = minMBR.length;
+        List<ILSMDiskComponent> overlapped = new ArrayList<>();
+        if (absolute) {
+            while (true) {
+                boolean added = false;
+                for (ILSMDiskComponent c : nextLevelComponents) {
+                    try {
+                        double[] cMinMBR = LSMRTree.bytesToDoubles(c.getMinKey());
+                        double[] cMaxMBR = LSMRTree.bytesToDoubles(c.getMaxKey());
+                        if (isOverlapping(minMBR, maxMBR, cMinMBR, cMaxMBR)) {
+                            overlapped.add(c);
+                            for (int i = 0; i < dim; i++) {
+                                if (Double.compare(cMinMBR[i], minMBR[i]) < 0) {
+                                    minMBR[i] = cMinMBR[i];
+                                }
+                                if (Double.compare(cMaxMBR[i], maxMBR[i]) > 0) {
+                                    maxMBR[i] = cMaxMBR[i];
+                                }
+                            }
+                            added = true;
+                        }
+                    } catch (HyracksDataException ex) {
+                        overlapped.add(c);
+                    }
+                }
+                if (!added) {
+                    break;
+                }
+            }
+            overlapped.sort(new Comparator<ILSMDiskComponent>() {
+                @Override
+                public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
+                    return Long.compare(c2.getLevelSequence(), c1.getLevelSequence());
+                }
+            });
+        } else {
+            for (ILSMDiskComponent c : nextLevelComponents) {
+                try {
+                    double[] cMinMBR = LSMRTree.bytesToDoubles(c.getMinKey());
+                    double[] cMaxMBR = LSMRTree.bytesToDoubles(c.getMaxKey());
+                    if (isOverlapping(minMBR, maxMBR, cMinMBR, cMaxMBR)) {
+                        overlapped.add(c);
+                    }
+                } catch (HyracksDataException ex) {
                     overlapped.add(c);
                 }
-            } catch (HyracksDataException ex) {
-                overlapped.add(c);
             }
         }
         return overlapped;
@@ -420,18 +446,6 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         }
     }
 
-    public static long getMaxNumTuplesPerComponent(List<? extends ILSMComponent> components)
-            throws HyracksDataException {
-        long m = 0L;
-        for (ILSMComponent c : components) {
-            ILSMDiskComponent d = (ILSMDiskComponent) c;
-            if (d.getTupleCount() > m) {
-                m = d.getTupleCount();
-            }
-        }
-        return m;
-    }
-
     private List<ILSMDiskComponent> doSTROrderMerge(ILSMIOOperation operation) throws HyracksDataException {
         LSMRTreeMergeOperation mergeOp = (LSMRTreeMergeOperation) operation;
         LSMRTreeWithAntiMatterTuplesSearchCursor cursor =
@@ -460,7 +474,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     double[] mbr = lsmRTree.getMBRFromTuple(frameTuple);
                     int dim = mbr.length / 2;
                     if (minMBR == null) {
-                        minMBR = LSMRTreeLevelMergePolicyHelper.clone(mbr, 0, dim);
+                        minMBR = clone(mbr, 0, dim);
                     } else {
                         for (int i = 0; i < dim; i++) {
                             if (Double.compare(mbr[i], minMBR[i]) < 0) {
@@ -469,7 +483,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         }
                     }
                     if (maxMBR == null) {
-                        maxMBR = LSMRTreeLevelMergePolicyHelper.clone(mbr, dim, dim);
+                        maxMBR = clone(mbr, dim, dim);
                     } else {
                         for (int i = 0; i < dim; i++) {
                             if (Double.compare(mbr[dim + i], maxMBR[i]) > 0) {
@@ -686,7 +700,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
 
         public TupleWithMBR(ITupleReference tuple, double[] mbr) {
             this.tuple = tuple;
-            this.mbr = LSMRTreeLevelMergePolicyHelper.clone(mbr);
+            this.mbr = mbr.clone();
             dim = mbr.length / 2;
             center = new double[dim];
             for (int i = 0; i < dim; i++) {

@@ -17,9 +17,29 @@
  * under the License.
  */
 
-/*
-* Description  : Testing correct number of arguments required
-* Expected Res : Error, 3 or 4 args are required
-*/
+package org.apache.asterix.lang.sqlpp.parser;
 
-select array_replace([2,6],2,5,1,6);
+import java.io.Serializable;
+
+import org.apache.hyracks.api.exceptions.SourceLocation;
+
+public abstract class SqlppToken implements Serializable {
+
+    public SourceLocation sourceLocation;
+
+    public SqlppHint hint;
+    public String hintParams;
+
+    public boolean parseHint(String text) {
+        int paramStart = SqlppHint.findParamStart(text);
+        String id = paramStart >= 0 ? text.substring(0, paramStart) : text;
+        hint = SqlppHint.findByIdentifier(id);
+        if (hint != null) {
+            hintParams = paramStart >= 0 ? text.substring(paramStart).trim() : null;
+            return true;
+        } else {
+            hintParams = text;
+            return false;
+        }
+    }
+}

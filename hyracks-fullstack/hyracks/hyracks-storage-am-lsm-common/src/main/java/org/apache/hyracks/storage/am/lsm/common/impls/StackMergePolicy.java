@@ -30,6 +30,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicy;
 
 public class StackMergePolicy implements ILSMMergePolicy {
+    protected String properties;
 
     @Override
     public void diskComponentAdded(ILSMIndex index, List<ILSMDiskComponent> newComponents, boolean fullMergeIsRequested,
@@ -61,5 +62,9 @@ public class StackMergePolicy implements ILSMMergePolicy {
     @Override
     public List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> components) {
         return Collections.emptyList();
+    }
+
+    public String getProperties() {
+        return properties;
     }
 }

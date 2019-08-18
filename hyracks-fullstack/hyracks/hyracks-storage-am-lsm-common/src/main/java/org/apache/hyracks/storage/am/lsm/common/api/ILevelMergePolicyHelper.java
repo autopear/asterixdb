@@ -39,13 +39,16 @@ public interface ILevelMergePolicyHelper {
 
     ILSMDiskComponent getRandomComponent(List<ILSMDiskComponent> components, long level, Distribution distribution);
 
-    ILSMDiskComponent getBestComponent(List<ILSMDiskComponent> components, long level);
+    List<ILSMDiskComponent> getBestComponents(List<ILSMDiskComponent> components, long level, boolean absolute);
 
-    List<ILSMDiskComponent> getMinimumOverlappingComponents(List<ILSMDiskComponent> components, long level);
+    List<ILSMDiskComponent> getMinimumOverlappingComponents(List<ILSMDiskComponent> components, long level,
+            boolean absolute);
 
-    List<ILSMDiskComponent> getMaximumOverlappingComponents(List<ILSMDiskComponent> components, long level);
+    List<ILSMDiskComponent> getMaximumOverlappingComponents(List<ILSMDiskComponent> components, long level,
+            boolean absolute);
 
-    List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component, List<ILSMDiskComponent> components);
+    List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component, List<ILSMDiskComponent> components,
+            boolean absolute);
 
     List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException;
 }

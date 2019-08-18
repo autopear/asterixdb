@@ -22,9 +22,8 @@ package org.apache.hyracks.storage.am.lsm.btree.impls;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
@@ -50,20 +49,18 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
     }
 
     public List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component,
-            List<ILSMDiskComponent> components) {
+            List<ILSMDiskComponent> components, boolean absolute) {
         long levelTo = component.getLevel() + 1;
-        Map<Long, ILSMDiskComponent> map = new HashMap<>();
-        for (ILSMDiskComponent c : components) {
-            if (c.getLevel() == levelTo) {
-                map.put(c.getLevelSequence(), c);
-            }
-        }
-        if (map.isEmpty()) {
+        List<ILSMDiskComponent> nextLevelComponents = getComponents(components, levelTo);
+        if (nextLevelComponents.isEmpty()) {
             return Collections.emptyList();
         }
-        List<Long> seqs = new ArrayList<>(map.keySet());
-        seqs.sort(Collections.reverseOrder());
-        List<ILSMDiskComponent> overlapped = new ArrayList<>();
+        nextLevelComponents.sort(new Comparator<ILSMDiskComponent>() {
+            @Override
+            public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
+                return Long.compare(c2.getLevelSequence(), c1.getLevelSequence());
+            }
+        });
 
         byte[] minKey;
         byte[] maxKey;
@@ -72,15 +69,11 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             minKey = component.getMinKey();
             maxKey = component.getMaxKey();
         } catch (HyracksDataException ex) {
-            for (long levelSeq : seqs) {
-                ILSMDiskComponent c = map.get(levelSeq);
-                overlapped.add(c);
-            }
-            return overlapped;
+            return nextLevelComponents;
         }
 
-        for (long levelSeq : seqs) {
-            ILSMDiskComponent c = map.get(levelSeq);
+        List<ILSMDiskComponent> overlapped = new ArrayList<>();
+        for (ILSMDiskComponent c : nextLevelComponents) {
             try {
                 byte[] cMinKey = component.getMinKey();
                 byte[] cMaxKey = component.getMaxKey();

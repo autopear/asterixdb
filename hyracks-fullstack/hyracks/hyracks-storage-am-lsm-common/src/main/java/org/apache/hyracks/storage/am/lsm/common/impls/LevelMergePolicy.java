@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
@@ -41,6 +42,8 @@ public class LevelMergePolicy implements ILSMMergePolicy {
     protected String pickStrategy;
     protected long level0Components;
     protected long level1Components;
+    protected boolean absoluteOverlap;
+    protected String properties;
 
     public static final Map<String, Distribution> dist = new HashMap<String, Distribution>() {
         {
@@ -138,13 +141,13 @@ public class LevelMergePolicy implements ILSMMergePolicy {
                     if (pickStrategy.compareTo(LevelMergePolicyFactory.NEWEST) == 0) {
                         picked = helper.getNewestComponent(components, level);
                     } else if (pickStrategy.compareTo(LevelMergePolicyFactory.BEST) == 0) {
-                        picked = helper.getBestComponent(components, level);
+                        return helper.getBestComponents(components, level, absoluteOverlap);
                     } else if (dist.containsKey(pickStrategy)) {
                         picked = helper.getRandomComponent(components, level, dist.get(pickStrategy));
                     } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MIN_OVERLAP) == 0) {
-                        return helper.getMinimumOverlappingComponents(components, level);
+                        return helper.getMinimumOverlappingComponents(immutableComponents, level, absoluteOverlap);
                     } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MAX_OVERLAP) == 0) {
-                        return helper.getMaximumOverlappingComponents(components, level);
+                        return helper.getMaximumOverlappingComponents(immutableComponents, level, absoluteOverlap);
                     } else {
                         picked = helper.getOldestComponent(immutableComponents, level);
                     }
@@ -154,7 +157,7 @@ public class LevelMergePolicy implements ILSMMergePolicy {
         }
         if (picked != null) {
             List<ILSMDiskComponent> mergableComponents =
-                    new ArrayList<>(helper.getOverlappingComponents(picked, immutableComponents));
+                    new ArrayList<>(helper.getOverlappingComponents(picked, immutableComponents, absoluteOverlap));
             mergableComponents.add(0, picked);
             return mergableComponents;
         }
@@ -163,9 +166,15 @@ public class LevelMergePolicy implements ILSMMergePolicy {
 
     @Override
     public void configure(Map<String, String> properties) {
+        this.properties = StringUtils.join(properties).replaceAll("\n", " ");
+        while (this.properties.contains("  ")) {
+            this.properties = this.properties.replaceAll("  ", " ");
+        }
         pickStrategy = properties.get(LevelMergePolicyFactory.PICK).toLowerCase();
         level0Components = Long.parseLong(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_0));
         level1Components = Long.parseLong(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_1));
+        absoluteOverlap = properties.getOrDefault(LevelMergePolicyFactory.OVERLAP_MODE, "relative")
+                .compareTo(LevelMergePolicyFactory.MODE_ABSOLUTE) == 0;
     }
 
     @Override
@@ -190,5 +199,9 @@ public class LevelMergePolicy implements ILSMMergePolicy {
             }
         }
         return true;
+    }
+
+    public String getProperties() {
+        return properties;
     }
 }

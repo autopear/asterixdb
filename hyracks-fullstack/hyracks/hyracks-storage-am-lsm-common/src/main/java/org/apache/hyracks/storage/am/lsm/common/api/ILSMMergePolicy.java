@@ -58,4 +58,6 @@ public interface ILSMMergePolicy {
     boolean isMergeLagging(ILSMIndex index) throws HyracksDataException;
 
     List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> components);
+
+    String getProperties();
 }

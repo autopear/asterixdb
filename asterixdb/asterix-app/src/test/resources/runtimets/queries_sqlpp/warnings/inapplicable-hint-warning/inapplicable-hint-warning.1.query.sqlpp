@@ -18,9 +18,9 @@
  */
 
 /*
- * Description  : Warning when a GROUP BY hint is recognized,
- *              : but cannot be applied for given aggregate function
- * Expected     : SUCCESS (with ASX1107 warning)
+ * Description  : Warning when a GROUP BY hint is the expected one,
+ *              : but cannot be applied for a given aggregate function
+ * Expected     : SUCCESS (with HYR10006 warning)
  */
 
 with ds as (
