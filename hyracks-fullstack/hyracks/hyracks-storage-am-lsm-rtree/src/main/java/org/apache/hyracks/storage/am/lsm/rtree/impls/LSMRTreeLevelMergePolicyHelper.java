@@ -143,23 +143,25 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             while (true) {
                 boolean added = false;
                 for (ILSMDiskComponent c : nextLevelComponents) {
-                    try {
-                        double[] cMinMBR = LSMRTree.bytesToDoubles(c.getMinKey());
-                        double[] cMaxMBR = LSMRTree.bytesToDoubles(c.getMaxKey());
-                        if (isOverlapping(minMBR, maxMBR, cMinMBR, cMaxMBR)) {
-                            overlapped.add(c);
-                            for (int i = 0; i < dim; i++) {
-                                if (Double.compare(cMinMBR[i], minMBR[i]) < 0) {
-                                    minMBR[i] = cMinMBR[i];
+                    if (!overlapped.contains(c)) {
+                        try {
+                            double[] cMinMBR = LSMRTree.bytesToDoubles(c.getMinKey());
+                            double[] cMaxMBR = LSMRTree.bytesToDoubles(c.getMaxKey());
+                            if (isOverlapping(minMBR, maxMBR, cMinMBR, cMaxMBR)) {
+                                overlapped.add(c);
+                                for (int i = 0; i < dim; i++) {
+                                    if (Double.compare(cMinMBR[i], minMBR[i]) < 0) {
+                                        minMBR[i] = cMinMBR[i];
+                                    }
+                                    if (Double.compare(cMaxMBR[i], maxMBR[i]) > 0) {
+                                        maxMBR[i] = cMaxMBR[i];
+                                    }
                                 }
-                                if (Double.compare(cMaxMBR[i], maxMBR[i]) > 0) {
-                                    maxMBR[i] = cMaxMBR[i];
-                                }
+                                added = true;
                             }
-                            added = true;
+                        } catch (HyracksDataException ex) {
+                            overlapped.add(c);
                         }
-                    } catch (HyracksDataException ex) {
-                        overlapped.add(c);
                     }
                 }
                 if (!added) {
@@ -527,6 +529,16 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 }
                 List<List<TupleWithMBR>> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);
                 for (List<TupleWithMBR> partition : partitions) {
+                    partition.sort(new Comparator<TupleWithMBR>() {
+                        @Override
+                        public int compare(TupleWithMBR t1, TupleWithMBR t2) {
+                            try {
+                                return cursor.compare(t1.getTuple(), t2.getTuple());
+                            } catch (HyracksDataException ex) {
+                                return -1;
+                            }
+                        }
+                    });
                     int dim = partition.get(0).getDim();
                     LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo, start++);
                     mergeFileTargets.add(refs.getInsertIndexFileReference());

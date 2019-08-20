@@ -360,6 +360,10 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
         return cmp.selectiveFieldCompare(tupleA, tupleB, comparatorFields);
     }
 
+    public int compare(ITupleReference tupleA, ITupleReference tupleB) throws HyracksDataException {
+        return compare(cmp, tupleA, tupleB);
+    }
+
     private boolean searchMemBTrees(ITupleReference tuple, int lastBTreeToSearch) throws HyracksDataException {
         for (int i = 0; i < lastBTreeToSearch; i++) {
             btreeCursors[i].close();
