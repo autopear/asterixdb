@@ -25,6 +25,7 @@ import org.apache.asterix.om.types.ARecordType;
 import org.apache.asterix.om.types.AUnionType;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
 
@@ -39,23 +40,6 @@ public class DatasetDeclParametersUtil {
     public static final String MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME = "max-mergable-component-size";
     public static final String MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME = "max-tolerance-component-count";
     public static final String MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME = "num-components";
-    public static final String MERGE_POLICY_LOW_BUCKET_PARAMETER_NAME = SizeTieredMergePolicyFactory.LOW_BUCKET;
-    public static final String MERGE_POLICY_HIGH_BUCKET_PARAMETER_NAME = SizeTieredMergePolicyFactory.HIGH_BUCKET;
-    public static final String MERGE_POLICY_MIN_COMPONENTS_PARAMETER_NAME = SizeTieredMergePolicyFactory.MIN_COMPONENTS;
-    public static final String MERGE_POLICY_MAX_COMPONENTS_PARAMETER_NAME = SizeTieredMergePolicyFactory.MAX_COMPONENTS;
-    public static final String MERGE_POLICY_MIN_SSTABLE_SIZE_PARAMETER_NAME =
-            SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE;
-
-    /* ***********************************************
-     * Level Merge Policy Parameters
-     * ***********************************************
-     */
-    public static final String LEVEL_MERGE_POLICY_PICK_PARAMETER_NAME = LevelMergePolicyFactory.PICK;
-    public static final String LEVEL_MERGE_POLICY_NUM_COMPONENTS_0_PARAMETER_NAME =
-            LevelMergePolicyFactory.NUM_COMPONENTS_0;
-    public static final String LEVEL_MERGE_POLICY_NUM_COMPONENTS_1_PARAMETER_NAME =
-            LevelMergePolicyFactory.NUM_COMPONENTS_1;
-    public static final String LEVEL_MERGE_POLICY_OVERLAP_MODE_PARAMETER_NAME = LevelMergePolicyFactory.OVERLAP_MODE;
 
     /* ***********************************************
      * Storage Block Compression Parameters
@@ -93,25 +77,27 @@ public class DatasetDeclParametersUtil {
 
     private static ARecordType getMergePolicyType() {
         //merge-policy.parameters
-        final String[] parameterNames = { MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME,
-                MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME, MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME,
-                MERGE_POLICY_LOW_BUCKET_PARAMETER_NAME, MERGE_POLICY_HIGH_BUCKET_PARAMETER_NAME,
-                MERGE_POLICY_MIN_COMPONENTS_PARAMETER_NAME, MERGE_POLICY_MAX_COMPONENTS_PARAMETER_NAME,
-                MERGE_POLICY_MIN_SSTABLE_SIZE_PARAMETER_NAME, LEVEL_MERGE_POLICY_PICK_PARAMETER_NAME,
-                LEVEL_MERGE_POLICY_NUM_COMPONENTS_0_PARAMETER_NAME, LEVEL_MERGE_POLICY_NUM_COMPONENTS_1_PARAMETER_NAME,
-                LEVEL_MERGE_POLICY_OVERLAP_MODE_PARAMETER_NAME };
-        final IAType[] parametersTypes = { AUnionType.createUnknownableType(BuiltinType.AINT64),
-                AUnionType.createUnknownableType(BuiltinType.AINT64),
-                AUnionType.createUnknownableType(BuiltinType.AINT64),
-                AUnionType.createUnknownableType(BuiltinType.ADOUBLE),
-                AUnionType.createUnknownableType(BuiltinType.ADOUBLE),
-                AUnionType.createUnknownableType(BuiltinType.AINT32),
-                AUnionType.createUnknownableType(BuiltinType.AINT32),
-                AUnionType.createUnknownableType(BuiltinType.AINT64),
-                AUnionType.createUnknownableType(BuiltinType.ASTRING),
-                AUnionType.createUnknownableType(BuiltinType.AINT64),
-                AUnionType.createUnknownableType(BuiltinType.AINT64),
-                AUnionType.createUnknownableType(BuiltinType.ASTRING) };
+        final String[] parameterNames = { ILSMMergePolicyFactory.SECONDARY_INDEX,
+                MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME, MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME,
+                MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME, SizeTieredMergePolicyFactory.LOW_BUCKET,
+                SizeTieredMergePolicyFactory.HIGH_BUCKET, SizeTieredMergePolicyFactory.MIN_COMPONENTS,
+                SizeTieredMergePolicyFactory.MAX_COMPONENTS, SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE,
+                LevelMergePolicyFactory.PICK, LevelMergePolicyFactory.NUM_COMPONENTS_0,
+                LevelMergePolicyFactory.NUM_COMPONENTS_1, LevelMergePolicyFactory.OVERLAP_MODE };
+        final IAType[] parametersTypes = { AUnionType.createUnknownableType(BuiltinType.ASTRING), // SECONDARY_INDEX
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // MERGABLE_SIZE
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // TOLERANCE_COUNT
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // NUMBER_COMPONENTS
+                AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // LOW_BUCKET
+                AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // HIGH_BUCKET
+                AUnionType.createUnknownableType(BuiltinType.AINT32), // MIN_COMPONENTS
+                AUnionType.createUnknownableType(BuiltinType.AINT32), // MAX_COMPONENTS
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // MIN_SSTABLE_SIZE
+                AUnionType.createUnknownableType(BuiltinType.ASTRING), // PICK
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // NUM_COMPONENTS_0
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // NUM_COMPONENTS_1
+                AUnionType.createUnknownableType(BuiltinType.ASTRING), // OVERLAP_MODE
+        };
         final ARecordType parameters =
                 new ARecordType(MERGE_POLICY_PARAMETERS_PARAMETER_NAME, parameterNames, parametersTypes, false);
 

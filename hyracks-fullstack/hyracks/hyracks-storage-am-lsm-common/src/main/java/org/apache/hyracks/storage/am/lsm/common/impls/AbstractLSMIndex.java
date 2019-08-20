@@ -1205,4 +1205,27 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         }
         return dirStr + ",\n" + memStr + ",\n[\n" + diskStr + "\n]";
     }
+
+    public String getComponentsInfo() {
+        int size = diskComponents.size();
+        if (size == 0) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        ILSMDiskComponent c = diskComponents.get(0);
+        try {
+            sb.append(c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getTupleCount());
+        } catch (HyracksDataException ex) {
+            sb.append(c.getLevel() + "_" + c.getLevelSequence() + ":-1");
+        }
+        for (int i = 1; i < size; i++) {
+            c = diskComponents.get(i);
+            try {
+                sb.append(";" + c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getTupleCount());
+            } catch (HyracksDataException ex) {
+                sb.append(";" + c.getLevel() + "_" + c.getLevelSequence() + ":-1");
+            }
+        }
+        return sb.toString();
+    }
 }

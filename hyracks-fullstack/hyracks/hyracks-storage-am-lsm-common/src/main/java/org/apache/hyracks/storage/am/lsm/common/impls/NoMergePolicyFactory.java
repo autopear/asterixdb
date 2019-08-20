@@ -35,7 +35,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class NoMergePolicyFactory implements ILSMMergePolicyFactory {
 
     private static final long serialVersionUID = 1L;
-    public static final Set<String> PROPERTIES_NAMES = Collections.emptySet();
+    public static final Set<String> PROPERTIES_NAMES = Collections.singleton(SECONDARY_INDEX);
     public static final String NAME = "no-merge";
 
     @Override

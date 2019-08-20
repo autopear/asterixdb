@@ -406,4 +406,74 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
                 + component.getComponentSize() + ",\n" + spaces + "  min: " + minKey + ",\n" + spaces + "  max: "
                 + maxKey + ",\n" + spaces + "  tuples: " + numTuples + "\n" + spaces + "}";
     }
+
+    private String getComponentInfo(ILSMDiskComponent c) {
+        String minMBRStr;
+        String maxMBRStr;
+        long numTuples;
+        try {
+            double[] minMBR = bytesToDoubles(c.getMinKey());
+            if (minMBR == null) {
+                minMBRStr = "Unknown";
+            } else {
+                int dim = minMBR.length;
+                if (dim == 0) {
+                    minMBRStr = "Unknown";
+                } else if (dim == 1) {
+                    minMBRStr = Double.toString(minMBR[0]);
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(minMBR[0]);
+                    for (int i = 1; i < dim; i++) {
+                        sb.append("," + minMBR[i]);
+                    }
+                    minMBRStr = sb.toString();
+                }
+            }
+        } catch (HyracksDataException ex) {
+            minMBRStr = "Unknown";
+        }
+        try {
+            double[] maxMBR = bytesToDoubles(c.getMaxKey());
+            if (maxMBR == null) {
+                maxMBRStr = "Unknown";
+            } else {
+                int dim = maxMBR.length;
+                if (dim == 0) {
+                    maxMBRStr = "Unknown";
+                } else if (dim == 1) {
+                    maxMBRStr = Double.toString(maxMBR[0]);
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(maxMBR[0]);
+                    for (int i = 1; i < dim; i++) {
+                        sb.append("," + maxMBR[i]);
+                    }
+                    maxMBRStr = sb.toString();
+                }
+            }
+        } catch (HyracksDataException ex) {
+            maxMBRStr = "Unknown";
+        }
+        try {
+            numTuples = c.getTupleCount();
+        } catch (HyracksDataException ex) {
+            numTuples = -1L;
+        }
+        return c.getLevel() + "_" + c.getLevelSequence() + ":" + numTuples + ":[" + minMBRStr + " " + maxMBRStr + "]";
+    }
+
+    @Override
+    public String getComponentsInfo() {
+        int size = diskComponents.size();
+        if (size == 0) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(getComponentInfo(diskComponents.get(0)));
+        for (int i = 1; i < size; i++) {
+            sb.append(";" + getComponentInfo(diskComponents.get(i)));
+        }
+        return sb.toString();
+    }
 }

@@ -43,8 +43,8 @@ public class SizeTieredMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String MIN_COMPONENTS = "min-components";
     public static final String MAX_COMPONENTS = "max-components";
     public static final String MIN_SSTABLE_SIZE = "min-sstable-size";
-    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(
-            new HashSet<>(Arrays.asList(LOW_BUCKET, HIGH_BUCKET, MIN_COMPONENTS, MAX_COMPONENTS, MIN_SSTABLE_SIZE)));
+    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(new HashSet<>(
+            Arrays.asList(SECONDARY_INDEX, LOW_BUCKET, HIGH_BUCKET, MIN_COMPONENTS, MAX_COMPONENTS, MIN_SSTABLE_SIZE)));
 
     public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
         {

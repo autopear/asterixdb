@@ -18,7 +18,9 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -37,7 +39,8 @@ public class ConstantMergePolicyFactory implements ILSMMergePolicyFactory {
     private static final long serialVersionUID = 1L;
     public static final String NAME = "constant";
     public static final String NUM_COMPONENTS = "num-components";
-    public static final Set<String> PROPERTIES_NAMES = Collections.singleton(NUM_COMPONENTS);
+    public static final Set<String> PROPERTIES_NAMES =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(SECONDARY_INDEX, NUM_COMPONENTS)));
 
     public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
         {

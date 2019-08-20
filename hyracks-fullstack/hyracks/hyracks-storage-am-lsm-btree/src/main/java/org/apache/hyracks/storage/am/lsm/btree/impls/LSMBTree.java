@@ -370,17 +370,17 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                     byte[] key = getKeyBytes(tuple);
                     if (key != null) {
                         if (minKey == null) {
-                            minKey = key;
+                            minKey = key.clone();
                         } else {
                             if (compareKey(key, minKey) < 0) {
-                                minKey = key;
+                                minKey = key.clone();
                             }
                         }
                         if (maxKey == null) {
-                            maxKey = key;
+                            maxKey = key.clone();
                         } else {
                             if (compareKey(key, maxKey) > 0) {
-                                maxKey = key;
+                                maxKey = key.clone();
                             }
                         }
                     }
@@ -445,17 +445,17 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                         byte[] key = getKeyBytes(frameTuple);
                         if (key != null) {
                             if (minKey == null) {
-                                minKey = key;
+                                minKey = key.clone();
                             } else {
                                 if (compareKey(key, minKey) < 0) {
-                                    minKey = key;
+                                    minKey = key.clone();
                                 }
                             }
                             if (maxKey == null) {
-                                maxKey = key;
+                                maxKey = key.clone();
                             } else {
                                 if (compareKey(key, maxKey) > 0) {
-                                    maxKey = key;
+                                    maxKey = key.clone();
                                 }
                             }
                         }
@@ -733,5 +733,61 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return spaces + "{\n" + spaces + "  name: " + basename + ",\n" + spaces + "  size: "
                 + component.getComponentSize() + ",\n" + spaces + "  min: " + minKey + ",\n" + spaces + "  max: "
                 + maxKey + ",\n" + spaces + "  tuples: " + numTuples + "\n" + spaces + "}";
+    }
+
+    private String getComponentInfo(ILSMDiskComponent c) {
+        String minKey;
+        String maxKey;
+        long numTuples;
+        try {
+            byte[] minData = c.getMinKey();
+            if (minData == null) {
+                minKey = "Unknown";
+            } else {
+                int l = minData.length;
+                if (l >= Long.BYTES) {
+                    minKey = Long.toString(bytesToLong(minData));
+                } else {
+                    minKey = bytesToHex(minData);
+                }
+            }
+        } catch (HyracksDataException ex) {
+            minKey = "Unknown";
+        }
+        try {
+            byte[] maxData = c.getMaxKey();
+            if (maxData == null) {
+                maxKey = "Unknown";
+            } else {
+                int l = maxData.length;
+                if (l >= Long.BYTES) {
+                    maxKey = Long.toString(bytesToLong(maxData));
+                } else {
+                    maxKey = bytesToHex(maxData);
+                }
+            }
+        } catch (HyracksDataException ex) {
+            maxKey = "Unknown";
+        }
+        try {
+            numTuples = c.getTupleCount();
+        } catch (HyracksDataException ex) {
+            numTuples = -1L;
+        }
+        return c.getLevel() + "_" + c.getLevelSequence() + ":" + numTuples + ":[" + minKey + " " + maxKey + "]";
+    }
+
+    @Override
+    public String getComponentsInfo() {
+        int size = diskComponents.size();
+        if (size == 0) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(getComponentInfo(diskComponents.get(0)));
+        for (int i = 1; i < size; i++) {
+            sb.append(";" + getComponentInfo(diskComponents.get(i)));
+        }
+        return sb.toString();
     }
 }

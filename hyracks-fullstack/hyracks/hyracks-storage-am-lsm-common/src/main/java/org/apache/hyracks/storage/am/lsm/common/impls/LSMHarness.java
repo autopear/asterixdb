@@ -615,6 +615,10 @@ public class LSMHarness implements ILSMHarness {
         }
         flushCnt.incrementAndGet();
         totalFlushed.getAndAdd(operation.getNewComponent().getComponentSize());
+        if (indexName.compareTo("rtreeidx") == 0) {
+            LOGGER.info(
+                    "[ALLCOMPONENTS]\t" + flushCnt.get() + "\t" + mergeCnt.get() + "\t" + lsmIndex.getComponentsInfo());
+        }
         try {
             flushLock.acquire();
             currentFlushes--;
@@ -697,6 +701,8 @@ public class LSMHarness implements ILSMHarness {
                     + before + "\tsrc=" + toMerge + "\tdst=" + news + "\tafter=" + after + "\tflushes=" + flushCnt.get()
                     + "\tflushed=" + totalFlushed.get() + "\tmerges=" + mergeCnt.get() + "\tmerged="
                     + totalMerged.get());
+            LOGGER.info(
+                    "[ALLCOMPONENTS]\t" + flushCnt.get() + "\t" + mergeCnt.get() + "\t" + lsmIndex.getComponentsInfo());
         }
         try {
             mergeLock.acquire();

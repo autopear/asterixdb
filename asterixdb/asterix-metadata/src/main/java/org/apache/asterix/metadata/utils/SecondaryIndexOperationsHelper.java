@@ -19,14 +19,12 @@
 
 package org.apache.asterix.metadata.utils;
 
-import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.asterix.common.config.DatasetConfig;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.ExternalFilePendingOp;
 import org.apache.asterix.common.config.OptimizationConfUtil;
@@ -85,8 +83,9 @@ import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 @SuppressWarnings("rawtypes")
 // TODO: We should eventually have a hierarchy of classes that can create all
@@ -226,144 +225,91 @@ public abstract class SecondaryIndexOperationsHelper {
         Pair<ILSMMergePolicyFactory, Map<String, String>> compactionInfo =
                 DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
         if (dataset.getDatasetType() == DatasetType.INTERNAL) {
-            Map<String, String> secondaryIndexProperties = new HashMap<String, String>();
-            if (index.getIndexType() == DatasetConfig.IndexType.RTREE
-                    && compactionInfo.second.containsKey(ILSMMergePolicyFactory.RTREE_INDEX_PROPERTIES)) {
-                try {
-                    secondaryIndexProperties = new ObjectMapper().readValue(
-                            compactionInfo.second.get(ILSMMergePolicyFactory.RTREE_INDEX_PROPERTIES), HashMap.class);
-                } catch (IOException e1) {
-                    mergePolicyFactory = compactionInfo.first;
-                    mergePolicyProperties = compactionInfo.second;
+            JSONParser jsonParser = new JSONParser();
+            try {
+                JSONObject allIndex = (JSONObject) jsonParser
+                        .parse(compactionInfo.second.get(ILSMMergePolicyFactory.SECONDARY_INDEX));
+                JSONObject selectedIndex = null;
+                switch (index.getIndexType()) {
+                    case BTREE:
+                        if (allIndex.containsKey("btree-index")) {
+                            selectedIndex = (JSONObject) allIndex.get("btree-index");
+                        } else {
+                            mergePolicyFactory = compactionInfo.first;
+                            mergePolicyProperties = compactionInfo.second;
+                        }
+                        break;
+                    case RTREE:
+                        if (allIndex.containsKey("rtree-index")) {
+                            selectedIndex = (JSONObject) allIndex.get("rtree-index");
+                        } else {
+                            mergePolicyFactory = compactionInfo.first;
+                            mergePolicyProperties = compactionInfo.second;
+                        }
+                        break;
+                    case SINGLE_PARTITION_WORD_INVIX:
+                    case LENGTH_PARTITIONED_WORD_INVIX:
+                    case SINGLE_PARTITION_NGRAM_INVIX:
+                    case LENGTH_PARTITIONED_NGRAM_INVIX:
+                        if (allIndex.containsKey("inverted-index")) {
+                            selectedIndex = (JSONObject) allIndex.get("inverted-index");
+                        } else {
+                            mergePolicyFactory = compactionInfo.first;
+                            mergePolicyProperties = compactionInfo.second;
+                        }
+                        break;
+                    default:
+                        mergePolicyFactory = compactionInfo.first;
+                        mergePolicyProperties = compactionInfo.second;
+                        break;
                 }
-            } else if (index.getIndexType() == DatasetConfig.IndexType.BTREE
-                    && compactionInfo.second.containsKey(ILSMMergePolicyFactory.BTREE_INDEX_PROPERTIES)) {
-                try {
-                    secondaryIndexProperties = new ObjectMapper().readValue(
-                            compactionInfo.second.get(ILSMMergePolicyFactory.BTREE_INDEX_PROPERTIES), HashMap.class);
-                } catch (IOException e1) {
-                    mergePolicyFactory = compactionInfo.first;
-                    mergePolicyProperties = compactionInfo.second;
+                if (selectedIndex != null && !selectedIndex.isEmpty()) {
+                    String policyName = selectedIndex.get("name").toString();
+                    if (policyName.compareTo(NoMergePolicyFactory.NAME) == 0) {
+                        mergePolicyFactory = new NoMergePolicyFactory();
+                        mergePolicyProperties = Collections.emptyMap();
+                    } else {
+                        JSONObject parameters = (JSONObject) selectedIndex.get("parameters");
+                        Map<String, String> secondaryIndexProperties = new LinkedHashMap<>();
+                        for (Object key : parameters.keySet()) {
+                            secondaryIndexProperties.put(key.toString(), parameters.get(key).toString());
+                        }
+                        if (policyName.compareTo(ConstantMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new ConstantMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(LevelMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new LevelMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(PrefixMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new PrefixMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(CorrelatedPrefixMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new CorrelatedPrefixMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(SizeTieredMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new SizeTieredMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else {
+                            mergePolicyFactory = compactionInfo.first;
+                            mergePolicyProperties = compactionInfo.second;
+                        }
+                    }
                 }
-            } else if ((index.getIndexType() == DatasetConfig.IndexType.LENGTH_PARTITIONED_NGRAM_INVIX
-                    || index.getIndexType() == DatasetConfig.IndexType.LENGTH_PARTITIONED_WORD_INVIX
-                    || index.getIndexType() == DatasetConfig.IndexType.SINGLE_PARTITION_NGRAM_INVIX
-                    || index.getIndexType() == DatasetConfig.IndexType.SINGLE_PARTITION_WORD_INVIX)
-                    && compactionInfo.second.containsKey(ILSMMergePolicyFactory.INVERTED_INDEX_PROPERTIES)) {
-                try {
-                    secondaryIndexProperties = new ObjectMapper().readValue(
-                            compactionInfo.second.get(ILSMMergePolicyFactory.INVERTED_INDEX_PROPERTIES), HashMap.class);
-                } catch (IOException e1) {
-                    mergePolicyFactory = compactionInfo.first;
-                    mergePolicyProperties = compactionInfo.second;
-                }
-            } else {
+            } catch (ParseException ex) {
                 mergePolicyFactory = compactionInfo.first;
                 mergePolicyProperties = compactionInfo.second;
             }
-            if (!secondaryIndexProperties.isEmpty()) {
-                String policyName = secondaryIndexProperties.get("name");
-                if (policyName.compareTo(NoMergePolicyFactory.NAME) == 0) {
-                    mergePolicyFactory = new NoMergePolicyFactory();
-                } else if (policyName.compareTo(PrefixMergePolicyFactory.NAME) == 0) {
-                    mergePolicyFactory = new PrefixMergePolicyFactory();
-                    try {
-                        mergePolicyProperties =
-                                new ObjectMapper().readValue(secondaryIndexProperties.get("parameters"), HashMap.class);
-                    } catch (IOException ex) {
-                        switch (index.getIndexType()) {
-                            case BTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForBTreeIndex();
-                                break;
-                            case RTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForRTreeIndex();
-                                break;
-                            default:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForInvertedIndex();
-                                break;
-                        }
-                    }
-                } else if (policyName.compareTo(ConstantMergePolicyFactory.NAME) == 0) {
-                    mergePolicyFactory = new ConstantMergePolicyFactory();
-                    try {
-                        mergePolicyProperties =
-                                new ObjectMapper().readValue(secondaryIndexProperties.get("parameters"), HashMap.class);
-                    } catch (IOException ex) {
-                        switch (index.getIndexType()) {
-                            case BTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForBTreeIndex();
-                                break;
-                            case RTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForRTreeIndex();
-                                break;
-                            default:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForInvertedIndex();
-                                break;
-                        }
-                    }
-                } else if (policyName.compareTo(CorrelatedPrefixMergePolicyFactory.NAME) == 0) {
-                    mergePolicyFactory = new CorrelatedPrefixMergePolicyFactory();
-                    try {
-                        mergePolicyProperties =
-                                new ObjectMapper().readValue(secondaryIndexProperties.get("parameters"), HashMap.class);
-                    } catch (IOException ex) {
-                        switch (index.getIndexType()) {
-                            case BTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForBTreeIndex();
-                                break;
-                            case RTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForRTreeIndex();
-                                break;
-                            default:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForInvertedIndex();
-                                break;
-                        }
-                    }
-                } else if (policyName.compareTo(LevelMergePolicyFactory.NAME) == 0) {
-                    mergePolicyFactory = new LevelMergePolicyFactory();
-                    try {
-                        mergePolicyProperties =
-                                new ObjectMapper().readValue(secondaryIndexProperties.get("parameters"), HashMap.class);
-                    } catch (IOException ex) {
-                        switch (index.getIndexType()) {
-                            case BTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForBTreeIndex();
-                                break;
-                            case RTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForRTreeIndex();
-                                break;
-                            default:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForInvertedIndex();
-                                break;
-                        }
-                    }
-                } else if (policyName.compareTo(SizeTieredMergePolicyFactory.NAME) == 0) {
-                    mergePolicyFactory = new SizeTieredMergePolicyFactory();
-                    try {
-                        mergePolicyProperties =
-                                new ObjectMapper().readValue(secondaryIndexProperties.get("parameters"), HashMap.class);
-                    } catch (IOException ex) {
-                        switch (index.getIndexType()) {
-                            case BTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForBTreeIndex();
-                                break;
-                            case RTREE:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForRTreeIndex();
-                                break;
-                            default:
-                                mergePolicyProperties = mergePolicyFactory.getDefaultPropertiesForInvertedIndex();
-                                break;
-                        }
-                    }
-                } else {
-                    mergePolicyFactory = compactionInfo.first;
-                    mergePolicyProperties = compactionInfo.second;
-                }
+            if (mergePolicyProperties.containsKey(ILSMMergePolicyFactory.SECONDARY_INDEX)) {
+                mergePolicyProperties.remove(ILSMMergePolicyFactory.SECONDARY_INDEX);
             }
         } else {
             mergePolicyFactory = compactionInfo.first;
             mergePolicyProperties = compactionInfo.second;
+            if (mergePolicyProperties.containsKey(ILSMMergePolicyFactory.SECONDARY_INDEX)) {
+                mergePolicyProperties.remove(ILSMMergePolicyFactory.SECONDARY_INDEX);
+            }
         }
+
         if (numFilterFields > 0) {
             setFilterTypeTraitsAndComparators();
         }
