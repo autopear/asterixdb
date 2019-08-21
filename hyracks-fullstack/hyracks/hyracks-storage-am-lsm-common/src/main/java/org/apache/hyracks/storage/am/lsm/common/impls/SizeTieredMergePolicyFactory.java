@@ -39,7 +39,7 @@ public class SizeTieredMergePolicyFactory implements ILSMMergePolicyFactory {
     private static final long serialVersionUID = 1L;
     public static final String NAME = "size-tiered";
     public static final String LOW_BUCKET = "low-bucket";
-    public static final String HIGH_BUCKET = "hight-bucket";
+    public static final String HIGH_BUCKET = "high-bucket";
     public static final String MIN_COMPONENTS = "min-components";
     public static final String MAX_COMPONENTS = "max-components";
     public static final String MIN_SSTABLE_SIZE = "min-sstable-size";
