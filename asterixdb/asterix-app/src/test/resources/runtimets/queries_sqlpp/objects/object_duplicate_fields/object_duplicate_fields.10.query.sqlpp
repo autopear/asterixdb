@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*
- * Description    : Tests whether a conflict between two closed field names are detected
- * Expected Result: An error reporting that there is a duplicate field name "name"
- * Author: zheilbron
- */
 
-// no inserts, deletes
+use test;
+
+from testds as x
+where x = {'fname1':'val1','fname2':'val2', 'fname1': 4}
+select value x;

@@ -16,10 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*
- * Description    : Tests whether a conflict between two closed field names are detected
- * Expected Result: An error reporting that there is a duplicate field name "name"
- * Author: zheilbron
- */
-drop dataverse test if exists;
-create dataverse test;
+
+select value {"name": "Sam", "f1": {"id": 3, "id2": 5}, "f2": "str", "f1": 8};

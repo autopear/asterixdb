@@ -16,19 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*
- * Description    : Tests whether a conflict between an open and closed field name are detected
- * Expected Result: An error reporting that there is a duplicate field name "name"
- * Author: zheilbron
- */
- 
-drop dataverse test if exists;
-create dataverse test;
-use dataverse test;
 
-create type opentype as open {
-id:int32,
-fname:string
-}
+use test;
 
-create dataset testds(opentype) primary key id; 
+upsert into ds1 {"id": 1, "f1": "str", "f2": null};
+upsert into ds1 {"id": 2, "f1": "str", "f2": 222};
+upsert into ds1 {"id": 3, "f1": "str"};
+upsert into ds1 {"id": 4, "f1": "str", "f2": 444};
+upsert into ds1 {"id": 5, "f1": "str", "f2": 555};
+
+upsert into ds1 {"id": 6, "f1": "str"};
+upsert into ds1 {"id": 7, "f1": "str", "f2": null};
+upsert into ds1 {"id": 8, "f1": "str"};
+upsert into ds1 {"id": 9, "f1": "str", "f2": null};

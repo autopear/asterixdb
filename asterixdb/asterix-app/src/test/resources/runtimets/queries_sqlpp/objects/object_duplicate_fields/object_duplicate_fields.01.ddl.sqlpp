@@ -18,12 +18,26 @@
  */
 
 /*
- * Description  : Testing object constructor without field names
- * Expected Res : Failure: Duplicate field name
+ * Description    : Tests that duplicate fields are ignored and only one field is picked
+ * Expected Result: Success with a warning reporting that there is a duplicate field name
  */
 
-from (
-  from range(1, 2) x
-  select value { "a": x, "b": { "a": x + 1 } }
-) x
-select value { x.a, x.b.a }
+DROP dataverse test if exists;
+CREATE dataverse test;
+
+use test;
+
+create type opentype as {
+  fname1 : string,
+  fname2 : string
+};
+
+create dataset testds(opentype) primary key fname1;
+
+create dataset ds(opentype) primary key fname1 with {
+"merge-policy": {"name":"no-merge"},
+"merge-policy": {
+    "name": "prefix",
+    "parameters": { "max-mergable-component-size": 32768, "max-tolerance-component-count": 32 }
+  }
+};

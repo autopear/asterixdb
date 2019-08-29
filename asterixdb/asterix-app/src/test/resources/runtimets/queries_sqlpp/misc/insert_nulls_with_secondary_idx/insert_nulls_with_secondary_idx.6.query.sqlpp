@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*
- * Description    : Tests whether a conflict between two open field names are detected
- * Expected Result: An error reporting that there is a duplicate field name "name"
- * Author: zheilbron
- */
- 
-use dataverse test;
 
-insert into dataset testds({'fname1': "name", 'fname2': "name"});
+/*
+ * Description: Testing that nulls do not make it to the secondary indexes
+ */
+use test;
+
+SET `import-private-functions` `true`;
+FROM DUMP_INDEX("test", "ds2", "idx2") AS v
+SELECT VALUE v
+ORDER BY v.values;

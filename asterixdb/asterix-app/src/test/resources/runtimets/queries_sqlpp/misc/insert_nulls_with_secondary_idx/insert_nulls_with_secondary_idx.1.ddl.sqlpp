@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*
- * Description    : Tests whether a conflict between an open and closed field name are detected
- * Expected Result: An error reporting that there is a duplicate field name "name"
- * Author: zheilbron
- */
- 
-use dataverse test;
 
-for $x in dataset('testds')
-return {$x.fname: "smith", lowercase("NAME"): "john"}
+drop dataverse test if exists;
+create dataverse test;
+
+use test;
+
+create type t1 as {id: int, f1:string, f2:int?};
+create dataset ds1(t1) primary key id;
+create dataset ds2(t1) primary key id;
+create index idx1 on ds1(f2);
+create index idx2 on ds2(f2);
