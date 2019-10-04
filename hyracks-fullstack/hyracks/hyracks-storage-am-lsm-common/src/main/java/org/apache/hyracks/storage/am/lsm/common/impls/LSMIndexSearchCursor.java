@@ -27,13 +27,16 @@ import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.common.api.ILSMIndexCursor;
+import org.apache.hyracks.storage.am.common.impls.IndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilter;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMHarness;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexOperationContext;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMTreeTupleReference;
 import org.apache.hyracks.storage.common.EnforcedIndexCursor;
+import org.apache.hyracks.storage.common.IIndexAccessParameters;
 import org.apache.hyracks.storage.common.IIndexCursor;
+import org.apache.hyracks.storage.common.IIndexCursorStats;
 import org.apache.hyracks.storage.common.MultiComparator;
 
 public abstract class LSMIndexSearchCursor extends EnforcedIndexCursor implements ILSMIndexCursor {
@@ -56,11 +59,12 @@ public abstract class LSMIndexSearchCursor extends EnforcedIndexCursor implement
     protected int hasNextCallCount = 0;
 
     protected List<ILSMComponent> operationalComponents;
+    protected final IIndexAccessParameters iap;
 
     protected String[] diskNames;
     protected long[] diskTimes;
 
-    public LSMIndexSearchCursor(ILSMIndexOperationContext opCtx, boolean returnDeletedTuples) {
+    public LSMIndexSearchCursor(ILSMIndexOperationContext opCtx, boolean returnDeletedTuples, IIndexCursorStats stats) {
         this.opCtx = opCtx;
         this.returnDeletedTuples = returnDeletedTuples;
         outputElement = null;
@@ -70,6 +74,7 @@ public abstract class LSMIndexSearchCursor extends EnforcedIndexCursor implement
         switchedElements = new PriorityQueueElement[switchComponentTupleBuilders.length];
         diskTimes = null;
         diskNames = null;
+        this.iap = IndexAccessParameters.createNoOpParams(stats);
     }
 
     public ILSMIndexOperationContext getOpCtx() {

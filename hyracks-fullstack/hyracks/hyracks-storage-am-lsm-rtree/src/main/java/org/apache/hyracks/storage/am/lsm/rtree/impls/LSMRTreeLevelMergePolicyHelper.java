@@ -44,6 +44,7 @@ import org.apache.hyracks.storage.am.rtree.impls.SearchPredicate;
 import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.MultiComparator;
+import org.apache.hyracks.storage.common.buffercache.IPageWriteCallback;
 
 public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelper {
     protected final AbstractLSMRTree lsmRTree;
@@ -281,8 +282,9 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo, 1);
             ILSMDiskComponent newComponent =
                     lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(), null, null, true);
+            IPageWriteCallback pageWriteCallback = lsmRTree.getPageWriteCallbackFactory().createPageWriteCallback();
             ILSMDiskComponentBulkLoader componentBulkLoader =
-                    newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
+                    newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false, pageWriteCallback);
             double[] minMBR = null;
             double[] maxMBR = null;
             long totalTuples = 0L;
@@ -378,8 +380,10 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         mergeBloomFilterTargets.add(refs.getBloomFilterFileReference());
                         newComponent = lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(), null,
                                 refs.getBloomFilterFileReference(), true);
-                        componentBulkLoader =
-                                newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
+                        IPageWriteCallback pageWriteCallback =
+                                lsmRTree.getPageWriteCallbackFactory().createPageWriteCallback();
+                        componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false,
+                                false, pageWriteCallback);
                         newComponents.add(newComponent);
                         componentBulkLoaders.add(componentBulkLoader);
                         filterCmp = newComponent.getLSMComponentFilter() == null ? null
@@ -462,8 +466,9 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo, 1);
             ILSMDiskComponent newComponent =
                     lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(), null, null, true);
+            IPageWriteCallback pageWriteCallback = lsmRTree.getPageWriteCallbackFactory().createPageWriteCallback();
             ILSMDiskComponentBulkLoader componentBulkLoader =
-                    newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
+                    newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false, pageWriteCallback);
             double[] minMBR = null;
             double[] maxMBR = null;
             long totalTuples = 0L;
@@ -546,8 +551,10 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     ILSMDiskComponent newComponent = lsmRTree.createDiskComponent(refs.getInsertIndexFileReference(),
                             null, refs.getBloomFilterFileReference(), true);
                     newComponents.add(newComponent);
-                    ILSMDiskComponentBulkLoader componentBulkLoader =
-                            newComponent.createBulkLoader(operation, 1.0f, false, 0L, false, false, false);
+                    IPageWriteCallback pageWriteCallback =
+                            lsmRTree.getPageWriteCallbackFactory().createPageWriteCallback();
+                    ILSMDiskComponentBulkLoader componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f,
+                            false, 0L, false, false, false, pageWriteCallback);
                     componentBulkLoaders.add(componentBulkLoader);
                     MultiComparator filterCmp = newComponent.getLSMComponentFilter() == null ? null
                             : MultiComparator.create(newComponent.getLSMComponentFilter().getFilterCmpFactories());

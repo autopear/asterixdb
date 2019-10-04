@@ -36,6 +36,7 @@ import org.apache.asterix.common.context.IStorageComponentProvider;
 import org.apache.asterix.common.exceptions.ACIDException;
 import org.apache.asterix.common.exceptions.MetadataException;
 import org.apache.asterix.common.ioopcallbacks.LSMIndexIOOperationCallbackFactory;
+import org.apache.asterix.common.ioopcallbacks.LSMIndexPageWriteCallbackFactory;
 import org.apache.asterix.common.utils.StorageConstants;
 import org.apache.asterix.common.utils.StoragePathUtil;
 import org.apache.asterix.external.adapter.factory.GenericAdapterFactory;
@@ -82,6 +83,8 @@ import org.apache.hyracks.storage.am.lsm.btree.dataflow.LSMBTreeLocalResourceFac
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTrackerFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMPageWriteCallbackFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.ConcurrentMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
@@ -166,6 +169,8 @@ public class MetadataBootstrap {
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.info("Finished creating metadata B-trees.");
                 }
+            } else {
+                insertNewCompactionPoliciesIfNotExist(mdTxnCtx);
             }
             // #. initialize datasetIdFactory
             MetadataManager.INSTANCE.initializeDatasetIdFactory(mdTxnCtx);
@@ -268,9 +273,24 @@ public class MetadataBootstrap {
         String[] builtInCompactionPolicyClassNames = new String[] { ConstantMergePolicyFactory.class.getName(),
                 PrefixMergePolicyFactory.class.getName(), NoMergePolicyFactory.class.getName(),
                 LevelMergePolicyFactory.class.getName(), SizeTieredMergePolicyFactory.class.getName(),
-                CorrelatedPrefixMergePolicyFactory.class.getName() };
+                CorrelatedPrefixMergePolicyFactory.class.getName(), ConcurrentMergePolicyFactory.class.getName() };
         for (String policyClassName : builtInCompactionPolicyClassNames) {
             CompactionPolicy compactionPolicy = getCompactionPolicyEntity(policyClassName);
+            MetadataManager.INSTANCE.addCompactionPolicy(mdTxnCtx, compactionPolicy);
+        }
+    }
+
+    /**
+     * Insert newly introduced merge policies into existing datasets (for backward-compatibility)
+     *
+     * @param mdTxnCtx
+     * @throws AlgebricksException
+     */
+    private static void insertNewCompactionPoliciesIfNotExist(MetadataTransactionContext mdTxnCtx)
+            throws AlgebricksException {
+        if (MetadataManager.INSTANCE.getCompactionPolicy(mdTxnCtx, MetadataConstants.METADATA_DATAVERSE_NAME,
+                ConcurrentMergePolicyFactory.NAME) == null) {
+            CompactionPolicy compactionPolicy = getCompactionPolicyEntity(ConcurrentMergePolicyFactory.class.getName());
             MetadataManager.INSTANCE.addCompactionPolicy(mdTxnCtx, compactionPolicy);
         }
     }
@@ -332,18 +352,21 @@ public class MetadataBootstrap {
         DatasetInfoProvider datasetInfoProvider = new DatasetInfoProvider(datasetId);
         ILSMIOOperationCallbackFactory ioOpCallbackFactory =
                 new LSMIndexIOOperationCallbackFactory(idGeneratorProvider, datasetInfoProvider);
+        ILSMPageWriteCallbackFactory pageWriteCallbackFactory = new LSMIndexPageWriteCallbackFactory();
+
         IStorageComponentProvider storageComponentProvider = appContext.getStorageComponentProvider();
         if (isNewUniverse()) {
             final double bloomFilterFalsePositiveRate =
                     appContext.getStorageProperties().getBloomFilterFalsePositiveRate();
-            LSMBTreeLocalResourceFactory lsmBtreeFactory = new LSMBTreeLocalResourceFactory(
-                    storageComponentProvider.getStorageManager(), typeTraits, cmpFactories, null, null, null,
-                    opTrackerFactory, ioOpCallbackFactory, storageComponentProvider.getMetadataPageManagerFactory(),
-                    new AsterixVirtualBufferCacheProvider(datasetId),
-                    storageComponentProvider.getIoOperationSchedulerProvider(),
-                    appContext.getMetadataMergePolicyFactory(), StorageConstants.DEFAULT_COMPACTION_POLICY_PROPERTIES,
-                    true, bloomFilterKeyFields, bloomFilterFalsePositiveRate, true, null,
-                    NoOpCompressorDecompressorFactory.INSTANCE);
+            LSMBTreeLocalResourceFactory lsmBtreeFactory =
+                    new LSMBTreeLocalResourceFactory(storageComponentProvider.getStorageManager(), typeTraits,
+                            cmpFactories, null, null, null, opTrackerFactory, ioOpCallbackFactory,
+                            pageWriteCallbackFactory, storageComponentProvider.getMetadataPageManagerFactory(),
+                            new AsterixVirtualBufferCacheProvider(datasetId),
+                            storageComponentProvider.getIoOperationSchedulerProvider(),
+                            appContext.getMetadataMergePolicyFactory(),
+                            StorageConstants.DEFAULT_COMPACTION_POLICY_PROPERTIES, true, bloomFilterKeyFields,
+                            bloomFilterFalsePositiveRate, true, null, NoOpCompressorDecompressorFactory.INSTANCE);
             DatasetLocalResourceFactory dsLocalResourceFactory =
                     new DatasetLocalResourceFactory(datasetId, lsmBtreeFactory);
             // TODO(amoudi) Creating the index should be done through the same code path as

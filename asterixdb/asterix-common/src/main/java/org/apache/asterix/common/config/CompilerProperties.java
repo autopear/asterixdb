@@ -18,7 +18,12 @@
  */
 package org.apache.asterix.common.config;
 
-import static org.apache.hyracks.control.common.config.OptionTypes.*;
+import static org.apache.hyracks.control.common.config.OptionTypes.BOOLEAN;
+import static org.apache.hyracks.control.common.config.OptionTypes.INTEGER;
+import static org.apache.hyracks.control.common.config.OptionTypes.INTEGER_BYTE_UNIT;
+import static org.apache.hyracks.control.common.config.OptionTypes.LONG_BYTE_UNIT;
+import static org.apache.hyracks.control.common.config.OptionTypes.POSITIVE_INTEGER;
+import static org.apache.hyracks.control.common.config.OptionTypes.UNSIGNED_INTEGER;
 import static org.apache.hyracks.util.StorageUtil.StorageUnit.KILOBYTE;
 import static org.apache.hyracks.util.StorageUtil.StorageUnit.MEGABYTE;
 
@@ -45,7 +50,7 @@ public class CompilerProperties extends AbstractProperties {
                 "The memory budget (in bytes) for a group by operator instance in a partition"),
         COMPILER_WINDOWMEMORY(
                 LONG_BYTE_UNIT,
-                StorageUtil.getLongSizeInBytes(4L, MEGABYTE),
+                StorageUtil.getLongSizeInBytes(32L, MEGABYTE),
                 "The memory budget (in bytes) for a window operator instance in a partition"),
         COMPILER_TEXTSEARCHMEMORY(
                 LONG_BYTE_UNIT,
@@ -166,7 +171,6 @@ public class CompilerProperties extends AbstractProperties {
     }
 
     public int getSortSamples() {
-        int numSamples = accessor.getInt(Option.COMPILER_SORT_SAMPLES);
-        return numSamples > 0 ? numSamples : AlgebricksConfig.SORT_SAMPLES;
+        return accessor.getInt(Option.COMPILER_SORT_SAMPLES);
     }
 }

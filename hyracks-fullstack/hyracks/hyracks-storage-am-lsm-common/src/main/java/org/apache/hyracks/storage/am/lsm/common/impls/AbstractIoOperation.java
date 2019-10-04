@@ -18,10 +18,12 @@
  */
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
@@ -46,11 +48,12 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
     private List<ILSMDiskComponent> newComponents;
     private boolean completed = false;
     private List<IoOperationCompleteListener> completeListeners;
+    private final AtomicBoolean isActive = new AtomicBoolean(true);
 
     public AbstractIoOperation(ILSMIndexAccessor accessor, List<FileReference> targets,
             ILSMIOOperationCallback callback, String indexIdentifier) {
         this.accessor = accessor;
-        this.targets = targets;
+        this.targets = new ArrayList<>(targets);
         this.callback = callback;
         this.indexIdentifier = indexIdentifier;
     }
@@ -217,5 +220,36 @@ public abstract class AbstractIoOperation implements ILSMIOOperation {
     @Override
     public boolean hasFailed() {
         return status == LSMIOOperationStatus.FAILURE;
+    }
+
+    @Override
+    public void resume() {
+        synchronized (this) {
+            isActive.set(true);
+            notifyAll();
+        }
+    }
+
+    @Override
+    public void pause() {
+        isActive.set(false);
+    }
+
+    @Override
+    public boolean isActive() {
+        return isActive.get();
+    }
+
+    public void waitIfPaused() throws HyracksDataException {
+        synchronized (this) {
+            while (!isActive.get()) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw HyracksDataException.create(e);
+                }
+            }
+        }
     }
 }

@@ -41,6 +41,11 @@ public class DatasetDeclParametersUtil {
     public static final String MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME = "max-tolerance-component-count";
     public static final String MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME = "num-components";
 
+    public static final String MERGE_POLICY_SIZE_RATIO_NAME = "size-ratio";
+    public static final String MERGE_POLICY_MAX_COMPONENT_COUNT_NAME = "max-component-count";
+    public static final String MERGE_POLICY_MIN_MERGE_COMPONENT_COUNT_NAME = "min-merge-component-count";
+    public static final String MERGE_POLICY_MAX_MERGE_COMPONENT_COUNT_NAME = "max-merge-component-count";
+
     /* ***********************************************
      * Storage Block Compression Parameters
      * ***********************************************
@@ -79,7 +84,9 @@ public class DatasetDeclParametersUtil {
         //merge-policy.parameters
         final String[] parameterNames = { ILSMMergePolicyFactory.SECONDARY_INDEX,
                 MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME, MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME,
-                MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME, SizeTieredMergePolicyFactory.LOW_BUCKET,
+                MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME, MERGE_POLICY_SIZE_RATIO_NAME,
+                MERGE_POLICY_MAX_COMPONENT_COUNT_NAME, MERGE_POLICY_MIN_MERGE_COMPONENT_COUNT_NAME,
+                MERGE_POLICY_MAX_MERGE_COMPONENT_COUNT_NAME, SizeTieredMergePolicyFactory.LOW_BUCKET,
                 SizeTieredMergePolicyFactory.HIGH_BUCKET, SizeTieredMergePolicyFactory.MIN_COMPONENTS,
                 SizeTieredMergePolicyFactory.MAX_COMPONENTS, SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE,
                 LevelMergePolicyFactory.PICK, LevelMergePolicyFactory.NUM_COMPONENTS_0,
@@ -88,6 +95,10 @@ public class DatasetDeclParametersUtil {
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // MERGABLE_SIZE
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // TOLERANCE_COUNT
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // NUMBER_COMPONENTS
+                AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // SIZE_RATIO
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // MAX_COMPONENT_COUNT
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // MIN_MERGE_COMPONENT_COUNT
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // MAX_MERGE_COMPONENT_COUNT
                 AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // LOW_BUCKET
                 AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // HIGH_BUCKET
                 AUnionType.createUnknownableType(BuiltinType.AINT32), // MIN_COMPONENTS
@@ -98,6 +109,7 @@ public class DatasetDeclParametersUtil {
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // NUM_COMPONENTS_1
                 AUnionType.createUnknownableType(BuiltinType.ASTRING), // OVERLAP_MODE
         };
+
         final ARecordType parameters =
                 new ARecordType(MERGE_POLICY_PARAMETERS_PARAMETER_NAME, parameterNames, parametersTypes, false);
 

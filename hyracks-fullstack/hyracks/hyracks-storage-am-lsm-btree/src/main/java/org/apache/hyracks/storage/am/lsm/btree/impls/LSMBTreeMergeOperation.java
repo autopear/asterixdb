@@ -29,20 +29,23 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.MergeOperation;
 import org.apache.hyracks.storage.common.IIndexCursor;
+import org.apache.hyracks.storage.common.IIndexCursorStats;
 
 public class LSMBTreeMergeOperation extends MergeOperation {
 
     private List<FileReference> bloomFilterMergeTargets;
 
-    public LSMBTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, List<FileReference> targets,
-            List<FileReference> bloomFilterMergeTargets, ILSMIOOperationCallback callback, String indexIdentifier) {
-        super(accessor, targets, callback, indexIdentifier, cursor);
+    public LSMBTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, IIndexCursorStats stats,
+            List<FileReference> targets, List<FileReference> bloomFilterMergeTargets, ILSMIOOperationCallback callback,
+            String indexIdentifier) {
+        super(accessor, targets, callback, indexIdentifier, cursor, stats);
         this.bloomFilterMergeTargets = bloomFilterMergeTargets;
     }
 
-    public LSMBTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, FileReference target,
-            FileReference bloomFilterMergeTarget, ILSMIOOperationCallback callback, String indexIdentifier) {
-        super(accessor, target, callback, indexIdentifier, cursor);
+    public LSMBTreeMergeOperation(ILSMIndexAccessor accessor, IIndexCursor cursor, IIndexCursorStats stats,
+            FileReference target, FileReference bloomFilterMergeTarget, ILSMIOOperationCallback callback,
+            String indexIdentifier) {
+        super(accessor, target, callback, indexIdentifier, cursor, stats);
         this.bloomFilterMergeTargets = Collections.singletonList(bloomFilterMergeTarget);
     }
 
@@ -75,4 +78,5 @@ public class LSMBTreeMergeOperation extends MergeOperation {
     public LSMComponentFileReferences getComponentFiles() {
         return new LSMComponentFileReferences(targets.get(0), null, bloomFilterMergeTargets.get(0));
     }
+
 }

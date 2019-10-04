@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -33,7 +34,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.hyracks.api.com.job.profiling.counters.Counter;
 import org.apache.hyracks.api.comm.IFrameReader;
 import org.apache.hyracks.api.comm.IFrameWriter;
 import org.apache.hyracks.api.comm.IPartitionCollector;
@@ -64,13 +67,15 @@ import org.apache.hyracks.api.util.ExceptionUtils;
 import org.apache.hyracks.api.util.JavaSerializationUtils;
 import org.apache.hyracks.control.common.job.PartitionState;
 import org.apache.hyracks.control.common.job.profiling.StatsCollector;
-import org.apache.hyracks.control.common.job.profiling.counters.Counter;
 import org.apache.hyracks.control.common.job.profiling.om.PartitionProfile;
 import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
 import org.apache.hyracks.control.nc.io.WorkspaceFileFactory;
 import org.apache.hyracks.control.nc.resources.DefaultDeallocatableRegistry;
 import org.apache.hyracks.control.nc.work.NotifyTaskCompleteWork;
 import org.apache.hyracks.control.nc.work.NotifyTaskFailureWork;
+import org.apache.hyracks.util.IThreadStats;
+import org.apache.hyracks.util.IThreadStatsCollector;
+import org.apache.hyracks.util.ThreadStats;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -122,6 +127,10 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
 
     private final IWarningCollector warningCollector;
 
+    private final Set<IThreadStatsCollector> threadStatsCollectors = new HashSet<>();
+
+    private final Map<Long, IThreadStats> perThreadStats = new HashMap<>();
+
     public Task(Joblet joblet, Set<JobFlag> jobFlags, TaskAttemptId taskId, String displayName,
             ExecutorService executor, NodeControllerService ncs,
             List<List<PartitionChannel>> inputChannelsFromConnectors) {
@@ -141,7 +150,7 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
         this.inputChannelsFromConnectors = inputChannelsFromConnectors;
         statsCollector = new StatsCollector();
         warnings = ConcurrentHashMap.newKeySet();
-        warningCollector = warnings::add;
+        warningCollector = createWarningCollector(joblet.getMaxWarnings());
     }
 
     public void setTaskRuntime(IPartitionCollector[] collectors, IOperatorNodePushable operator) {
@@ -202,6 +211,7 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
 
     public void close() {
         deallocatableRegistry.close();
+        threadStatsCollectors.forEach(IThreadStatsCollector::unsubscribe);
     }
 
     @Override
@@ -335,6 +345,7 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
                                     removePendingThread(thread);
                                 }
                             } finally {
+                                unsubscribeThreadFromStats();
                                 sem.release();
                             }
                         });
@@ -342,6 +353,7 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
                     try {
                         pushFrames(collectors[0], inputChannelsFromConnectors.get(0), operator.getInputFrameWriter(0));
                     } finally {
+                        unsubscribeThreadFromStats();
                         sem.acquireUninterruptibly(collectors.length - 1);
                     }
                 }
@@ -486,12 +498,60 @@ public class Task implements IHyracksTaskContext, ICounterContext, Runnable {
         return warningCollector;
     }
 
+    @Override
+    public IThreadStats getThreadStats() {
+        synchronized (threadStatsCollectors) {
+            return perThreadStats.computeIfAbsent(Thread.currentThread().getId(), threadId -> new ThreadStats());
+        }
+    }
+
+    @Override
+    public synchronized void subscribeThreadToStats(IThreadStatsCollector threadStatsCollector) {
+        //TODO do this only when profiling is enabled
+        synchronized (threadStatsCollectors) {
+            threadStatsCollectors.add(threadStatsCollector);
+            final long threadId = Thread.currentThread().getId();
+            IThreadStats threadStat = perThreadStats.computeIfAbsent(threadId, id -> new ThreadStats());
+            threadStatsCollector.subscribe(threadStat);
+        }
+    }
+
+    @Override
+    public synchronized void unsubscribeThreadFromStats() {
+        synchronized (threadStatsCollectors) {
+            threadStatsCollectors.forEach(IThreadStatsCollector::unsubscribe);
+        }
+    }
+
     public boolean isCompleted() {
         return completed;
     }
 
     public Set<Warning> getWarnings() {
         return warnings;
+    }
+
+    private IWarningCollector createWarningCollector(long maxWarnings) {
+        return new IWarningCollector() {
+
+            private final AtomicLong warningsCount = new AtomicLong();
+
+            @Override
+            public void warn(Warning warning) {
+                warnings.add(warning);
+            }
+
+            @Override
+            public boolean shouldWarn() {
+                long currentCount = warningsCount.getAndUpdate(count -> count < Long.MAX_VALUE ? count + 1 : count);
+                return currentCount < maxWarnings;
+            }
+
+            @Override
+            public long getTotalWarningsCount() {
+                return warningsCount.get();
+            }
+        };
     }
 
     @Override

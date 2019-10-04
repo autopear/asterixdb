@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hyracks.api.application.INCServiceContext;
+import org.apache.hyracks.api.com.job.profiling.counters.Counter;
 import org.apache.hyracks.api.comm.IPartitionCollector;
 import org.apache.hyracks.api.comm.PartitionChannel;
 import org.apache.hyracks.api.context.IHyracksJobletContext;
@@ -53,7 +54,6 @@ import org.apache.hyracks.control.common.deployment.DeploymentUtils;
 import org.apache.hyracks.control.common.job.PartitionRequest;
 import org.apache.hyracks.control.common.job.PartitionState;
 import org.apache.hyracks.control.common.job.profiling.StatsCollector;
-import org.apache.hyracks.control.common.job.profiling.counters.Counter;
 import org.apache.hyracks.control.common.job.profiling.om.JobletProfile;
 import org.apache.hyracks.control.common.job.profiling.om.TaskProfile;
 import org.apache.hyracks.control.nc.io.WorkspaceFileFactory;
@@ -105,6 +105,8 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
 
     private final long jobStartTime;
 
+    private final long maxWarnings;
+
     public Joblet(NodeControllerService nodeController, DeploymentId deploymentId, JobId jobId,
             INCServiceContext serviceCtx, ActivityClusterGraph acg,
             IJobletEventListenerFactory jobletEventListenerFactory, long jobStartTime) {
@@ -134,6 +136,7 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
         IGlobalJobDataFactory gjdf = acg.getGlobalJobDataFactory();
         globalJobData = gjdf != null ? gjdf.createGlobalJobData(this) : null;
         this.jobStartTime = jobStartTime;
+        this.maxWarnings = acg.getMaxWarnings();
     }
 
     @Override
@@ -206,7 +209,8 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
         counterMap.forEach((key, value) -> counters.put(key, value.get()));
         for (Task task : taskMap.values()) {
             TaskProfile taskProfile = new TaskProfile(task.getTaskAttemptId(),
-                    new Hashtable<>(task.getPartitionSendProfile()), new StatsCollector(), task.getWarnings());
+                    new Hashtable<>(task.getPartitionSendProfile()), new StatsCollector(), task.getWarnings(),
+                    task.getWarningCollector().getTotalWarningsCount());
             task.dumpProfile(taskProfile);
             jProfile.getTaskProfiles().put(task.getTaskAttemptId(), taskProfile);
         }
@@ -261,6 +265,10 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
 
     public final int getFrameSize() {
         return frameManager.getInitialFrameSize();
+    }
+
+    public final long getMaxWarnings() {
+        return maxWarnings;
     }
 
     public IIOManager getIOManager() {
@@ -320,6 +328,7 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
         }
     }
 
+    @SuppressWarnings("squid:S1166") // Either log or rethrow this exception
     private void performCleanup() {
         nodeController.getJobletMap().remove(jobId);
         IJobletEventListener listener = getJobletEventListener();
@@ -331,7 +340,7 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
         try {
             nodeController.getClusterController(jobId.getCcId()).notifyJobletCleanup(jobId, nodeController.getId());
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.info(e);
         }
     }
 

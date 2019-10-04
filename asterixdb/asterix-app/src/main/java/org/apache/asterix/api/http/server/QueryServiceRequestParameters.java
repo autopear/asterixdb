@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class QueryServiceRequestParameters {
 
+    public static final long DEFAULT_MAX_WARNINGS = 0L;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private String host;
@@ -50,8 +51,10 @@ public class QueryServiceRequestParameters {
     private boolean logicalPlan;
     private boolean optimizedLogicalPlan;
     private boolean job;
+    private boolean profile;
     private boolean signature;
     private boolean multiStatement;
+    private long maxWarnings = DEFAULT_MAX_WARNINGS;
 
     public String getHost() {
         return host;
@@ -197,6 +200,14 @@ public class QueryServiceRequestParameters {
         this.job = job;
     }
 
+    public void setProfile(boolean profile) {
+        this.profile = profile;
+    }
+
+    public boolean isProfile() {
+        return profile;
+    }
+
     public boolean isSignature() {
         return signature;
     }
@@ -211,6 +222,14 @@ public class QueryServiceRequestParameters {
 
     public void setMultiStatement(boolean multiStatement) {
         this.multiStatement = multiStatement;
+    }
+
+    public void setMaxWarnings(long maxWarnings) {
+        this.maxWarnings = maxWarnings;
+    }
+
+    public long getMaxWarnings() {
+        return maxWarnings;
     }
 
     public ObjectNode asJson() {
@@ -230,10 +249,12 @@ public class QueryServiceRequestParameters {
         object.put("logicalPlan", logicalPlan);
         object.put("optimizedLogicalPlan", optimizedLogicalPlan);
         object.put("job", job);
+        object.put("profile", profile);
         object.put("signature", signature);
         object.put("multiStatement", multiStatement);
         object.put("parseOnly", parseOnly);
         object.put("readOnly", readOnly);
+        object.put("maxWarnings", maxWarnings);
         if (statementParams != null) {
             for (Map.Entry<String, JsonNode> statementParam : statementParams.entrySet()) {
                 object.set('$' + statementParam.getKey(), statementParam.getValue());

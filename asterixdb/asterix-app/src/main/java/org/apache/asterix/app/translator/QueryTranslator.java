@@ -75,6 +75,7 @@ import org.apache.asterix.common.exceptions.ExceptionUtils;
 import org.apache.asterix.common.exceptions.MetadataException;
 import org.apache.asterix.common.exceptions.RuntimeDataException;
 import org.apache.asterix.common.exceptions.WarningCollector;
+import org.apache.asterix.common.exceptions.WarningUtil;
 import org.apache.asterix.common.functions.FunctionSignature;
 import org.apache.asterix.common.utils.JobUtils;
 import org.apache.asterix.common.utils.JobUtils.ProgressState;
@@ -290,6 +291,7 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
         final Stats stats = requestParameters.getStats();
         final ResultMetadata outMetadata = requestParameters.getOutMetadata();
         final Map<String, IAObject> stmtParams = requestParameters.getStatementParameters();
+        warningCollector.setMaxWarnings(sessionConfig.getMaxWarnings());
         try {
             for (Statement stmt : statements) {
                 if (sessionConfig.is(SessionConfig.FORMAT_HTML)) {
@@ -392,6 +394,9 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         metadataProvider.setResultAsyncMode(
                                 resultDelivery == ResultDelivery.ASYNC || resultDelivery == ResultDelivery.DEFERRED);
                         metadataProvider.setMaxResultReads(maxResultReads);
+                        if (stats.getType() == Stats.ProfileType.FULL) {
+                            this.jobFlags.add(JobFlag.PROFILE_RUNTIME);
+                        }
                         handleQuery(metadataProvider, (Query) stmt, hcc, resultSet, resultDelivery, outMetadata, stats,
                                 requestParameters, stmtParams, stmtRewriter);
                         break;
@@ -2486,6 +2491,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             try {
                 final JobSpecification jobSpec =
                         rewriteCompileQuery(hcc, metadataProvider, query, null, stmtParams, stmtRewriter);
+                // update stats with count of compile-time warnings. needs to be adapted for multi-statement.
+                stats.updateTotalWarningsCount(warningCollector.getTotalWarningsCount());
                 afterCompile();
                 MetadataManager.INSTANCE.commitTransaction(mdTxnCtx);
                 bActiveTxn = false;
@@ -2551,7 +2558,12 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 (org.apache.asterix.api.common.ResultMetadata) controllerService.getResultDirectoryService()
                         .getResultMetadata(jobId, rsId);
         stats.setProcessedObjects(resultMetadata.getProcessedObjects());
-        warningCollector.warn(resultMetadata.getWarnings());
+        if (jobFlags.contains(JobFlag.PROFILE_RUNTIME)) {
+            stats.setJobProfile(resultMetadata.getJobProfile());
+        }
+        stats.setDiskIoCount(resultMetadata.getDiskIoCount());
+        stats.updateTotalWarningsCount(resultMetadata.getTotalWarningsCount());
+        WarningUtil.mergeWarnings(resultMetadata.getWarnings(), warningCollector);
     }
 
     private void asyncCreateAndRunJob(IHyracksClientConnection hcc, IStatementCompiler compiler, IMetadataLocker locker,
@@ -2926,8 +2938,8 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
     }
 
     @Override
-    public void getWarnings(Collection<? super Warning> outWarnings) {
-        warningCollector.getWarnings(outWarnings);
+    public void getWarnings(Collection<? super Warning> outWarnings, long maxWarnings) {
+        warningCollector.getWarnings(outWarnings, maxWarnings);
     }
 
     /**

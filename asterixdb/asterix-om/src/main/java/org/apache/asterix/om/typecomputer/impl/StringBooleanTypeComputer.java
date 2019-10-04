@@ -23,6 +23,9 @@ import org.apache.asterix.om.types.IAType;
 import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 
+/**
+ * For function signature: nullable_boolean fun(string...)
+ */
 public class StringBooleanTypeComputer extends AbstractStringTypeComputer {
     public static final StringBooleanTypeComputer INSTANCE = new StringBooleanTypeComputer();
 
@@ -31,6 +34,6 @@ public class StringBooleanTypeComputer extends AbstractStringTypeComputer {
 
     @Override
     public IAType getResultType(ILogicalExpression expr, IAType... types) throws AlgebricksException {
-        return BuiltinType.ABOOLEAN;
+        return getType(BuiltinType.ABOOLEAN, types);
     }
 }
