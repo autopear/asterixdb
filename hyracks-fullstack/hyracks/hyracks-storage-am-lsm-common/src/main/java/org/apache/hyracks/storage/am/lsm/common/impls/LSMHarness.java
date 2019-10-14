@@ -615,7 +615,7 @@ public class LSMHarness implements ILSMHarness {
         }
         flushCnt.incrementAndGet();
         totalFlushed.getAndAdd(operation.getNewComponent().getComponentSize());
-        if (indexName.compareTo("rtreeidx") == 0) {
+        if (indexName.compareTo("rtreeidx") == 0 || indexName.compareTo("usertable") == 0) {
             LOGGER.info(
                     "[ALLCOMPONENTS]\t" + flushCnt.get() + "\t" + mergeCnt.get() + "\t" + lsmIndex.getComponentsInfo());
         }
@@ -695,7 +695,7 @@ public class LSMHarness implements ILSMHarness {
         mergeCnt.incrementAndGet();
         totalMerged.getAndAdd(mergedSize);
 
-        if (indexName.compareTo("rtreeidx") == 0) {
+        if (indexName.compareTo("rtreeidx") == 0 || indexName.compareTo("usertable") == 0) {
             String after = getComponentSizes(lsmIndex.getDiskComponents());
             LOGGER.info("[MERGE]\tthread=" + Thread.currentThread().getId() + "\ttime=" + duration + "\tbefore="
                     + before + "\tsrc=" + toMerge + "\tdst=" + news + "\tafter=" + after + "\tflushes=" + flushCnt.get()
