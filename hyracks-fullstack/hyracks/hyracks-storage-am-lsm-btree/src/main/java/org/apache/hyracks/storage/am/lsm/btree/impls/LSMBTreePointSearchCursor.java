@@ -229,14 +229,18 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 }
             }
 
-            List<ILSMComponent> cs = new ArrayList<>();
-            for (ILSMComponent c : operationalComponents) {
-                if (c.getType() == LSMComponentType.MEMORY) {
-                    cs.add(c);
+            if (!operationalComponents.isEmpty()) {
+                List<ILSMComponent> cs = new ArrayList<>();
+                for (ILSMComponent c : operationalComponents) {
+                    if (c.getType() == LSMComponentType.MEMORY) {
+                        cs.add(c);
+                    }
                 }
+                cs.addAll(operationalComponents.get(0).getLsmIndex().getDiskComponents());
+                allComponents = LSMHarness.getComponentSizes(cs);
+            } else {
+                allComponents = "";
             }
-            cs.addAll(operationalComponents.get(0).getLsmIndex().getDiskComponents());
-            allComponents = LSMHarness.getComponentSizes(cs);
             availComponents = "";
             for (int i = 0; i < operationalComponents.size(); i++) {
                 String s;
@@ -253,6 +257,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                     availComponents += ";" + s;
                 }
             }
+            timeStr = "";
             startTime = System.nanoTime();
         }
 
