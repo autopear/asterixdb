@@ -183,7 +183,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
 
     @Override
     public void doClose() throws HyracksDataException {
-        if (isSearch) {
+        if (isSearch && !operationalComponents.isEmpty()) {
             long duration = System.nanoTime() - startTime;
             String[] paths =
                     operationalComponents.get(0).getLsmIndex().getIndexIdentifier().replace("\\", "/").split("/");
