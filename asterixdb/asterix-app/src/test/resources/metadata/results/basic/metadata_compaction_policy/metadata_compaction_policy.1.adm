@@ -5,3 +5,8 @@
 { "DataverseName": "Metadata", "CompactionPolicy": "prefix", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory" }
 { "DataverseName": "Metadata", "CompactionPolicy": "level", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory" }
 { "DataverseName": "Metadata", "CompactionPolicy": "size-tiered", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "binomial", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.BinomialMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "min-latency", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.MinLatencyMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "bigtable", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.BigtableMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "exploring", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.ExploringMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "fixed", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.FixedMergePolicyFactory" }

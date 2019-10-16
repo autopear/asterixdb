@@ -84,9 +84,14 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFacto
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTrackerFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMPageWriteCallbackFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.BigtableMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.BinomialMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.ConcurrentMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.ExploringMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.FixedMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.MinLatencyMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
@@ -273,7 +278,10 @@ public class MetadataBootstrap {
         String[] builtInCompactionPolicyClassNames = new String[] { ConstantMergePolicyFactory.class.getName(),
                 PrefixMergePolicyFactory.class.getName(), NoMergePolicyFactory.class.getName(),
                 LevelMergePolicyFactory.class.getName(), SizeTieredMergePolicyFactory.class.getName(),
-                CorrelatedPrefixMergePolicyFactory.class.getName(), ConcurrentMergePolicyFactory.class.getName() };
+                CorrelatedPrefixMergePolicyFactory.class.getName(), ConcurrentMergePolicyFactory.class.getName(),
+                BinomialMergePolicyFactory.class.getName(), MinLatencyMergePolicyFactory.class.getName(),
+                BigtableMergePolicyFactory.class.getName(), ExploringMergePolicyFactory.class.getName(),
+                FixedMergePolicyFactory.class.getName() };
         for (String policyClassName : builtInCompactionPolicyClassNames) {
             CompactionPolicy compactionPolicy = getCompactionPolicyEntity(policyClassName);
             MetadataManager.INSTANCE.addCompactionPolicy(mdTxnCtx, compactionPolicy);

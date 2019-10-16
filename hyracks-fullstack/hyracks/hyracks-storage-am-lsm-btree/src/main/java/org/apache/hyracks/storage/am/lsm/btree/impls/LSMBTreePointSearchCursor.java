@@ -19,7 +19,6 @@
 
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -189,8 +188,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                     operationalComponents.get(0).getLsmIndex().getIndexIdentifier().replace("\\", "/").split("/");
             if (paths[paths.length - 1].compareTo("usertable") == 0) {
                 LSMHarness.writeLog("[SEARCH]\tthread=" + Thread.currentThread().getId() + "\tkey=" + searchKey
-                        + "\ttime=" + duration + "\tavail=" + availComponents + "\ttimes=["
-                        + timeStr + "]");
+                        + "\ttime=" + duration + "\tavail=" + availComponents + "\ttimes=[" + timeStr + "]");
             }
         }
 

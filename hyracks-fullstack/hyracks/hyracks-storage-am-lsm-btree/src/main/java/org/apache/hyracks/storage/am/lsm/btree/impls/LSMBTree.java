@@ -783,7 +783,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         } catch (HyracksDataException ex) {
             numTuples = -1L;
         }
-        return c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getComponentSize() + ":" + numTuples + ":[" + minKey + " " + maxKey + "]";
+        return c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getComponentSize() + ":" + numTuples + ":[" + minKey
+                + " " + maxKey + "]";
     }
 
     @Override

@@ -103,9 +103,14 @@ import org.apache.hyracks.storage.am.common.freepage.AppendOnlyLinkedMetadataPag
 import org.apache.hyracks.storage.am.lsm.btree.dataflow.ExternalBTreeLocalResource;
 import org.apache.hyracks.storage.am.lsm.btree.dataflow.ExternalBTreeWithBuddyLocalResource;
 import org.apache.hyracks.storage.am.lsm.btree.dataflow.LSMBTreeLocalResource;
+import org.apache.hyracks.storage.am.lsm.common.impls.BigtableMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.BinomialMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.ConcurrentMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.ExploringMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.FixedMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.MinLatencyMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoOpIOOperationCallbackFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
@@ -167,6 +172,11 @@ public class PersistedResourceRegistry implements IPersistedResourceRegistry {
         registeredClasses.put("CorrelatedPrefixMergePolicyFactory", CorrelatedPrefixMergePolicyFactory.class);
         registeredClasses.put("LevelMergePolicyFactory", LevelMergePolicyFactory.class);
         registeredClasses.put("SizeTieredMergePolicyFactory", SizeTieredMergePolicyFactory.class);
+        registeredClasses.put("BinomialMergePolicyFactory", BinomialMergePolicyFactory.class);
+        registeredClasses.put("MinLatencyMergePolicyFactory", MinLatencyMergePolicyFactory.class);
+        registeredClasses.put("FixedMergePolicyFactory", FixedMergePolicyFactory.class);
+        registeredClasses.put("BigtableMergePolicyFactory", BigtableMergePolicyFactory.class);
+        registeredClasses.put("ExploringMergePolicyFactory", ExploringMergePolicyFactory.class);
 
         // ILSMIOOperationSchedulerProvider
         registeredClasses.put("RuntimeComponentsProvider", RuntimeComponentsProvider.class);

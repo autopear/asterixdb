@@ -78,8 +78,13 @@ import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDropOperatorDescriptor.DropOption;
 import org.apache.hyracks.storage.am.common.dataflow.TreeIndexBulkLoadOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.BigtableMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.BinomialMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.ExploringMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.FixedMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.MinLatencyMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
@@ -288,6 +293,21 @@ public abstract class SecondaryIndexOperationsHelper {
                             mergePolicyProperties = secondaryIndexProperties;
                         } else if (policyName.compareTo(SizeTieredMergePolicyFactory.NAME) == 0) {
                             mergePolicyFactory = new SizeTieredMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(BinomialMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new BinomialMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(MinLatencyMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new MinLatencyMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(BigtableMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new BigtableMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(ExploringMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new ExploringMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(FixedMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new FixedMergePolicyFactory();
                             mergePolicyProperties = secondaryIndexProperties;
                         } else {
                             mergePolicyFactory = compactionInfo.first;
