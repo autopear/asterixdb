@@ -21,6 +21,7 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.replication.IIOReplicationManager;
@@ -65,7 +66,12 @@ public class MultitenantVirtualBufferCache implements IVirtualBufferCache {
 
     @Override
     public ICachedPage pin(long dpid, boolean newPage) throws HyracksDataException {
-        return vbc.pin(dpid, newPage);
+        return pin(dpid, newPage, null);
+    }
+
+    @Override
+    public ICachedPage pin(long dpid, boolean newPage, MutableBoolean isPageCached) throws HyracksDataException {
+        return vbc.pin(dpid, newPage, isPageCached);
     }
 
     @Override

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.replication.IIOReplicationManager;
@@ -87,7 +88,12 @@ public class TestVirtualBufferCache implements IVirtualBufferCache {
 
     @Override
     public ICachedPage pin(long dpid, boolean newPage) throws HyracksDataException {
-        return vbc.pin(dpid, newPage);
+        return vbc.pin(dpid, newPage, null);
+    }
+
+    @Override
+    public ICachedPage pin(long dpid, boolean newPage, MutableBoolean isPageCached) throws HyracksDataException {
+        return vbc.pin(dpid, newPage, isPageCached);
     }
 
     @Override

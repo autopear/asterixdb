@@ -19,6 +19,9 @@
 
 package org.apache.hyracks.storage.am.btree.impls;
 
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import org.apache.hyracks.dataflow.common.comm.io.ArrayTupleReference;
@@ -77,6 +80,9 @@ public class BTreeRangeSearchCursor extends EnforcedIndexCursor implements ITree
 
     protected final IIndexCursorStats stats;
 
+    protected AtomicLong numCachedPages;
+    protected AtomicLong numUncachedPages;
+
     public BTreeRangeSearchCursor(IBTreeLeafFrame frame, boolean exclusiveLatchNodes) {
         this(frame, exclusiveLatchNodes, NoOpIndexCursorStats.INSTANCE);
     }
@@ -88,6 +94,8 @@ public class BTreeRangeSearchCursor extends EnforcedIndexCursor implements ITree
         this.reusablePredicate = new RangePredicate();
         this.reconciliationTuple = new ArrayTupleReference();
         this.stats = stats;
+        this.numCachedPages = new AtomicLong(0);
+        this.numUncachedPages = new AtomicLong(0);
     }
 
     @Override
@@ -303,13 +311,42 @@ public class BTreeRangeSearchCursor extends EnforcedIndexCursor implements ITree
     }
 
     protected ICachedPage acquirePage(int pageId) throws HyracksDataException {
-        ICachedPage nextPage = bufferCache.pin(BufferedFileHandle.getDiskPageId(fileId, pageId), false);
+        MutableBoolean isPageCached = new MutableBoolean();
+        ICachedPage nextPage = bufferCache.pin(BufferedFileHandle.getDiskPageId(fileId, pageId), false, isPageCached);
         if (exclusiveLatchNodes) {
             nextPage.acquireWriteLatch();
         } else {
             nextPage.acquireReadLatch();
         }
         stats.getPageCounter().update(1);
+        if (isPageCached.isTrue()) {
+            numCachedPages.incrementAndGet();
+        } else {
+            numUncachedPages.incrementAndGet();
+        }
         return nextPage;
+    }
+
+    public void resetNumCachedUncachedPages() {
+        numCachedPages.set(0);
+        numUncachedPages.set(0);
+    }
+
+    public long getNumCachedPages() {
+        return numCachedPages.get();
+    }
+
+    public long getNumUncachedPages() {
+        return numUncachedPages.get();
+    }
+
+    public long getNumTotalPages() {
+        if (bufferCache != null) {
+            try {
+                return bufferCache.getNumPagesOfFile(fileId);
+            } catch (HyracksDataException ex) {
+            }
+        }
+        return -1;
     }
 }

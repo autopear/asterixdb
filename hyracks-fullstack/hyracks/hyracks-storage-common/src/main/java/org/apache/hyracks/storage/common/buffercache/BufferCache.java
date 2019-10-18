@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
@@ -166,6 +167,11 @@ public class BufferCache implements IBufferCacheInternal, ILifeCycleComponent, I
 
     @Override
     public ICachedPage pin(long dpid, boolean newPage) throws HyracksDataException {
+        return pin(dpid, newPage, null);
+    }
+
+    @Override
+    public ICachedPage pin(long dpid, boolean newPage, MutableBoolean isPageCached) throws HyracksDataException {
         // Calling the pinSanityCheck should be used only for debugging, since
         // the synchronized block over the fileInfoMap is a hot spot.
         if (DEBUG) {
@@ -196,6 +202,9 @@ public class BufferCache implements IBufferCacheInternal, ILifeCycleComponent, I
                     try {
                         tryRead(cPage);
                         cPage.valid = true;
+                        if (isPageCached != null) {
+                            isPageCached.setFalse();
+                        }
                     } catch (Exception e) {
                         LOGGER.log(ExceptionUtils.causedByInterrupt(e) ? Level.DEBUG : Level.WARN,
                                 "Failure while trying to read a page from disk", e);
@@ -204,6 +213,10 @@ public class BufferCache implements IBufferCacheInternal, ILifeCycleComponent, I
                         if (!cPage.valid) {
                             unpin(cPage);
                         }
+                    }
+                } else {
+                    if (isPageCached != null) {
+                        isPageCached.setTrue();
                     }
                 }
             }

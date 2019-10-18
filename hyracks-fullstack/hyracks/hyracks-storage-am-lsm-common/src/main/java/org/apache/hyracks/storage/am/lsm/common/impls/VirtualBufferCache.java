@@ -26,6 +26,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
@@ -214,6 +215,11 @@ public class VirtualBufferCache implements IVirtualBufferCache {
 
     @Override
     public ICachedPage pin(long dpid, boolean newPage) throws HyracksDataException {
+        return pin(dpid, newPage, null);
+    }
+
+    @Override
+    public ICachedPage pin(long dpid, boolean newPage, MutableBoolean isPageCached) throws HyracksDataException {
         VirtualPage page;
         int hash = hash(dpid);
         CacheBucket bucket = buckets[hash];
@@ -222,6 +228,9 @@ public class VirtualBufferCache implements IVirtualBufferCache {
             page = bucket.cachedPage;
             while (page != null) {
                 if (page.dpid() == dpid) {
+                    if (isPageCached != null) {
+                        isPageCached.setTrue();
+                    }
                     return page;
                 }
                 page = page.next();
@@ -242,6 +251,9 @@ public class VirtualBufferCache implements IVirtualBufferCache {
             bucket.bucketLock.unlock();
         }
 
+        if (isPageCached != null) {
+            isPageCached.setFalse();
+        }
         return page;
     }
 

@@ -18,6 +18,7 @@
  */
 package org.apache.hyracks.storage.common.buffercache;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.replication.IIOReplicationManager;
@@ -103,6 +104,8 @@ public interface IBufferCache {
      * @throws HyracksDataException
      */
     ICachedPage pin(long dpid, boolean newPage) throws HyracksDataException;
+
+    ICachedPage pin(long dpid, boolean newPage, MutableBoolean isPageCached) throws HyracksDataException;
 
     /**
      * Unpin a pinned page so its buffer can be recycled
