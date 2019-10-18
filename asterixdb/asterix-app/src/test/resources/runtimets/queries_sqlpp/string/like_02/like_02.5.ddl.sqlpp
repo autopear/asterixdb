@@ -17,8 +17,4 @@
  * under the License.
  */
 
-{
-  'result1':regexp_replace('abracadabra','a',''),
-  'result2':regexp_replace('abracadabra','a(.)','a$1$1'),
-  'result3':regexp_replace('darted','^(.*?)d(.*)$','$1c$2')
-};
+DROP DATAVERSE test IF EXISTS;

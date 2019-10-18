@@ -16,10 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*
- * Description  : Disk io count metrics on full scan
- * Expected Res : Success
- * Date         : 10 Sep 2019
- */
 
-drop dataverse test;
+SELECT ELEMENT A FROM [
+  "test\\string" LIKE "%\\"
+] AS A;

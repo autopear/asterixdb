@@ -16,15 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*
- * Description  : Disk io count metrics on full scan
- * Expected Res : Success
- * Date         : 10 Sep 2019
+package org.apache.hyracks.util.annotations;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * The type or method to which this annotation is applied to is guaranteed
+ * to be thread safe by {@link #value()}
  */
-
-use test;
-
-load dataset Customers using localfs
-  ((`path`=`asterix_nc1://data/custord-tiny/customer-tiny-neg.adm`),
-  (`format`=`adm`));
-
+@Documented
+@Target({ ElementType.TYPE, ElementType.METHOD, ElementType.FIELD })
+@Retention(RetentionPolicy.SOURCE)
+public @interface GuardedBy {
+    String value();
+}

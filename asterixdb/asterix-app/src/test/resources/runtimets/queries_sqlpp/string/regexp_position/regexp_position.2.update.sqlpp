@@ -16,21 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.util.annotations;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+USE test;
 
-/**
- * The type or method to which this annotation is applied to is guaranteed
- * to be thread safe by {@link #value()}
- */
-@Documented
-@Target({ ElementType.TYPE, ElementType.METHOD })
-@Retention(RetentionPolicy.SOURCE)
-public @interface ThreadSafetyGuaranteedBy {
-    String value();
-}
+INSERT INTO ds [
+{"id": 1, "test_str": "hello_world", "pattern": "\\w+"},
+{"id": 2, "test_str": "\n", "pattern": "\\w+"},
+{"id": 3, "test_str": "hello_world", "pattern": "\\d+"},
+{"id": 4, "test_str": "\n", "pattern": "\\w+"}
+];

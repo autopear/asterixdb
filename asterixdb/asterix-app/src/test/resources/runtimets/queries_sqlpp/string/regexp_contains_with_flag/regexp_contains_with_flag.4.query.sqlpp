@@ -16,34 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*
- * Description  : Disk io count metrics on full scan
- * Expected Res : Success
- * Date         : 10 Sep 2019
- */
 
-drop dataverse test if exists;
-create dataverse test;
+USE test;
 
-use test;
-
-create type test.AddressType as
-{
-  number : bigint,
-  street : string,
-  city : string
-};
-
-create type test.CustomerType as
- closed {
-  cid : bigint,
-  name : string,
-  age : bigint?,
-  address : AddressType?,
-  lastorder : {
-      oid : bigint,
-      total : float
-  }
-};
-
-create dataset Customers(CustomerType) primary key cid;
+FROM ds SELECT VALUE regexp_contains(test_str, pattern, flags) ORDER BY id;
