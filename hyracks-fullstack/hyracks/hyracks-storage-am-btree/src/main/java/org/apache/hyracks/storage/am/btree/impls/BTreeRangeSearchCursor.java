@@ -332,8 +332,24 @@ public class BTreeRangeSearchCursor extends EnforcedIndexCursor implements ITree
         numUncachedPages.set(0);
     }
 
+    public void setNumCachedPages(long num) {
+        numCachedPages.set(num);
+    }
+
+    public long incrementNumCachedPages() {
+        return numCachedPages.incrementAndGet();
+    }
+
     public long getNumCachedPages() {
         return numCachedPages.get();
+    }
+
+    public void setNumUncachedPages(long num) {
+        numUncachedPages.set(num);
+    }
+
+    public long incrementNumUncachedPages() {
+        return numUncachedPages.incrementAndGet();
     }
 
     public long getNumUncachedPages() {

@@ -19,6 +19,7 @@
 
 package org.apache.hyracks.storage.am.btree.impls;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
@@ -88,12 +89,20 @@ public class DiskBTree extends BTree {
         cursor.setFileId(getFileId());
 
         DiskBTreeRangeSearchCursor diskCursor = (DiskBTreeRangeSearchCursor) cursor;
+        MutableBoolean isPageCached = new MutableBoolean();
+        diskCursor.resetNumCachedUncachedPages();
 
         if (diskCursor.numSearchPages() == 0) {
             // we have to search from root to leaf
-            ICachedPage rootNode = bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), rootPage), false);
+            ICachedPage rootNode =
+                    bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), rootPage), false, isPageCached);
+            if (isPageCached.isTrue()) {
+                diskCursor.incrementNumCachedPages();
+            } else {
+                diskCursor.incrementNumUncachedPages();
+            }
             diskCursor.addSearchPage(rootPage);
-            searchDown(rootNode, rootPage, ctx, diskCursor);
+            searchDown(rootNode, rootPage, ctx, diskCursor, isPageCached);
         } else {
             // we first check whether the leaf page matches because page may be shifted during cursor.hasNext
             if (ctx.getLeafFrame().getPage() != diskCursor.getPage()) {
@@ -110,20 +119,27 @@ public class DiskBTree extends BTree {
                 bufferCache.unpin(ctx.getLeafFrame().getPage());
                 diskCursor.removeLastSearchPage();
 
-                ICachedPage page = searchUp(ctx, diskCursor);
+                ICachedPage page = searchUp(ctx, diskCursor, isPageCached);
                 int pageId = diskCursor.getLastSearchPage();
 
-                searchDown(page, pageId, ctx, diskCursor);
+                searchDown(page, pageId, ctx, diskCursor, isPageCached);
             }
         }
     }
 
-    private ICachedPage searchUp(BTreeOpContext ctx, DiskBTreeRangeSearchCursor cursor) throws HyracksDataException {
+    private ICachedPage searchUp(BTreeOpContext ctx, DiskBTreeRangeSearchCursor cursor, MutableBoolean isPageCached)
+            throws HyracksDataException {
         int index = cursor.numSearchPages() - 1;
         // no need to check root page
         for (; index >= 0; index--) {
             int pageId = cursor.getLastSearchPage();
-            ICachedPage page = bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), pageId), false);
+            ICachedPage page =
+                    bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), pageId), false, isPageCached);
+            if (isPageCached.isTrue()) {
+                cursor.incrementNumCachedPages();
+            } else {
+                cursor.incrementNumUncachedPages();
+            }
             ctx.getInteriorFrame().setPage(page);
             if (index == 0 || fitInPage(ctx.getPred().getLowKey(), ctx.getPred().getLowKeyComparator(),
                     ctx.getInteriorFrame())) {
@@ -138,7 +154,13 @@ public class DiskBTree extends BTree {
 
         // if no page is available (which is the case for single-level BTree)
         // we simply return the root page
-        ICachedPage page = bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), rootPage), false);
+        ICachedPage page =
+                bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), rootPage), false, isPageCached);
+        if (isPageCached.isTrue()) {
+            cursor.incrementNumCachedPages();
+        } else {
+            cursor.incrementNumUncachedPages();
+        }
         cursor.addSearchPage(rootPage);
         return page;
     }
@@ -154,8 +176,8 @@ public class DiskBTree extends BTree {
         return comparator.compare(key, leftmostTuple) >= 0;
     }
 
-    private void searchDown(ICachedPage page, int pageId, BTreeOpContext ctx, DiskBTreeRangeSearchCursor cursor)
-            throws HyracksDataException {
+    private void searchDown(ICachedPage page, int pageId, BTreeOpContext ctx, DiskBTreeRangeSearchCursor cursor,
+            MutableBoolean isPageCached) throws HyracksDataException {
         ICachedPage currentPage = page;
         ctx.getInteriorFrame().setPage(currentPage);
 
@@ -168,7 +190,13 @@ public class DiskBTree extends BTree {
                 // save the child page tuple index
                 cursor.addSearchPage(childPageId);
                 bufferCache.unpin(currentPage);
-                currentPage = bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), childPageId), false);
+                currentPage = bufferCache.pin(BufferedFileHandle.getDiskPageId(getFileId(), childPageId), false,
+                        isPageCached);
+                if (isPageCached.isTrue()) {
+                    cursor.incrementNumCachedPages();
+                } else {
+                    cursor.incrementNumUncachedPages();
+                }
                 ctx.getInteriorFrame().setPage(currentPage);
             }
 

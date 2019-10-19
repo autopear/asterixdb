@@ -1278,7 +1278,8 @@ public class BufferCache implements IBufferCacheInternal, ILifeCycleComponent, I
         return fInfo;
     }
 
-    private ICachedPage getPageLoop(long dpid, int multiplier, boolean confiscate, MutableBoolean isPageCached) throws HyracksDataException {
+    private ICachedPage getPageLoop(long dpid, int multiplier, boolean confiscate, MutableBoolean isPageCached)
+            throws HyracksDataException {
         final long startingPinCount = DEBUG ? masterPinCount.get() : -1;
         int cycleCount = 0;
         try {
