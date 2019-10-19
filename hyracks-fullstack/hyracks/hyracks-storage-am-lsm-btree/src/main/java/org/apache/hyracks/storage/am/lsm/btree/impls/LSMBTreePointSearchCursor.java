@@ -304,10 +304,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             if (btreeAccessors[i] == null) {
                 btreeAccessors[i] = btree.createAccessor(NoOpIndexAccessParameters.INSTANCE);
                 btreeCursors[i] = btreeAccessors[i].createPointCursor(false);
+                btreeCursors[i].resetNumCachedUncachedPages();
             } else {
                 // re-use
                 btreeAccessors[i].reset(btree, NoOpIndexAccessParameters.INSTANCE);
                 btreeCursors[i].close();
+                btreeCursors[i].resetNumCachedUncachedPages();
             }
         }
         nextHasBeenCalled = false;

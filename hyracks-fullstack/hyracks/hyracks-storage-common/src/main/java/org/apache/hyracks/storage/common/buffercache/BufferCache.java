@@ -181,7 +181,7 @@ public class BufferCache implements IBufferCacheInternal, ILifeCycleComponent, I
         if (threadStats != null) {
             threadStats.pagePinned();
         }
-        CachedPage cPage = findPage(dpid);
+        CachedPage cPage = findPage(dpid, isPageCached);
         if (!newPage) {
             if (DEBUG) {
                 confiscateLock.lock();
@@ -230,11 +230,11 @@ public class BufferCache implements IBufferCacheInternal, ILifeCycleComponent, I
         return cPage;
     }
 
-    private CachedPage findPage(long dpid) throws HyracksDataException {
-        return (CachedPage) getPageLoop(dpid, -1, false);
+    private CachedPage findPage(long dpid, MutableBoolean isPageCached) throws HyracksDataException {
+        return (CachedPage) getPageLoop(dpid, -1, false, isPageCached);
     }
 
-    private ICachedPage findPageInner(long dpid) {
+    private ICachedPage findPageInner(long dpid, MutableBoolean isPageCached) {
         CachedPage cPage;
         /*
          * Hash dpid to get a bucket and then check if the page exists in
@@ -254,12 +254,18 @@ public class BufferCache implements IBufferCacheInternal, ILifeCycleComponent, I
                         assert !cPage.confiscated.get();
                     }
                     cPage.pinCount.incrementAndGet();
+                    if (isPageCached != null) {
+                        isPageCached.setTrue();
+                    }
                     return cPage;
                 }
                 cPage = cPage.next;
             }
         } finally {
             bucket.bucketLock.unlock();
+        }
+        if (isPageCached != null) {
+            isPageCached.setFalse();
         }
         /*
          * If we got here, the page was not in the hash table. Now we ask
@@ -1152,7 +1158,7 @@ public class BufferCache implements IBufferCacheInternal, ILifeCycleComponent, I
     }
 
     private ICachedPage confiscatePage(long dpid, int multiplier) throws HyracksDataException {
-        return getPageLoop(dpid, multiplier, true);
+        return getPageLoop(dpid, multiplier, true, null);
     }
 
     private ICachedPage confiscateInner(long dpid, int multiplier) {
@@ -1272,14 +1278,14 @@ public class BufferCache implements IBufferCacheInternal, ILifeCycleComponent, I
         return fInfo;
     }
 
-    private ICachedPage getPageLoop(long dpid, int multiplier, boolean confiscate) throws HyracksDataException {
+    private ICachedPage getPageLoop(long dpid, int multiplier, boolean confiscate, MutableBoolean isPageCached) throws HyracksDataException {
         final long startingPinCount = DEBUG ? masterPinCount.get() : -1;
         int cycleCount = 0;
         try {
             while (true) {
                 cycleCount++;
                 int startCleanedCount = cleanerThread.cleanedCount;
-                ICachedPage page = confiscate ? confiscateInner(dpid, multiplier) : findPageInner(dpid);
+                ICachedPage page = confiscate ? confiscateInner(dpid, multiplier) : findPageInner(dpid, isPageCached);
                 if (page != null) {
                     masterPinCount.incrementAndGet();
                     return page;

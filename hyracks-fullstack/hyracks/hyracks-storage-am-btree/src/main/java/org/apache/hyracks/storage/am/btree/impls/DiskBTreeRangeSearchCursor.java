@@ -22,6 +22,7 @@ package org.apache.hyracks.storage.am.btree.impls;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.storage.am.btree.api.IBTreeLeafFrame;
 import org.apache.hyracks.storage.common.IIndexCursorStats;
@@ -101,7 +102,14 @@ public class DiskBTreeRangeSearchCursor extends BTreeRangeSearchCursor {
     @Override
     protected ICachedPage acquirePage(int pageId) throws HyracksDataException {
         stats.getPageCounter().update(1);
-        return bufferCache.pin(BufferedFileHandle.getDiskPageId(fileId, pageId), false);
+        MutableBoolean isPageCached = new MutableBoolean();
+        ICachedPage page = bufferCache.pin(BufferedFileHandle.getDiskPageId(fileId, pageId), false, isPageCached);
+        if (isPageCached.isTrue()) {
+            numCachedPages.incrementAndGet();
+        } else {
+            numUncachedPages.incrementAndGet();
+        }
+        return page;
     }
 
     @Override
