@@ -79,8 +79,7 @@ public class MinLatencyMergePolicy extends StackMergePolicy {
         while (treeDepth(depth) < numFlushes) {
             depth++;
         }
-        int mergedIndex =
-                binomialIndex(depth, Math.min(depth, numComponents) - 1, numFlushes - treeDepth(depth - 1) - 1);
+        int mergedIndex = binomialIndex(depth, numComponents - 1, numFlushes - treeDepth(depth - 1) - 1);
         if (mergedIndex == size - 1) {
             return Collections.emptyList();
         }

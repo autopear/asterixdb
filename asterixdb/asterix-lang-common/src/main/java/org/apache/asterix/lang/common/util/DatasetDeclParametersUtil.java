@@ -103,8 +103,8 @@ public class DatasetDeclParametersUtil {
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // MAX_MERGE_COMPONENT_COUNT
                 AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // LOW_BUCKET
                 AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // HIGH_BUCKET
-                AUnionType.createUnknownableType(BuiltinType.AINT32), // MIN_COMPONENTS
-                AUnionType.createUnknownableType(BuiltinType.AINT32), // MAX_COMPONENTS
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // MIN_COMPONENTS
+                AUnionType.createUnknownableType(BuiltinType.AINT64), // MAX_COMPONENTS
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // MIN_SSTABLE_SIZE
                 AUnionType.createUnknownableType(BuiltinType.ASTRING), // PICK
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // NUM_COMPONENTS_0
