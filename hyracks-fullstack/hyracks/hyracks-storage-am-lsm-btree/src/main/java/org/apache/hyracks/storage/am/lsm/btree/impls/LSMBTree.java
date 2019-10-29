@@ -301,6 +301,25 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
     }
 
     @Override
+    public int compareComponents(ILSMDiskComponent c1, ILSMDiskComponent c2) {
+        try {
+            byte[] minKey1 = c1.getMinKey();
+            byte[] maxKey1 = c1.getMaxKey();
+            byte[] minKey2 = c1.getMinKey();
+            byte[] maxKey2 = c1.getMaxKey();
+            if (compareKey(minKey1, maxKey2) > 0) {
+                return 1;
+            } else if (compareKey(minKey2, maxKey1) > 0) {
+                return -1;
+            } else {
+                return 0;
+            }
+        } catch (HyracksDataException ex) {
+            return 0;
+        }
+    }
+
+    @Override
     public void search(ILSMIndexOperationContext ictx, IIndexCursor cursor, ISearchPredicate pred)
             throws HyracksDataException {
         LSMBTreeOpContext ctx = (LSMBTreeOpContext) ictx;

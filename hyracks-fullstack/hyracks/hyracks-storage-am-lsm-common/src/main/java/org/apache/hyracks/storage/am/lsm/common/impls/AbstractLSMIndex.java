@@ -50,6 +50,7 @@ import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.ComponentState;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.LSMComponentType;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilterFrameFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId.IdCompareResult;
@@ -411,6 +412,28 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                             operationalComponents.add(component);
                         }
                     }
+                    if (isLeveled) {
+                        operationalComponents.sort(new Comparator<ILSMComponent>() {
+                            @Override
+                            public int compare(ILSMComponent c1, ILSMComponent c2) {
+                                if (c1.getType() == LSMComponentType.MEMORY) {
+                                    return 0;
+                                } else if (c2.getType() == LSMComponentType.MEMORY) {
+                                    return 1;
+                                } else {
+                                    ILSMDiskComponent d1 = (ILSMDiskComponent) c1;
+                                    ILSMDiskComponent d2 = (ILSMDiskComponent) c2;
+                                    if (d1.getLevel() < d2.getLevel()) {
+                                        return -1;
+                                    } else if (d1.getLevel() > d2.getLevel()) {
+                                        return 1;
+                                    } else {
+                                        return compareComponents(d1, d2);
+                                    }
+                                }
+                            }
+                        });
+                    }
                 }
                 break;
             case REPLICATE:
@@ -426,6 +449,10 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     public boolean mayMatchSearchPredicate(ILSMDiskComponent component, ISearchPredicate predicate) {
         return true;
+    }
+
+    public int compareComponents(ILSMDiskComponent c1, ILSMDiskComponent c2) {
+        return 0;
     }
 
     @Override
