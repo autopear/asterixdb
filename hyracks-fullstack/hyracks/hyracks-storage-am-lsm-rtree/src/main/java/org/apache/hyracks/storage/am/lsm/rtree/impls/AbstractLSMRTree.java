@@ -313,6 +313,28 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         return false;
     }
 
+    @Override
+    public int compareComponents(ILSMDiskComponent c1, ILSMDiskComponent c2) {
+        try {
+            double[] minMBR1 = bytesToDoubles(c1.getMinKey());
+            double[] maxMBR1 = bytesToDoubles(c1.getMaxKey());
+            double[] minMBR2 = bytesToDoubles(c2.getMinKey());
+            double[] maxMBR2 = bytesToDoubles(c2.getMaxKey());
+            int dim = minMBR1.length;
+            for (int i = 0; i < dim; i++) {
+                double cd1 = (minMBR1[i] + maxMBR1[i]) / 2;
+                double cd2 = (minMBR2[i] + maxMBR2[i]) / 2;
+                int r = Double.compare(cd1, cd2);
+                if (r != 0) {
+                    return r;
+                }
+            }
+            return (int) (c2.getLevelSequence() - c1.getLevelSequence());
+        } catch (HyracksDataException ex) {
+        }
+        return 0;
+    }
+
     public long getMaxNumTuplesPerComponent() throws HyracksDataException {
         long m = 0L;
         for (ILSMDiskComponent c : diskComponents) {
