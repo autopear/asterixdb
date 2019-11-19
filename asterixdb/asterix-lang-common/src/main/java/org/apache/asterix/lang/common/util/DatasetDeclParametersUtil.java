@@ -92,7 +92,7 @@ public class DatasetDeclParametersUtil {
                         SizeTieredMergePolicyFactory.MIN_COMPONENTS, SizeTieredMergePolicyFactory.MAX_COMPONENTS,
                         SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE, LevelMergePolicyFactory.PICK,
                         LevelMergePolicyFactory.NUM_COMPONENTS_0, LevelMergePolicyFactory.NUM_COMPONENTS_1,
-                        LevelMergePolicyFactory.OVERLAP_MODE, ExploringMergePolicyFactory.LAMBDA };
+                        /*LevelMergePolicyFactory.OVERLAP_MODE,*/ ExploringMergePolicyFactory.LAMBDA };
         final IAType[] parametersTypes = { AUnionType.createUnknownableType(BuiltinType.ASTRING), // SECONDARY_INDEX
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // MERGABLE_SIZE
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // TOLERANCE_COUNT
@@ -109,7 +109,7 @@ public class DatasetDeclParametersUtil {
                 AUnionType.createUnknownableType(BuiltinType.ASTRING), // PICK
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // NUM_COMPONENTS_0
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // NUM_COMPONENTS_1
-                AUnionType.createUnknownableType(BuiltinType.ASTRING), // OVERLAP_MODE
+                // AUnionType.createUnknownableType(BuiltinType.ASTRING), // OVERLAP_MODE
                 AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // LAMBDA
         };
 

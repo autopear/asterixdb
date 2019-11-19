@@ -730,17 +730,17 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             for (int i = 0; i < diskComponents.size() - 1; i++) {
                 long level1 = diskComponents.get(i).getLevel();
                 long level2 = diskComponents.get(i + 1).getLevel();
-                long levelId1 = diskComponents.get(i).getLevelSequence();
-                long levelId2 = diskComponents.get(i + 1).getLevelSequence();
+                // long levelId1 = diskComponents.get(i).getLevelSequence();
+                // long levelId2 = diskComponents.get(i + 1).getLevelSequence();
                 if (level1 > level2) {
                     throw new IllegalStateException("found decreasing levels (" + level1 + " -> " + level2
                             + ") on index " + this + " " + printComponents(diskComponents));
                 }
-                if (level1 == level2 && levelId1 <= levelId2) {
-                    throw new IllegalStateException(
-                            "found non-decreasing component ids (" + levelId1 + " -> " + levelId2 + ") at level "
-                                    + level1 + " on index " + this + " " + printComponents(diskComponents));
-                }
+                // if (level1 == level2 && levelId1 <= levelId2) {
+                //     throw new IllegalStateException(
+                //             "found non-decreasing component ids (" + levelId1 + " -> " + levelId2 + ") at level "
+                //                     + level1 + " on index " + this + " " + printComponents(diskComponents));
+                // }
             }
         } else {
             for (int i = 0; i < diskComponents.size() - 1; i++) {

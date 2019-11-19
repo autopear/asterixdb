@@ -395,19 +395,11 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                     totalTuples++;
                     byte[] key = getKeyBytes(tuple);
                     if (key != null) {
-                        if (minKey == null) {
+                        if (minKey == null || compareKey(key, minKey) < 0) {
                             minKey = key.clone();
-                        } else {
-                            if (compareKey(key, minKey) < 0) {
-                                minKey = key.clone();
-                            }
                         }
-                        if (maxKey == null) {
+                        if (maxKey == null || compareKey(key, maxKey) > 0) {
                             maxKey = key.clone();
-                        } else {
-                            if (compareKey(key, maxKey) > 0) {
-                                maxKey = key.clone();
-                            }
                         }
                     }
                 }
@@ -471,19 +463,11 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                         totalTuples++;
                         byte[] key = getKeyBytes(frameTuple);
                         if (key != null) {
-                            if (minKey == null) {
+                            if (minKey == null || compareKey(key, minKey) < 0) {
                                 minKey = key.clone();
-                            } else {
-                                if (compareKey(key, minKey) < 0) {
-                                    minKey = key.clone();
-                                }
                             }
-                            if (maxKey == null) {
+                            if (maxKey == null || compareKey(key, maxKey) > 0) {
                                 maxKey = key.clone();
-                            } else {
-                                if (compareKey(key, maxKey) > 0) {
-                                    maxKey = key.clone();
-                                }
                             }
                         }
                     }

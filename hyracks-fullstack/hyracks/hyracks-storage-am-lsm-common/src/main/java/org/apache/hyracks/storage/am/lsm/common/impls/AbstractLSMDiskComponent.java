@@ -19,6 +19,7 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
+import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 import org.apache.hyracks.data.std.primitive.LongPointable;
 import org.apache.hyracks.data.std.util.ArrayBackedValueStorage;
 import org.apache.hyracks.storage.am.common.api.IMetadataPageManager;
@@ -277,7 +278,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         synchronized (this) {
             if (minKey == null) {
                 metadata.get(TUPLE_MIN_KEY, minkeyBuf);
-                minKey = minkeyBuf.getByteArray();
+                minKey = minkeyBuf.getLength() == 0 ? null : minkeyBuf.getByteArray();
             }
         }
         return minKey;
@@ -286,8 +287,13 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     @Override
     public void setMinKey(byte[] key) throws HyracksDataException {
         synchronized (this) {
-            metadata.put(TUPLE_MIN_KEY, new MutableArrayValueReference(key));
-            minKey = key.clone();
+            if (key == null) {
+                metadata.put(TUPLE_MIN_KEY, ByteArrayPointable.generatePointableFromPureBytes(new byte[0]));
+                minKey = null;
+            } else {
+                metadata.put(TUPLE_MIN_KEY, ByteArrayPointable.generatePointableFromPureBytes(key));
+                minKey = key.clone();
+            }
         }
     }
 
@@ -299,7 +305,7 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
         synchronized (this) {
             if (maxKey == null) {
                 metadata.get(TUPLE_MAX_KEY, maxKeyBuf);
-                maxKey = maxKeyBuf.getByteArray();
+                maxKey = maxKeyBuf.getLength() == 0 ? null : maxKeyBuf.getByteArray();
             }
         }
         return maxKey;
@@ -308,8 +314,13 @@ public abstract class AbstractLSMDiskComponent extends AbstractLSMComponent impl
     @Override
     public void setMaxKey(byte[] key) throws HyracksDataException {
         synchronized (this) {
-            metadata.put(TUPLE_MAX_KEY, new MutableArrayValueReference(key));
-            maxKey = key.clone();
+            if (key == null) {
+                metadata.put(TUPLE_MAX_KEY, ByteArrayPointable.generatePointableFromPureBytes(new byte[0]));
+                maxKey = null;
+            } else {
+                metadata.put(TUPLE_MAX_KEY, ByteArrayPointable.generatePointableFromPureBytes(key));
+                maxKey = key.clone();
+            }
         }
     }
 

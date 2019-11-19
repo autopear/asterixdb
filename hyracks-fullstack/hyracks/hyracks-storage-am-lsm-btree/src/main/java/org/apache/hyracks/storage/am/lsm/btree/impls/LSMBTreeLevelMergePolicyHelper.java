@@ -101,10 +101,10 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 lsmBTree.search(mergeOp.getAccessor().getOpContext(), cursor, rangePred);
                 try {
                     List<ILSMComponent> mergedComponents = mergeOp.getMergingComponents();
-                    long numElements = getNumberOfElements(mergedComponents);
                     ILSMDiskComponent newComponent = null;
                     ILSMDiskComponentBulkLoader componentBulkLoader = null;
                     if (mergedComponents.size() == 1) {
+                        long numElements = getNumberOfElements(mergedComponents);
                         LSMComponentFileReferences refs = lsmBTree.getNextMergeFileReferencesAtLevel(
                                 ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1, 1);
                         newComponent = lsmBTree.createDiskComponent(refs.getInsertIndexFileReference(), null,
@@ -124,19 +124,11 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                             totalTuples++;
                             byte[] key = LSMBTree.getKeyBytes(frameTuple);
                             if (key != null) {
-                                if (minKey == null) {
-                                    minKey = key;
-                                } else {
-                                    if (lsmBTree.compareKey(key, minKey) < 0) {
-                                        minKey = key;
-                                    }
+                                if (minKey == null || lsmBTree.compareKey(key, minKey) < 0) {
+                                    minKey = key.clone();
                                 }
-                                if (maxKey == null) {
-                                    maxKey = key;
-                                } else {
-                                    if (lsmBTree.compareKey(key, maxKey) > 0) {
-                                        maxKey = key;
-                                    }
+                                if (maxKey == null || lsmBTree.compareKey(key, maxKey) > 0) {
+                                    maxKey = key.clone();
                                 }
                             }
                         }
@@ -161,6 +153,13 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         byte[] minKey = null;
                         byte[] maxKey = null;
                         long totalTuples = 0L;
+                        long numElements = 0L;
+                        for (ILSMComponent c : mergedComponents) {
+                            ILSMDiskComponent d = (ILSMDiskComponent) c;
+                            if (d.getTupleCount() > numElements) {
+                                numElements = d.getTupleCount();
+                            }
+                        }
                         while (cursor.hasNext()) {
                             cursor.next();
                             ITupleReference frameTuple = cursor.getTuple();
@@ -173,8 +172,8 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                         refs.getBloomFilterFileReference(), true);
                                 IPageWriteCallback pageWriteCallback =
                                         lsmBTree.getPageWriteCallbackFactory().createPageWriteCallback();
-                                componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false, 0L, false,
-                                        false, false, pageWriteCallback);
+                                componentBulkLoader = newComponent.createBulkLoader(operation, 1.0f, false, numElements,
+                                        false, false, false, pageWriteCallback);
                                 newComponents.add(newComponent);
                                 componentBulkLoaders.add(componentBulkLoader);
                                 filterCmp = newComponent.getLSMComponentFilter() == null ? null
@@ -204,19 +203,11 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                             }
                             byte[] key = LSMBTree.getKeyBytes(frameTuple);
                             if (key != null) {
-                                if (minKey == null) {
-                                    minKey = key;
-                                } else {
-                                    if (lsmBTree.compareKey(key, minKey) < 0) {
-                                        minKey = key;
-                                    }
+                                if (minKey == null || lsmBTree.compareKey(key, minKey) < 0) {
+                                    minKey = key.clone();
                                 }
-                                if (maxKey == null) {
-                                    maxKey = key;
-                                } else {
-                                    if (lsmBTree.compareKey(key, maxKey) > 0) {
-                                        maxKey = key;
-                                    }
+                                if (maxKey == null || lsmBTree.compareKey(key, maxKey) > 0) {
+                                    maxKey = key.clone();
                                 }
                             }
                             if (newComponent.getComponentSize() >= lsmBTree.memTableSize) {

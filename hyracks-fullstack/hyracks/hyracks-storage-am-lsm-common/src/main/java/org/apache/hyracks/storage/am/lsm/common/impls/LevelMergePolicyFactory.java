@@ -43,7 +43,7 @@ public class LevelMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String NUM_COMPONENTS_1 = "num-components-1";
     public static final String OVERLAP_MODE = "overlap-mode";
     public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(
-            new HashSet<>(Arrays.asList(SECONDARY_INDEX, PICK, NUM_COMPONENTS_0, NUM_COMPONENTS_1, OVERLAP_MODE)));
+            new HashSet<>(Arrays.asList(SECONDARY_INDEX, PICK, NUM_COMPONENTS_0, NUM_COMPONENTS_1/*, OVERLAP_MODE*/)));
 
     public static final String OLDEST = "oldest";
     public static final String NEWEST = "newest";
@@ -62,7 +62,7 @@ public class LevelMergePolicyFactory implements ILSMMergePolicyFactory {
             put(NUM_COMPONENTS_0, "10");
             put(NUM_COMPONENTS_1, "10");
             put(PICK, MIN_OVERLAP);
-            put(OVERLAP_MODE, MODE_RELATIVE);
+            // put(OVERLAP_MODE, MODE_RELATIVE);
         }
     };
 
@@ -72,7 +72,7 @@ public class LevelMergePolicyFactory implements ILSMMergePolicyFactory {
                     put(NUM_COMPONENTS_0, "2");
                     put(NUM_COMPONENTS_1, "4");
                     put(PICK, MIN_OVERLAP);
-                    put(OVERLAP_MODE, MODE_RELATIVE);
+                    // put(OVERLAP_MODE, MODE_RELATIVE);
                 }
             };
 
