@@ -130,6 +130,8 @@ import org.apache.hyracks.storage.am.rtree.impls.DoublePrimitiveValueProviderFac
 import org.apache.hyracks.storage.am.rtree.impls.FloatPrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.rtree.impls.IntegerPrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.rtree.linearize.HilbertDoubleComparatorFactory;
+import org.apache.hyracks.storage.am.rtree.linearize.SimpleDoubleComparatorFactory;
+import org.apache.hyracks.storage.am.rtree.linearize.SimpleIntComparatorFactory;
 import org.apache.hyracks.storage.am.rtree.linearize.ZCurveDoubleComparatorFactory;
 import org.apache.hyracks.storage.am.rtree.linearize.ZCurveIntComparatorFactory;
 import org.apache.hyracks.storage.common.LocalResource;
@@ -229,6 +231,8 @@ public class PersistedResourceRegistry implements IPersistedResourceRegistry {
         registeredClasses.put("RawBinaryComparatorFactory", RawBinaryComparatorFactory.class);
         registeredClasses.put("PointableBinaryComparatorFactory", PointableBinaryComparatorFactory.class);
         registeredClasses.put("HilbertDoubleComparatorFactory", HilbertDoubleComparatorFactory.class);
+        registeredClasses.put("SimpleDoubleComparatorFactory", SimpleDoubleComparatorFactory.class);
+        registeredClasses.put("SimpleIntComparatorFactory", SimpleIntComparatorFactory.class);
         registeredClasses.put("ZCurveDoubleComparatorFactory", ZCurveDoubleComparatorFactory.class);
         registeredClasses.put("ZCurveIntComparatorFactory", ZCurveIntComparatorFactory.class);
         registeredClasses.put("ComponentPosComparatorFactory",

@@ -808,10 +808,10 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
         return txnId;
     }
 
-    public static ILinearizeComparatorFactory proposeLinearizer(ATypeTag keyType, int numKeyFields)
+    public static ILinearizeComparatorFactory proposeLinearizer(ATypeTag keyType, int numKeyFields, boolean isLeveled)
             throws AlgebricksException {
         return LinearizeComparatorFactoryProvider.INSTANCE.getLinearizeComparatorFactory(keyType, true,
-                numKeyFields / 2);
+                numKeyFields / 2, isLeveled);
     }
 
     public Pair<IFileSplitProvider, AlgebricksPartitionConstraint> splitAndConstraints(String dataverse) {

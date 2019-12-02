@@ -56,6 +56,7 @@ import org.apache.hyracks.storage.am.common.api.IPrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IIndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.TreeIndexBulkLoadOperatorDescriptor;
+import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 
 public class SecondaryRTreeOperationsHelper extends SecondaryTreeIndexOperationsHelper {
 
@@ -223,7 +224,8 @@ public class SecondaryRTreeOperationsHelper extends SecondaryTreeIndexOperations
             // Sort by secondary keys.
             ExternalSortOperatorDescriptor sortOp = createSortOp(spec,
                     new IBinaryComparatorFactory[] {
-                            MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length) },
+                            MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length,
+                                    mergePolicyFactory instanceof LevelMergePolicyFactory) },
                     isPointMBR ? secondaryRecDescForPointMBR : secondaryRecDesc);
             // Create secondary RTree bulk load op.
             TreeIndexBulkLoadOperatorDescriptor secondaryBulkLoadOp = createTreeIndexBulkLoadOp(spec, fieldPermutation,
@@ -274,7 +276,8 @@ public class SecondaryRTreeOperationsHelper extends SecondaryTreeIndexOperations
             // Sort by secondary keys.
             ExternalSortOperatorDescriptor sortOp = createSortOp(spec,
                     new IBinaryComparatorFactory[] {
-                            MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length) },
+                            MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length,
+                                    mergePolicyFactory instanceof LevelMergePolicyFactory) },
                     isPointMBR ? secondaryRecDescForPointMBR : secondaryRecDesc);
             // Create secondary RTree bulk load op.
             IOperatorDescriptor root;

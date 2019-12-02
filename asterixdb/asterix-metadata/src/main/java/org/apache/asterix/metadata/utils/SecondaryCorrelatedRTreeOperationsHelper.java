@@ -50,6 +50,7 @@ import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
 import org.apache.hyracks.dataflow.std.sort.ExternalSortOperatorDescriptor;
 import org.apache.hyracks.storage.am.common.api.IPrimitiveValueProviderFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 
 public class SecondaryCorrelatedRTreeOperationsHelper extends SecondaryCorrelatedTreeIndexOperationsHelper {
 
@@ -205,7 +206,8 @@ public class SecondaryCorrelatedRTreeOperationsHelper extends SecondaryCorrelate
 
         ExternalSortOperatorDescriptor sortOp = createSortOp(spec,
                 getTaggedSecondaryComparatorFactories(new IBinaryComparatorFactory[] {
-                        MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length) }),
+                        MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length,
+                                mergePolicyFactory instanceof LevelMergePolicyFactory) }),
                 secondaryRecDescConsideringPointMBR);
 
         // Create secondary RTree bulk load op.
