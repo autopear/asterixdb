@@ -23,6 +23,7 @@ import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.IJsonSerializable;
 import org.apache.hyracks.api.io.IPersistedResourceRegistry;
+import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -37,6 +38,27 @@ public class RawBinaryComparatorFactory implements IBinaryComparatorFactory {
     @Override
     public IBinaryComparator createBinaryComparator() {
         return RawBinaryComparatorFactory::compare;
+    }
+
+    @Override
+    public String getTypeName() {
+        return "ByteArray";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            byte[] b1 = new byte[l];
+            System.arraycopy(b, s, b1, 0, l);
+            return ByteArrayPointable.bytesToHex(b1);
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
     }
 
     public static int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {

@@ -73,6 +73,21 @@ public class OrderedLinearizeComparatorFactory implements ILinearizeComparatorFa
     }
 
     @Override
+    public String getTypeName() {
+        return factory.getTypeName();
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        return (b == null || b.length == 0) ? "" : factory.byteToString(b, s, l);
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
+    @Override
     public JsonNode toJson(IPersistedResourceRegistry registry) throws HyracksDataException {
         ObjectNode json = registry.getClassIdentifier(getClass(), serialVersionUID);
         json.set("factory", factory.toJson(registry));

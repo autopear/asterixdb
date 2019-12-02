@@ -40,6 +40,16 @@ abstract class AbstractAGenericBinaryComparatorFactory implements IBinaryCompara
         this.rightType = TypeComputeUtils.getActualType(rightType);
     }
 
+    @Override
+    public String getTypeName() {
+        return leftType.getTypeName();
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
     JsonNode convertToJson(IPersistedResourceRegistry registry, Class<? extends IJsonSerializable> clazz, long version)
             throws HyracksDataException {
         ObjectNode jsonNode = registry.getClassIdentifier(clazz, version);

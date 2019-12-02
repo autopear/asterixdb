@@ -42,6 +42,37 @@ public class ALinePartialBinaryComparatorFactory implements IBinaryComparatorFac
         return ALinePartialBinaryComparatorFactory::compare;
     }
 
+    @Override
+    public String getTypeName() {
+        return "Line";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            try {
+                double sx = ADoubleSerializerDeserializer.getDouble(b,
+                        s + ALineSerializerDeserializer.getStartPointCoordinateOffset(Coordinate.X) - 1);
+                double sy = ADoubleSerializerDeserializer.getDouble(b,
+                        s + ALineSerializerDeserializer.getStartPointCoordinateOffset(Coordinate.Y) - 1);
+                double ex = ADoubleSerializerDeserializer.getDouble(b,
+                        s + ALineSerializerDeserializer.getEndPointCoordinateOffset(Coordinate.X) - 1);
+                double ey = ADoubleSerializerDeserializer.getDouble(b,
+                        s + ALineSerializerDeserializer.getEndPointCoordinateOffset(Coordinate.Y) - 1);
+                return "[" + sx + "," + sy + "," + ex + "," + ey + "]";
+            } catch (HyracksDataException ex) {
+                return "";
+            }
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
     @SuppressWarnings("squid:S1172") // unused parameter
     public static int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) throws HyracksDataException {
         int c = Double.compare(

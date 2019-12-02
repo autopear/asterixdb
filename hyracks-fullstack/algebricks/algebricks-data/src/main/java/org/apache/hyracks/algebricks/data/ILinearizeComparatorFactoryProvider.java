@@ -22,6 +22,6 @@ import org.apache.hyracks.algebricks.common.exceptions.AlgebricksException;
 import org.apache.hyracks.api.dataflow.value.ILinearizeComparatorFactory;
 
 public interface ILinearizeComparatorFactoryProvider {
-    public ILinearizeComparatorFactory getLinearizeComparatorFactory(Object type, boolean ascending, int dimension)
-            throws AlgebricksException;
+    public ILinearizeComparatorFactory getLinearizeComparatorFactory(Object type, boolean ascending, int dimension,
+            boolean isLeveled) throws AlgebricksException;
 }

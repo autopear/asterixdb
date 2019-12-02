@@ -23,6 +23,7 @@ import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.IJsonSerializable;
 import org.apache.hyracks.api.io.IPersistedResourceRegistry;
+import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 import org.apache.hyracks.data.std.primitive.BytePointable;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -38,6 +39,27 @@ public final class ByteBinaryComparatorFactory implements IBinaryComparatorFacto
     @Override
     public IBinaryComparator createBinaryComparator() {
         return BytePointable::compare;
+    }
+
+    @Override
+    public String getTypeName() {
+        return "Byte";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            byte[] b1 = new byte[l];
+            System.arraycopy(b, s, b1, 0, l);
+            return ByteArrayPointable.bytesToHex(b1);
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
     }
 
     @Override

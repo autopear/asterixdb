@@ -23,6 +23,7 @@ import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.io.IJsonSerializable;
 import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.data.std.primitive.UTF8StringLowercasePointable;
+import org.apache.hyracks.util.string.UTF8StringUtil;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -38,6 +39,27 @@ public final class UTF8StringLowercaseBinaryComparatorFactory implements IBinary
     @Override
     public IBinaryComparator createBinaryComparator() {
         return UTF8StringLowercasePointable::compare;
+    }
+
+    @Override
+    public String getTypeName() {
+        return "String";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            byte[] b1 = new byte[l];
+            System.arraycopy(b, s, b1, 0, l);
+            return "\"" + UTF8StringUtil.toString(b1, 0).toLowerCase() + "\"";
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
     }
 
     @Override

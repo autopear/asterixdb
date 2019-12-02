@@ -455,41 +455,15 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
     protected LSMComponentFileReferences getMergeFileReferences(List<ILSMDiskComponent> components)
             throws HyracksDataException {
         if (isLeveled) {
-            if (components.size() == 1) {
-                // Move to the next level
-                String newName = (components.get(0).getLevel() + 1) + AbstractLSMIndexFileManager.DELIMITER + "0";
-                return fileManager.getRelMergeFileReference(newName);
+            long levelFrom = components.get(0).getLevel();
+            String newName;
+            if (diskComponents.size() == 1 && levelFrom == getMaxLevel()) {
+                newName = (levelFrom + 1) + AbstractLSMIndexFileManager.DELIMITER + "1";
             } else {
-                long levelFrom = -1L;
-                long levelTo = -1L;
-                for (ILSMDiskComponent component : components) {
-                    long level = component.getLevel();
-                    if (levelFrom == -1L) {
-                        levelFrom = level;
-                    } else if (levelFrom != level) {
-                        if (levelTo == -1L) {
-                            levelTo = level;
-                        } else if (levelTo != level) {
-                            throw HyracksDataException.create(ErrorCode.INVALID_OPERATOR_OPERATION);
-                        }
-                    } else {
-                    }
-                    if (levelFrom == -1L || levelTo == -1L) {
-                        throw HyracksDataException.create(ErrorCode.INVALID_OPERATOR_OPERATION);
-                    }
-                    if (levelFrom > levelTo) {
-                        long tmp = levelFrom;
-                        levelFrom = levelTo;
-                        levelTo = tmp;
-                    }
-                    if (levelTo - levelFrom != 1L) {
-                        throw HyracksDataException.create(ErrorCode.INVALID_OPERATOR_OPERATION);
-                    }
-                }
-                long maxLevelId = getMaxLevelId(levelTo);
-                String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + (maxLevelId + 1);
-                return fileManager.getRelMergeFileReference(newName);
+                long levelTo = components.get(components.size() - 1).getLevel();
+                newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + getNextLevelSequence(levelTo);
             }
+            return fileManager.getRelMergeFileReference(newName);
         } else {
             LSMInvertedIndexDiskComponent first = (LSMInvertedIndexDiskComponent) components.get(0);
             String firstFileName = first.getMetadataHolder().getFileReference().getFile().getName();

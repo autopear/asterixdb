@@ -347,7 +347,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             ITupleReference minTuple = null;
             ITupleReference maxTuple = null;
             MultiComparator filterCmp = null;
-            long start = lsmRTree.getMaxLevelId(levelTo) + 1;
+            long start = lsmRTree.getNextLevelSequence(levelTo);
             try {
                 ILSMDiskComponent newComponent = null;
                 ILSMDiskComponentBulkLoader componentBulkLoader = null;
@@ -521,7 +521,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         } else {
             List<ILSMDiskComponent> newComponents = new ArrayList<>();
             List<ILSMDiskComponentBulkLoader> componentBulkLoaders = new ArrayList<>();
-            long start = lsmRTree.getMaxLevelId(levelTo) + 1;
+            long start = lsmRTree.getNextLevelSequence(levelTo);
             List<FileReference> mergeFileTargets = new ArrayList<>();
             List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
             List<TupleWithMBR> allTuples = new ArrayList<>();
@@ -534,7 +534,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 }
                 List<List<TupleWithMBR>> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);
                 for (List<TupleWithMBR> partition : partitions) {
-                    partition.sort(new Comparator<TupleWithMBR>() {
+                    /*partition.sort(new Comparator<TupleWithMBR>() {
                         @Override
                         public int compare(TupleWithMBR t1, TupleWithMBR t2) {
                             try {
@@ -543,7 +543,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                 return -1;
                             }
                         }
-                    });
+                    });*/
                     int dim = partition.get(0).getDim();
                     LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo, start++);
                     mergeFileTargets.add(refs.getInsertIndexFileReference());
@@ -564,19 +564,11 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     double[] maxMBR = null;
                     for (TupleWithMBR tupleWithMBR : partition) {
                         ITupleReference tuple = tupleWithMBR.getTuple();
-                        if (minTuple == null) {
+                        if (minTuple == null || (filterCmp != null && filterCmp.compare(tuple, minTuple) < 0)) {
                             minTuple = tuple;
-                        } else {
-                            if (filterCmp != null && filterCmp.compare(tuple, minTuple) < 0) {
-                                minTuple = tuple;
-                            }
                         }
-                        if (maxTuple == null) {
+                        if (maxTuple == null || (filterCmp != null && filterCmp.compare(tuple, maxTuple) > 0)) {
                             maxTuple = tuple;
-                        } else {
-                            if (filterCmp != null && filterCmp.compare(tuple, maxTuple) > 0) {
-                                maxTuple = tuple;
-                            }
                         }
                         componentBulkLoader.add(tuple);
                         double[] mbr = tupleWithMBR.getMBR();

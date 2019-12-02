@@ -20,7 +20,6 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.io.IOException;
-import java.lang.Math;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1043,8 +1042,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     public LSMComponentFileReferences getNextMergeFileReferencesAtLevel(long level, long start)
             throws HyracksDataException {
-        long maxId = getMaxLevelId(level);
-        String newName = level + AbstractLSMIndexFileManager.DELIMITER + (start > maxId ? start : maxId + 1);
+        long next = getNextLevelSequence(level);
+        String newName = level + AbstractLSMIndexFileManager.DELIMITER + (start >= next ? start : next);
         return fileManager.getRelMergeFileReference(newName);
     }
 
@@ -1057,37 +1056,28 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         return component;
     }
 
-    public long getEmptySlotsInLevel(long level) throws HyracksDataException {
-        long count = 0;
-        for (ILSMDiskComponent component : diskComponents) {
-            if (component.getLevel() == level) {
-                count++;
-            } else {
-                if (component.getLevel() > level) {
-                    break;
-                }
+    public long getMaxLevel() {
+        long maxLevel = -1L;
+        for (ILSMDiskComponent c : diskComponents) {
+            long level = c.getLevel();
+            if (level > maxLevel) {
+                maxLevel = level;
             }
         }
-
-        if (level == 0L) {
-            return level0Tables - count;
-        } else {
-            long maxCount = (long) Math.pow(level1Tables, level);
-            return maxCount - count;
-        }
+        return maxLevel;
     }
 
-    public long getMaxLevelId(long level) {
-        long maxLevelId = 0L;
+    public long getNextLevelSequence(long level) {
+        long maxLevelSequence = 0L;
         for (ILSMDiskComponent component : diskComponents) {
             if (component.getLevel() == level) {
-                long levelId = component.getLevelSequence();
-                if (levelId > maxLevelId) {
-                    maxLevelId = levelId;
+                long levelSequence = component.getLevelSequence();
+                if (levelSequence > maxLevelSequence) {
+                    maxLevelSequence = levelSequence;
                 }
             }
         }
-        return maxLevelId;
+        return maxLevelSequence + 1;
     }
 
     public boolean isLeveledLSM() {

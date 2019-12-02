@@ -147,7 +147,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         ITupleReference maxTuple = null;
                         MultiComparator filterCmp = null;
                         long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1;
-                        long start = lsmBTree.getMaxLevelId(levelTo) + 1;
+                        long start = lsmBTree.getNextLevelSequence(levelTo);
                         List<FileReference> mergeFileTargets = new ArrayList<>();
                         List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
                         byte[] minKey = null;

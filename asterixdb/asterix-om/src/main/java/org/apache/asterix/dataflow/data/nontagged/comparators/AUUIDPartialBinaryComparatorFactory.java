@@ -37,6 +37,27 @@ public class AUUIDPartialBinaryComparatorFactory implements IBinaryComparatorFac
         return AUUIDPartialBinaryComparatorFactory::compare;
     }
 
+    @Override
+    public String getTypeName() {
+        return "UUID";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            long l1 = LongPointable.getLong(b, s);
+            long l2 = LongPointable.getLong(b, s + 8);
+            return "[" + l1 + "," + l2 + "]";
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
     @SuppressWarnings("squid:S1172") // unused parameter
     public static int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
         int msbCompare = Long.compare(LongPointable.getLong(b1, s1), LongPointable.getLong(b2, s2));

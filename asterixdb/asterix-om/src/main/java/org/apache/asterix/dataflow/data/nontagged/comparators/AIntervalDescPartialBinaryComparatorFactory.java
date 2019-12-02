@@ -45,6 +45,28 @@ public class AIntervalDescPartialBinaryComparatorFactory implements IBinaryCompa
         return AIntervalDescPartialBinaryComparatorFactory::compare;
     }
 
+    @Override
+    public String getTypeName() {
+        return "Interval";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            long ed = AIntervalSerializerDeserializer.getIntervalEnd(b, s);
+            long st = AIntervalSerializerDeserializer.getIntervalStart(b, s);
+            long ti = AIntervalSerializerDeserializer.getIntervalTimeType(b, s);
+            return "[" + ed + "," + st + "," + ti + "]";
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
     @SuppressWarnings("squid:S1172") // unused parameter
     public static int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
         int c = Long.compare(AIntervalSerializerDeserializer.getIntervalEnd(b1, s1),

@@ -20,5 +20,4 @@ package org.apache.hyracks.api.dataflow.value;
 
 public interface ILinearizeComparator extends IBinaryComparator {
     public int getDimensions();
-
 }

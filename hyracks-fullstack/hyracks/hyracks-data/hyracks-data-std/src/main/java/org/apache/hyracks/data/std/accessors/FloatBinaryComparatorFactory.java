@@ -41,6 +41,25 @@ public final class FloatBinaryComparatorFactory implements IBinaryComparatorFact
     }
 
     @Override
+    public String getTypeName() {
+        return "Float";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            return Float.toString(FloatPointable.getFloat(b, s));
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
+    @Override
     public JsonNode toJson(IPersistedResourceRegistry registry) throws HyracksDataException {
         return registry.getClassIdentifier(getClass(), serialVersionUID);
     }

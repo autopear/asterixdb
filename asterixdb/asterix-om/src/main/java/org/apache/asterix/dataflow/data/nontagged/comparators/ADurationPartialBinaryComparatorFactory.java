@@ -43,6 +43,27 @@ public class ADurationPartialBinaryComparatorFactory implements IBinaryComparato
         return ADurationPartialBinaryComparatorFactory::compare;
     }
 
+    @Override
+    public String getTypeName() {
+        return "Duration";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            int ym = AInt32SerializerDeserializer.getInt(b, s + ADurationSerializerDeserializer.getYearMonthOffset());
+            int dt = AInt32SerializerDeserializer.getInt(b, s + ADurationSerializerDeserializer.getDayTimeOffset());
+            return "[" + ym + "," + dt + "]";
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
     @SuppressWarnings("squid:S1172") // unused parameter
     public static int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
         int c = Integer.compare(

@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.util.CleanupUtils;
+import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilter;
 import org.apache.hyracks.storage.am.btree.impls.BTree;
@@ -209,8 +210,10 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             String[] paths =
                     operationalComponents.get(0).getLsmIndex().getIndexIdentifier().replace("\\", "/").split("/");
             if (paths[paths.length - 1].compareTo("usertable") == 0) {
-                LSMHarness.writeLog("[SEARCH]\tthread=" + Thread.currentThread().getId() + "\tkey=" + searchKey
-                        + "\ttime=" + duration + "\tavail=" + availComponents + "\ttimes=[" + timeStr + "]");
+                LSMHarness.writeLog(
+                        "[SEARCH]\tthread=" + Thread.currentThread().getId() + "\tkey=" + searchKey + "\ttime="
+                                + duration + "\tall=" + operationalComponents.get(0).getLsmIndex().getComponentsInfo()
+                                + "\tavail=" + availComponents + "\ttimes=[" + timeStr + "]");
             }
         }
 
@@ -244,7 +247,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                 if (l >= Long.BYTES) {
                     searchKey = Long.toString(LSMBTree.bytesToLong(searchData));
                 } else {
-                    searchKey = LSMBTree.bytesToHex(searchData);
+                    searchKey = ByteArrayPointable.bytesToHex(searchData);
                 }
             }
 

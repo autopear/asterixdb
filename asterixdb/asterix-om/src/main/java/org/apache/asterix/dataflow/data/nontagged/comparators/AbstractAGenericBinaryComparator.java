@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.dataflow.data.nontagged.comparators;
 
+import static org.apache.asterix.om.types.ATypeTag.VALUE_TYPE_MAPPING;
 import static org.apache.asterix.om.util.container.ObjectFactories.RECORD_FACTORY;
 import static org.apache.asterix.om.util.container.ObjectFactories.VALUE_FACTORY;
 
@@ -31,6 +32,7 @@ import org.apache.asterix.dataflow.data.nontagged.serde.ADayTimeDurationSerializ
 import org.apache.asterix.dataflow.data.nontagged.serde.ATimeSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.AYearMonthDurationSerializerDeserializer;
 import org.apache.asterix.dataflow.data.nontagged.serde.SerializerDeserializerUtil;
+import org.apache.asterix.formats.nontagged.AnyBinaryComparatorFactory;
 import org.apache.asterix.om.pointables.nonvisitor.RecordField;
 import org.apache.asterix.om.pointables.nonvisitor.SortedRecord;
 import org.apache.asterix.om.typecomputer.impl.TypeComputeUtils;
@@ -47,6 +49,7 @@ import org.apache.hyracks.data.std.accessors.RawBinaryComparatorFactory;
 import org.apache.hyracks.data.std.primitive.BooleanPointable;
 import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 import org.apache.hyracks.data.std.primitive.UTF8StringPointable;
+import org.apache.hyracks.util.string.UTF8StringUtil;
 
 /**
  * This comparator is an ordering comparator. It deals with MISSING, NULL, and incompatible types different than the
@@ -63,6 +66,131 @@ abstract class AbstractAGenericBinaryComparator implements IBinaryComparator {
         // factory should have already made sure to get the actual type (and no null types)
         this.leftType = leftType;
         this.rightType = rightType;
+    }
+
+    public static String byteToString(IAType type, byte[] b, int s, int l) {
+        TaggedValueReference tvr = new TaggedValueReference();
+        tvr.set(b, s + 1, l - 1, VALUE_TYPE_MAPPING[b[s]]);
+        ATypeTag tag = tvr.getTag();
+        if (tag == null) {
+            throw new IllegalStateException("Could not recognize the type of data.");
+        }
+        if (tag == ATypeTag.MISSING) {
+            return "MISSING";
+        }
+        if (tag == ATypeTag.NULL) {
+            return "NULL";
+        }
+        switch (tag) {
+            case STRING:
+                return "\"" + UTF8StringUtil.toString(tvr.getByteArray(), tvr.getStartOffset()) + "\"";
+            case UUID:
+                return AUUIDPartialBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(),
+                        tvr.getStartOffset(), tvr.getLength());
+            case BOOLEAN:
+                return BooleanPointable.getBoolean(tvr.getByteArray(), tvr.getStartOffset()) ? "true" : "false";
+            case TIME:
+                return Integer
+                        .toString(ATimeSerializerDeserializer.getChronon(tvr.getByteArray(), tvr.getStartOffset()));
+            case DATE:
+                return Integer
+                        .toString(ADateSerializerDeserializer.getChronon(tvr.getByteArray(), tvr.getStartOffset()));
+            case YEARMONTHDURATION:
+                return Integer.toString(AYearMonthDurationSerializerDeserializer.getYearMonth(tvr.getByteArray(),
+                        tvr.getStartOffset()));
+            case DATETIME:
+                return Long
+                        .toString(ADateTimeSerializerDeserializer.getChronon(tvr.getByteArray(), tvr.getStartOffset()));
+            case DAYTIMEDURATION:
+                return Long.toString(
+                        ADayTimeDurationSerializerDeserializer.getDayTime(tvr.getByteArray(), tvr.getStartOffset()));
+            case RECTANGLE:
+                return ARectanglePartialBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(),
+                        tvr.getStartOffset(), tvr.getLength());
+            case CIRCLE:
+                return ACirclePartialBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(),
+                        tvr.getStartOffset(), tvr.getLength());
+            case POINT:
+                return APointPartialBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(),
+                        tvr.getStartOffset(), tvr.getLength());
+            case POINT3D:
+                return APoint3DPartialBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(),
+                        tvr.getStartOffset(), tvr.getLength());
+            case LINE:
+                return ALinePartialBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(),
+                        tvr.getStartOffset(), tvr.getLength());
+            case POLYGON:
+                return APolygonPartialBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(),
+                        tvr.getStartOffset(), tvr.getLength());
+            case DURATION:
+                return ADurationPartialBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(),
+                        tvr.getStartOffset(), tvr.getLength());
+            case INTERVAL:
+                return AIntervalAscPartialBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(),
+                        tvr.getStartOffset(), tvr.getLength());
+            case BINARY:
+                return AnyBinaryComparatorFactory.bytesToHex(tvr.getByteArray());
+            case ARRAY: {
+                ListObjectPool<TaggedValueReference, Void> tva = new ListObjectPool<>(VALUE_FACTORY);
+                int numItems = SerializerDeserializerUtil.getNumberOfItemsNonTagged(tvr);
+                IAType itemType = ((AbstractCollectionType) TypeComputeUtils.getActualTypeOrOpen(type, ATypeTag.ARRAY))
+                        .getItemType();
+                ATypeTag arrayItemTag = itemType.getTypeTag();
+                TaggedValueReference item = tva.allocate(null);
+                boolean itemHasTag = arrayItemTag == ATypeTag.ANY;
+                try {
+                    ListAccessorUtil.getItemFromList(tvr, 0, item, arrayItemTag, itemHasTag);
+                    StringBuilder sb = new StringBuilder(
+                            "[" + byteToString(itemType, item.getByteArray(), item.getStartOffset(), item.getLength()));
+                    for (int i = 0; i < numItems; i++) {
+                        ListAccessorUtil.getItemFromList(tvr, i, item, arrayItemTag, itemHasTag);
+                        sb.append(","
+                                + byteToString(itemType, item.getByteArray(), item.getStartOffset(), item.getLength()));
+                    }
+                    sb.append("]");
+                    return sb.toString();
+                } catch (IOException e) {
+                    return "";
+                } finally {
+                    tva.free(item);
+                }
+            }
+            case OBJECT: {
+                ListObjectPool<TaggedValueReference, Void> tva = new ListObjectPool<>(VALUE_FACTORY);
+                ListObjectPool<SortedRecord, ARecordType> rp = new ListObjectPool<>(RECORD_FACTORY);
+                ARecordType recordType = (ARecordType) TypeComputeUtils.getActualTypeOrOpen(type, ATypeTag.OBJECT);
+                SortedRecord record = rp.allocate(recordType);
+                TaggedValueReference fieldValue = tva.allocate(null);
+                try {
+                    record.resetNonTagged(b, s);
+                    StringBuilder sb = null;
+                    while (!record.isEmpty()) {
+                        RecordField field = record.poll();
+                        // then compare the values if the names are equal
+                        record.getFieldValue(field, fieldValue);
+                        if (sb == null) {
+                            sb = new StringBuilder("{" + "\"" + field.getName().toString() + "\":"
+                                    + byteToString(record.getFieldType(field), fieldValue.getByteArray(),
+                                            fieldValue.getStartOffset(), fieldValue.getLength()));
+                        } else {
+                            sb.append(",\"" + field.getName().toString() + "\":"
+                                    + byteToString(record.getFieldType(field), fieldValue.getByteArray(),
+                                            fieldValue.getStartOffset(), fieldValue.getLength()));
+                        }
+                    }
+                    sb.append("}");
+                    return sb.toString();
+                } catch (IOException e) {
+                    return "";
+                } finally {
+                    rp.free(record);
+                    tva.free(fieldValue);
+                }
+            }
+            default:
+                return RawBinaryComparatorFactory.INSTANCE.byteToString(tvr.getByteArray(), tvr.getStartOffset(),
+                        tvr.getLength());
+        }
     }
 
     protected final int compare(IAType leftType, TaggedValueReference leftValue, IAType rightType,

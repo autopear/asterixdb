@@ -276,16 +276,14 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
             throws HyracksDataException {
         if (isLeveled) {
             long levelFrom = components.get(0).getLevel();
-            long levelTo = components.get(components.size() - 1).getLevel();
-            if (levelFrom == levelTo) {
-                // Move to the next level
-                String newName = (levelTo + 1) + AbstractLSMIndexFileManager.DELIMITER + "1";
-                return fileManager.getRelMergeFileReference(newName);
+            String newName;
+            if (diskComponents.size() == 1 && levelFrom == getMaxLevel()) {
+                newName = (levelFrom + 1) + AbstractLSMIndexFileManager.DELIMITER + "1";
             } else {
-                long maxLevelId = getMaxLevelId(levelTo);
-                String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + (maxLevelId + 1);
-                return fileManager.getRelMergeFileReference(newName);
+                long levelTo = components.get(components.size() - 1).getLevel();
+                newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + getNextLevelSequence(levelTo);
             }
+            return fileManager.getRelMergeFileReference(newName);
         } else {
             RTree firstTree = (RTree) components.get(0).getIndex();
             RTree lastTree = (RTree) components.get(components.size() - 1).getIndex();

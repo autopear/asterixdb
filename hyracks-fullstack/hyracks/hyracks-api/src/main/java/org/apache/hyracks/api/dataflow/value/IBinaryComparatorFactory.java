@@ -24,4 +24,10 @@ import org.apache.hyracks.api.io.IJsonSerializable;
 
 public interface IBinaryComparatorFactory extends Serializable, IJsonSerializable {
     public IBinaryComparator createBinaryComparator();
+
+    public String getTypeName();
+
+    public String byteToString(byte[] b, int s, int l);
+
+    public String byteToString(byte[] b);
 }

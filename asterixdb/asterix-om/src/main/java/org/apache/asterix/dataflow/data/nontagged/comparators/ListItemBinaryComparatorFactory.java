@@ -52,6 +52,25 @@ public class ListItemBinaryComparatorFactory implements IBinaryComparatorFactory
         return createBinaryComparator(ATypeTag.MISSING, ATypeTag.MISSING, false);
     }
 
+    @Override
+    public String getTypeName() {
+        return "List";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            return "";
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
     public IBinaryComparator createBinaryComparator(final ATypeTag firstItemTypeTag, final ATypeTag secondItemTypeTag,
             final boolean ignoreCase) {
         return new IBinaryComparator() {

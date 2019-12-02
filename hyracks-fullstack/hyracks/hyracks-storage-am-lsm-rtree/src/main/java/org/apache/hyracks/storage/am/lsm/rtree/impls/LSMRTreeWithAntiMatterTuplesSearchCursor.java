@@ -90,6 +90,7 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
 
         LSMRTreeCursorInitialState lsmInitialState = (LSMRTreeCursorInitialState) initialState;
         cmp = lsmInitialState.getHilbertCmp();
+        LSMHarness.writeLog("[LSMRTreeWithAntiMatterTuplesSearchCursor-cmp]\t" + cmp.getClass().getSimpleName());
         btreeCmp = lsmInitialState.getBTreeCmp();
         lsmHarness = lsmInitialState.getLSMHarness();
         comparatorFields = lsmInitialState.getComparatorFields();

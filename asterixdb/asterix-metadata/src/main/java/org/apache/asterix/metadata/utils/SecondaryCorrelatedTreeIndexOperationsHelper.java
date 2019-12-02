@@ -102,6 +102,25 @@ public abstract class SecondaryCorrelatedTreeIndexOperationsHelper extends Secon
         }
 
         @Override
+        public String getTypeName() {
+            return BinaryComparatorFactoryProvider.INTEGER_POINTABLE_INSTANCE.getTypeName();
+        }
+
+        @Override
+        public String byteToString(byte[] b, int s, int l) {
+            if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+                return "";
+            } else {
+                return BinaryComparatorFactoryProvider.INTEGER_POINTABLE_INSTANCE.byteToString(b, s, l);
+            }
+        }
+
+        @Override
+        public String byteToString(byte[] b) {
+            return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+        }
+
+        @Override
         public JsonNode toJson(IPersistedResourceRegistry registry) throws HyracksDataException {
             return registry.getClassIdentifier(getClass(), serialVersionUID);
         }

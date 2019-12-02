@@ -42,6 +42,35 @@ public class ACirclePartialBinaryComparatorFactory implements IBinaryComparatorF
         return ACirclePartialBinaryComparatorFactory::compare;
     }
 
+    @Override
+    public String getTypeName() {
+        return "Circle";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            try {
+                double x = ADoubleSerializerDeserializer.getDouble(b,
+                        s + ACircleSerializerDeserializer.getCenterPointCoordinateOffset(Coordinate.X) - 1);
+                double y = ADoubleSerializerDeserializer.getDouble(b,
+                        s + ACircleSerializerDeserializer.getCenterPointCoordinateOffset(Coordinate.Y) - 1);
+                double r = ADoubleSerializerDeserializer.getDouble(b,
+                        s + ACircleSerializerDeserializer.getRadiusOffset() - 1);
+                return "[" + x + "," + y + "," + r + "]";
+            } catch (HyracksDataException ex) {
+                return "";
+            }
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
     @SuppressWarnings("squid:S1172") // unused parameter
     public static int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) throws HyracksDataException {
         // center.x

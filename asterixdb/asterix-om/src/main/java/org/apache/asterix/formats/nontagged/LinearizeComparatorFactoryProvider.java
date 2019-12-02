@@ -26,6 +26,8 @@ import org.apache.hyracks.algebricks.data.ILinearizeComparatorFactoryProvider;
 import org.apache.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import org.apache.hyracks.api.dataflow.value.ILinearizeComparatorFactory;
 import org.apache.hyracks.storage.am.rtree.linearize.HilbertDoubleComparatorFactory;
+import org.apache.hyracks.storage.am.rtree.linearize.SimpleDoubleComparatorFactory;
+import org.apache.hyracks.storage.am.rtree.linearize.SimpleIntComparatorFactory;
 import org.apache.hyracks.storage.am.rtree.linearize.ZCurveDoubleComparatorFactory;
 import org.apache.hyracks.storage.am.rtree.linearize.ZCurveIntComparatorFactory;
 
@@ -38,9 +40,21 @@ public class LinearizeComparatorFactoryProvider implements ILinearizeComparatorF
     }
 
     @Override
-    public ILinearizeComparatorFactory getLinearizeComparatorFactory(Object type, boolean ascending, int dimension)
-            throws AlgebricksException {
+    public ILinearizeComparatorFactory getLinearizeComparatorFactory(Object type, boolean ascending, int dimension,
+            boolean isLeveled) throws AlgebricksException {
         ATypeTag typeTag = (ATypeTag) type;
+
+        if (isLeveled) {
+            if (typeTag == ATypeTag.DOUBLE) {
+                return addOffset(new SimpleDoubleComparatorFactory(dimension), ascending);
+            } else if (typeTag == ATypeTag.TINYINT || typeTag == ATypeTag.SMALLINT || typeTag == ATypeTag.INTEGER
+                    || typeTag == ATypeTag.BIGINT) {
+                return addOffset(new SimpleIntComparatorFactory(dimension), ascending);
+            } else {
+                throw new AlgebricksException(
+                        "Cannot propose linearizer for key with type " + typeTag + " and dimension " + dimension + ".");
+            }
+        }
 
         if (dimension == 2 && (typeTag == ATypeTag.DOUBLE)) {
             return addOffset(new HilbertDoubleComparatorFactory(2), ascending);

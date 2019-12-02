@@ -44,7 +44,6 @@ public class OrderedBinaryComparatorFactory implements IBinaryComparatorFactory 
         final IBinaryComparator bc = factory.createBinaryComparator();
         if (ascending) {
             return new ABinaryComparator() {
-
                 @Override
                 public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) throws HyracksDataException {
                     return bc.compare(b1, s1 + 1, l1 - 1, b2, s2 + 1, l2 - 1);
@@ -58,6 +57,25 @@ public class OrderedBinaryComparatorFactory implements IBinaryComparatorFactory 
                 }
             };
         }
+    }
+
+    @Override
+    public String getTypeName() {
+        return factory.getTypeName();
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            return factory.byteToString(b, s, l);
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
     }
 
     @Override

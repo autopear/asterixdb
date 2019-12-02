@@ -41,6 +41,29 @@ public class ARectanglePartialBinaryComparatorFactory implements IBinaryComparat
         return ARectanglePartialBinaryComparatorFactory::compare;
     }
 
+    @Override
+    public String getTypeName() {
+        return "Rectangle";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            double x1 = ADoubleSerializerDeserializer.getDouble(b, s);
+            double y1 = ADoubleSerializerDeserializer.getDouble(b, s + 8);
+            double x2 = ADoubleSerializerDeserializer.getDouble(b, s + 16);
+            double y2 = ADoubleSerializerDeserializer.getDouble(b, s + 24);
+            return "[" + x1 + "," + y1 + "," + x2 + "," + y2 + "]";
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
     @SuppressWarnings("squid:S1172") // unused parameter
     public static int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
         int c1 = Double.compare(ADoubleSerializerDeserializer.getDouble(b1, s1),

@@ -615,16 +615,14 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             throws HyracksDataException {
         if (isLeveled) {
             long levelFrom = components.get(0).getLevel();
-            long levelTo = components.get(components.size() - 1).getLevel();
-            if (levelFrom == levelTo) {
-                // Move to the next level
-                String newName = (levelTo + 1) + AbstractLSMIndexFileManager.DELIMITER + "1";
-                return fileManager.getRelMergeFileReference(newName);
+            String newName;
+            if (diskComponents.size() == 1 && levelFrom == getMaxLevel()) {
+                newName = (levelFrom + 1) + AbstractLSMIndexFileManager.DELIMITER + "1";
             } else {
-                long maxLevelId = getMaxLevelId(levelTo);
-                String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + (maxLevelId + 1);
-                return fileManager.getRelMergeFileReference(newName);
+                long levelTo = components.get(components.size() - 1).getLevel();
+                newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + getNextLevelSequence(levelTo);
             }
+            return fileManager.getRelMergeFileReference(newName);
         } else {
             BTree firstBTree = (BTree) components.get(0).getIndex();
             BTree lastBTree = (BTree) components.get(components.size() - 1).getIndex();
@@ -682,18 +680,6 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         return ByteBuffer.wrap(key, l - Long.BYTES, Long.BYTES).getLong();
     }
 
-    private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
-
-    public static String bytesToHex(byte[] bytes) {
-        char[] hexChars = new char[bytes.length * 2];
-        for (int j = 0; j < bytes.length; j++) {
-            int v = bytes[j] & 0xFF;
-            hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
-        }
-        return new String(hexChars);
-    }
-
     @Override
     public String componentToString(ILSMDiskComponent component, int indent) {
         String basename;
@@ -708,31 +694,13 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
         try {
             byte[] minData = component.getMinKey();
-            if (minData == null) {
-                minKey = "Unknown";
-            } else {
-                int l = minData.length;
-                if (l >= Long.BYTES) {
-                    minKey = Long.toString(bytesToLong(minData)) + "L";
-                } else {
-                    minKey = bytesToHex(minData);
-                }
-            }
+            minKey = minData == null ? "Unknown" : this.cmpFactories[0].byteToString(minData);
         } catch (HyracksDataException ex) {
             minKey = "Unknown";
         }
         try {
             byte[] maxData = component.getMaxKey();
-            if (maxData == null) {
-                maxKey = "Unknown";
-            } else {
-                int l = maxData.length;
-                if (l >= Long.BYTES) {
-                    maxKey = Long.toString(bytesToLong(maxData)) + "L";
-                } else {
-                    maxKey = bytesToHex(maxData);
-                }
-            }
+            maxKey = maxData == null ? "Unknown" : this.cmpFactories[0].byteToString(maxData);
         } catch (HyracksDataException ex) {
             maxKey = "Unknown";
         }
@@ -753,31 +721,13 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         long numTuples;
         try {
             byte[] minData = c.getMinKey();
-            if (minData == null) {
-                minKey = "Unknown";
-            } else {
-                int l = minData.length;
-                if (l >= Long.BYTES) {
-                    minKey = Long.toString(bytesToLong(minData));
-                } else {
-                    minKey = bytesToHex(minData);
-                }
-            }
+            minKey = minData == null ? "Unknown" : this.cmpFactories[0].byteToString(minData);
         } catch (HyracksDataException ex) {
             minKey = "Unknown";
         }
         try {
             byte[] maxData = c.getMaxKey();
-            if (maxData == null) {
-                maxKey = "Unknown";
-            } else {
-                int l = maxData.length;
-                if (l >= Long.BYTES) {
-                    maxKey = Long.toString(bytesToLong(maxData));
-                } else {
-                    maxKey = bytesToHex(maxData);
-                }
-            }
+            maxKey = maxData == null ? "Unknown" : this.cmpFactories[0].byteToString(maxData);
         } catch (HyracksDataException ex) {
             maxKey = "Unknown";
         }

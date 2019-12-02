@@ -40,6 +40,27 @@ public final class ByteArrayBinaryComparatorFactory implements IBinaryComparator
     }
 
     @Override
+    public String getTypeName() {
+        return "ByteArray";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            byte[] b1 = new byte[l];
+            System.arraycopy(b, s, b1, 0, l);
+            return ByteArrayPointable.bytesToHex(b1);
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
+    @Override
     public JsonNode toJson(IPersistedResourceRegistry registry) {
         return registry.getClassIdentifier(getClass(), serialVersionUID);
     }

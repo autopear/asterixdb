@@ -26,6 +26,7 @@ import org.apache.hyracks.api.io.IPersistedResourceRegistry;
 import org.apache.hyracks.data.std.api.IComparable;
 import org.apache.hyracks.data.std.api.IPointable;
 import org.apache.hyracks.data.std.api.IPointableFactory;
+import org.apache.hyracks.data.std.primitive.ByteArrayPointable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -57,6 +58,27 @@ public class PointableBinaryComparatorFactory implements IBinaryComparatorFactor
                 return ((IComparable) p).compareTo(b2, s2, l2);
             }
         };
+    }
+
+    @Override
+    public String getTypeName() {
+        return "ByteArray";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            byte[] b1 = new byte[l];
+            System.arraycopy(b, s, b1, 0, l);
+            return ByteArrayPointable.bytesToHex(b1);
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
     }
 
     @Override

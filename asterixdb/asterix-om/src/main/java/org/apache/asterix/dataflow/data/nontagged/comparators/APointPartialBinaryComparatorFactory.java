@@ -42,6 +42,33 @@ public class APointPartialBinaryComparatorFactory implements IBinaryComparatorFa
         return APointPartialBinaryComparatorFactory::compare;
     }
 
+    @Override
+    public String getTypeName() {
+        return "Point";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            try {
+                double x = ADoubleSerializerDeserializer.getDouble(b,
+                        s + APointSerializerDeserializer.getCoordinateOffset(Coordinate.X) - 1);
+                double y = ADoubleSerializerDeserializer.getDouble(b,
+                        s + APointSerializerDeserializer.getCoordinateOffset(Coordinate.Y) - 1);
+                return "[" + x + "," + y + "]";
+            } catch (HyracksDataException ex) {
+                return "";
+            }
+        }
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
     @SuppressWarnings("squid:S1172") // unused parameter
     public static int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) throws HyracksDataException {
         int c = Double.compare(
