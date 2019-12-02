@@ -21,7 +21,6 @@ package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 import org.apache.commons.math3.distribution.BinomialDistribution;
@@ -96,12 +95,12 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
             return Collections.singletonList(getOldestComponent(thisLevelComponents, level));
         }
 
-        thisLevelComponents.sort(new Comparator<ILSMDiskComponent>() {
+        /*thisLevelComponents.sort(new Comparator<ILSMDiskComponent>() {
             @Override
             public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
                 return Long.compare(c1.getLevelSequence(), c2.getLevelSequence());
             }
-        });
+        });*/
 
         long overlapped = components.size();
         List<ILSMDiskComponent> toMerge = new ArrayList<>();
@@ -129,12 +128,12 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
             return Collections.singletonList(getOldestComponent(thisLevelComponents, level));
         }
 
-        thisLevelComponents.sort(new Comparator<ILSMDiskComponent>() {
+        /*thisLevelComponents.sort(new Comparator<ILSMDiskComponent>() {
             @Override
             public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
                 return Long.compare(c1.getLevelSequence(), c2.getLevelSequence());
             }
-        });
+        });*/
 
         long overlapped = -1L;
         List<ILSMDiskComponent> toMerge = new ArrayList<>();

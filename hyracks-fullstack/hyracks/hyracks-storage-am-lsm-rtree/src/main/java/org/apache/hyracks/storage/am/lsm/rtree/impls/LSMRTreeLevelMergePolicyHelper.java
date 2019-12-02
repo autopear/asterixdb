@@ -169,12 +169,12 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     break;
                 }
             }
-            overlapped.sort(new Comparator<ILSMDiskComponent>() {
+            /*overlapped.sort(new Comparator<ILSMDiskComponent>() {
                 @Override
                 public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
                     return Long.compare(c2.getLevelSequence(), c1.getLevelSequence());
                 }
-            });
+            });*/
         } else {
             for (ILSMDiskComponent c : nextLevelComponents) {
                 try {

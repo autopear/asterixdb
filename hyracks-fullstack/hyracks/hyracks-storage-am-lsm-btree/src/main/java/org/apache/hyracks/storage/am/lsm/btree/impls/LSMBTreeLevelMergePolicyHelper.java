@@ -22,7 +22,6 @@ package org.apache.hyracks.storage.am.lsm.btree.impls;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 import org.apache.hyracks.api.exceptions.HyracksDataException;
@@ -56,12 +55,12 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         if (nextLevelComponents.isEmpty()) {
             return Collections.emptyList();
         }
-        nextLevelComponents.sort(new Comparator<ILSMDiskComponent>() {
+        /*nextLevelComponents.sort(new Comparator<ILSMDiskComponent>() {
             @Override
             public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
                 return Long.compare(c2.getLevelSequence(), c1.getLevelSequence());
             }
-        });
+        });*/
 
         byte[] minKey;
         byte[] maxKey;
@@ -76,9 +75,10 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         List<ILSMDiskComponent> overlapped = new ArrayList<>();
         for (ILSMDiskComponent c : nextLevelComponents) {
             try {
-                byte[] cMinKey = component.getMinKey();
-                byte[] cMaxKey = component.getMaxKey();
-                if (!(lsmBTree.compareKey(minKey, cMaxKey) > 0 || lsmBTree.compareKey(maxKey, cMinKey) < 0)) {
+                byte[] cMinKey = c.getMinKey();
+                byte[] cMaxKey = c.getMaxKey();
+                if (lsmBTree.compareKey(minKey, cMaxKey) <= 0 && lsmBTree.compareKey(maxKey, cMinKey) >= 0) {
+                    // if (!(lsmBTree.compareKey(minKey, cMaxKey) > 0 || lsmBTree.compareKey(maxKey, cMinKey) < 0)) {
                     overlapped.add(c);
                 }
             } catch (HyracksDataException ex) {

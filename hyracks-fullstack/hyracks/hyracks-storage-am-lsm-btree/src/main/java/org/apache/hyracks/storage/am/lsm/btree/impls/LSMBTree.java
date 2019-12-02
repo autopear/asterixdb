@@ -77,7 +77,6 @@ import org.apache.hyracks.storage.common.IIndexCursorStats;
 import org.apache.hyracks.storage.common.ISearchPredicate;
 import org.apache.hyracks.storage.common.IndexCursorStats;
 import org.apache.hyracks.storage.common.MultiComparator;
-import org.apache.hyracks.storage.common.SingleComparator;
 import org.apache.hyracks.storage.common.buffercache.IBufferCache;
 import org.apache.hyracks.storage.common.buffercache.IPageWriteCallback;
 import org.apache.hyracks.util.trace.ITracer;
@@ -137,7 +136,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         } else {
             mergePolicyHelper = null;
         }
-        keyCmp = SingleComparator.create(cmpFactories).getComparators()[0];
+        keyCmp = cmpFactories[0].createBinaryComparator();
     }
 
     // Without memory components
@@ -163,7 +162,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         } else {
             mergePolicyHelper = null;
         }
-        keyCmp = SingleComparator.create(cmpFactories).getComparators()[0];
+        keyCmp = cmpFactories[0].createBinaryComparator();
     }
 
     public boolean hasBloomFilter() {
@@ -655,29 +654,11 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 mergeFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
     }
 
-    public static byte[] getLongBytesFromTuple(ITupleReference tuple) {
-        byte[] key = getKeyBytes(tuple);
-        int l = key == null ? 0 : key.length;
-        if (key.length < Long.BYTES) {
-            return null;
-        }
-        return Arrays.copyOfRange(key, l - Long.BYTES, l);
-    }
-
     public static long bytesToLong(byte[] bytes) {
         if (bytes == null || bytes.length < Long.BYTES) {
             return Long.MAX_VALUE;
         }
         return ByteBuffer.wrap(bytes, bytes.length - Long.BYTES, Long.BYTES).getLong();
-    }
-
-    public static long getLongFromTuple(ITupleReference tuple) {
-        byte[] key = getKeyBytes(tuple);
-        int l = key == null ? 0 : key.length;
-        if (key.length < Long.BYTES) {
-            return Long.MAX_VALUE;
-        }
-        return ByteBuffer.wrap(key, l - Long.BYTES, Long.BYTES).getLong();
     }
 
     @Override
