@@ -16,10 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.util;
 
-@FunctionalInterface
-public interface ComputingAction<T> {
-    @SuppressWarnings("squid:S00112")
-    T compute() throws Throwable;
-}
+-- param max-warnings:json=1000
+[
+concat(),
+concat("1", "2", "3"),
+concat(1, 2, missing) is missing,
+concat(1, null, missing) is missing,
+concat(1, 2, 3) is null,
+concat(1, 2, null) is null
+];

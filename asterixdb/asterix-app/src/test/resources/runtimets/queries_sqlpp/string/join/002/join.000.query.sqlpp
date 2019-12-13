@@ -16,10 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.util;
 
-@FunctionalInterface
-public interface ComputingAction<T> {
-    @SuppressWarnings("squid:S00112")
-    T compute() throws Throwable;
-}
+[
+string_join(["1", "2", "3"], "-"),
+string_join(["1", "2", "3", "4"], "-"),
+string_join(["1", "2", "3", "4"], "|-|"),
+string_join(["single"], "-"),
+string_join({{"1", "2", "3"}}, "-"),
+string_join({{"1", "2", "3", "4"}}, "-"),
+string_join({{"1", "2", "3", "4"}}, "|-|"),
+string_join({{"single"}}, "-")
+];

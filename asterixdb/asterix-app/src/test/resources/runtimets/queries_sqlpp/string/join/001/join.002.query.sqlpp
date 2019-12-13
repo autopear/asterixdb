@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.util;
 
-@FunctionalInterface
-public interface ComputingAction<T> {
-    @SuppressWarnings("squid:S00112")
-    T compute() throws Throwable;
-}
+// param max-warnings:json=1000
+
+use test;
+
+select value [string_join(f1, f2) is missing, string_join(f1, f2) is null]
+from test
+order by f0 asc;

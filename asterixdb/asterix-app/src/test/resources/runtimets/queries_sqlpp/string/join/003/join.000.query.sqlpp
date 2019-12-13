@@ -16,10 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.util;
 
-@FunctionalInterface
-public interface ComputingAction<T> {
-    @SuppressWarnings("squid:S00112")
-    T compute() throws Throwable;
-}
+// param max-warnings:json=1000
+
+[
+string_join(["1"], 1) is null,
+string_join(["1"], missing) is missing,
+string_join(["1", "2"], null) is null,
+string_join(["1", 1], "-") is null,
+string_join(["1", missing], "-") is missing,
+string_join(["1", missing, null], "-") is missing,
+string_join(["1", null], "-") is null,
+string_join({{"1"}}, 1) is null,
+string_join({{"1"}}, missing) is missing,
+string_join({{"1", "2"}}, null) is null,
+string_join({{"1", 1}}, "-") is null,
+string_join({{"1", missing}}, "-") is missing,
+string_join({{"1", missing, null}}, "-") is missing,
+string_join({{"1", null}}, "-") is null
+];

@@ -16,10 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.util;
 
-@FunctionalInterface
-public interface ComputingAction<T> {
-    @SuppressWarnings("squid:S00112")
-    T compute() throws Throwable;
-}
+use test;
+
+select value [
+(select value string_join(f1, f2) from test where f0 = 1)[0],
+(select value string_join(f1, f2) from test where f0 = 2)[0],
+(select value string_join(f1, f2) from test where f0 = 3)[0],
+(select value string_join(f1, f2) from test where f0 = 4)[0],
+(select value string_join(f1, f2) from test where f0 = 5)[0],
+(select value string_join(f1, f2) from test where f0 = 6)[0],
+(select value string_join(f1, f2) from test where f0 = 7)[0],
+(select value string_join(f1, f2) from test where f0 = 8)[0]
+];
