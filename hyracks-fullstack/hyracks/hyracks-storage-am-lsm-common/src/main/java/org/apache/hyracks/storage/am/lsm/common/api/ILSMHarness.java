@@ -31,6 +31,8 @@ import org.apache.hyracks.storage.common.ISearchPredicate;
 
 public interface ILSMHarness {
 
+    ILSMIndex getLSMIndex();
+
     /**
      * Force modification even if memory component is full
      *

@@ -53,14 +53,16 @@ public class NCLogConfigurationFactory extends ConfigurationFactory {
         // create a rolling file appender
         LayoutComponentBuilder defaultLayout = builder.newLayout("PatternLayout").addAttribute("pattern",
                 "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n");
+
         ComponentBuilder triggeringPolicy = builder.newComponent("Policies")
                 .addComponent(builder.newComponent("CronTriggeringPolicy").addAttribute("schedule", "0 0 0 * * ?"))
                 .addComponent(builder.newComponent("SizeBasedTriggeringPolicy").addAttribute("size", "50M"));
+        ComponentBuilder rolloverStrategy = builder.newComponent("DefaultRolloverStrategy").addAttribute("max", 365);
         AppenderComponentBuilder defaultRoll =
                 builder.newAppender("default", "RollingFile").addAttribute("fileName", ncLog.getAbsolutePath())
                         .addAttribute("filePattern",
                                 new File(logDir, "nc-" + nodeId + "-%d{MM-dd-yy-ss}.log.gz").getAbsolutePath())
-                        .add(defaultLayout).addComponent(triggeringPolicy);
+                        .add(defaultLayout).addComponent(triggeringPolicy).addComponent(rolloverStrategy);
         builder.add(defaultRoll);
 
         // create the new logger
@@ -71,7 +73,7 @@ public class NCLogConfigurationFactory extends ConfigurationFactory {
                 .addAttribute("fileName", new File(logDir, "access-" + nodeId + ".log").getAbsolutePath())
                 .addAttribute("filePattern",
                         new File(logDir, "access-" + nodeId + "-%d{MM-dd-yy-ss}.log.gz").getAbsolutePath())
-                .add(accessLayout).addComponent(triggeringPolicy);
+                .add(accessLayout).addComponent(triggeringPolicy).addComponent(rolloverStrategy);
         builder.add(accessRoll);
         builder.add(builder.newLogger("org.apache.hyracks.http.server.CLFLogger", Level.forName("ACCESS", 550))
                 .add(builder.newAppenderRef("access")).addAttribute("additivity", false));
@@ -81,7 +83,7 @@ public class NCLogConfigurationFactory extends ConfigurationFactory {
         AppenderComponentBuilder traceRoll = builder.newAppender("trace", "RollingFile")
                 .addAttribute("fileName", new File(logDir, "trace-" + nodeId + ".log"))
                 .addAttribute("filePattern", new File(logDir, "trace-" + nodeId + "-%d{MM-dd-yy-ss}.log.gz"))
-                .add(traceLayout).addComponent(triggeringPolicy);
+                .add(traceLayout).addComponent(triggeringPolicy).addComponent(rolloverStrategy);
         builder.add(traceRoll);
         builder.add(builder.newLogger("org.apache.hyracks.util.trace.Tracer.Traces", Level.forName("TRACER", 570))
                 .add(builder.newAppenderRef("trace")).addAttribute("additivity", false));

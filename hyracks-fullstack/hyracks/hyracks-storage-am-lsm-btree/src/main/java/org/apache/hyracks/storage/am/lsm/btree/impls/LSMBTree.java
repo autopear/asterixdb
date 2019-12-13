@@ -19,7 +19,6 @@
 
 package org.apache.hyracks.storage.am.lsm.btree.impls;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -654,11 +653,8 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 mergeFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
     }
 
-    public static long bytesToLong(byte[] bytes) {
-        if (bytes == null || bytes.length < Long.BYTES) {
-            return Long.MAX_VALUE;
-        }
-        return ByteBuffer.wrap(bytes, bytes.length - Long.BYTES, Long.BYTES).getLong();
+    public String keyToString(byte[] b) {
+        return this.cmpFactories[0].byteToString(b);
     }
 
     @Override
@@ -675,13 +671,13 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         }
         try {
             byte[] minData = component.getMinKey();
-            minKey = minData == null ? "Unknown" : this.cmpFactories[0].byteToString(minData);
+            minKey = minData == null ? "Unknown" : keyToString(minData);
         } catch (HyracksDataException ex) {
             minKey = "Unknown";
         }
         try {
             byte[] maxData = component.getMaxKey();
-            maxKey = maxData == null ? "Unknown" : this.cmpFactories[0].byteToString(maxData);
+            maxKey = maxData == null ? "Unknown" : keyToString(maxData);
         } catch (HyracksDataException ex) {
             maxKey = "Unknown";
         }
@@ -702,13 +698,13 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         long numTuples;
         try {
             byte[] minData = c.getMinKey();
-            minKey = minData == null ? "Unknown" : this.cmpFactories[0].byteToString(minData);
+            minKey = minData == null ? "Unknown" : keyToString(minData);
         } catch (HyracksDataException ex) {
             minKey = "Unknown";
         }
         try {
             byte[] maxData = c.getMaxKey();
-            maxKey = maxData == null ? "Unknown" : this.cmpFactories[0].byteToString(maxData);
+            maxKey = maxData == null ? "Unknown" : keyToString(maxData);
         } catch (HyracksDataException ex) {
             maxKey = "Unknown";
         }

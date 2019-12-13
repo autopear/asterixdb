@@ -55,9 +55,10 @@ public class CCLogConfigurationFactory extends ConfigurationFactory {
         ComponentBuilder triggeringPolicy = builder.newComponent("Policies")
                 .addComponent(builder.newComponent("CronTriggeringPolicy").addAttribute("schedule", "0 0 0 * * ?"))
                 .addComponent(builder.newComponent("SizeBasedTriggeringPolicy").addAttribute("size", "50M"));
+        ComponentBuilder rolloverStrategy = builder.newComponent("DefaultRolloverStrategy").addAttribute("max", 365);
         AppenderComponentBuilder defaultRoll = builder.newAppender("default", "RollingFile")
                 .addAttribute("fileName", ccLog).addAttribute("filePattern", new File(logDir, "cc-%d{MM-dd-yy}.log.gz"))
-                .add(defaultLayout).addComponent(triggeringPolicy);
+                .add(defaultLayout).addComponent(triggeringPolicy).addComponent(rolloverStrategy);
         builder.add(defaultRoll);
 
         // create the new logger
@@ -67,7 +68,7 @@ public class CCLogConfigurationFactory extends ConfigurationFactory {
         AppenderComponentBuilder accessRoll =
                 builder.newAppender("access", "RollingFile").addAttribute("fileName", new File(logDir, "access.log"))
                         .addAttribute("filePattern", new File(logDir, "access-%d{MM-dd-yy}.log.gz")).add(accessLayout)
-                        .addComponent(triggeringPolicy);
+                        .addComponent(triggeringPolicy).addComponent(rolloverStrategy);
         builder.add(accessRoll);
         builder.add(builder.newLogger("org.apache.hyracks.http.server.CLFLogger", Level.forName("ACCESS", 550))
                 .add(builder.newAppenderRef("access")).addAttribute("additivity", false));

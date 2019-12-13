@@ -127,6 +127,11 @@ public class LSMHarness implements ILSMHarness {
                 + mergePolicy.getClass().getCanonicalName() + ", properties: " + mergePolicy.getProperties());
     }
 
+    @Override
+    public ILSMIndex getLSMIndex() {
+        return lsmIndex;
+    }
+
     protected boolean getAndEnterComponents(ILSMIndexOperationContext ctx, LSMOperationType opType,
             boolean isTryOperation) throws HyracksDataException {
         long before = 0L;
@@ -616,8 +621,7 @@ public class LSMHarness implements ILSMHarness {
         flushCnt.incrementAndGet();
         totalFlushed.getAndAdd(operation.getNewComponent().getComponentSize());
         if (indexName.compareTo("rtreeidx") == 0 || indexName.compareTo("usertable") == 0) {
-            LOGGER.info(
-                    "[ALLCOMPONENTS]\t" + flushCnt.get() + "\t" + mergeCnt.get() + "\t" + lsmIndex.getComponentsInfo());
+            LOGGER.info("[ALL]\t" + flushCnt.get() + "\t" + mergeCnt.get() + "\t" + lsmIndex.getComponentsInfo());
         }
         try {
             flushLock.acquire();
@@ -697,12 +701,10 @@ public class LSMHarness implements ILSMHarness {
 
         if (indexName.compareTo("rtreeidx") == 0 || indexName.compareTo("usertable") == 0) {
             String after = getComponentSizes(lsmIndex.getDiskComponents());
-            LOGGER.info("[MERGE]\tthread=" + Thread.currentThread().getId() + "\ttime=" + duration + "\tbefore="
-                    + before + "\tsrc=" + toMerge + "\tdst=" + news + "\tafter=" + after + "\tflushes=" + flushCnt.get()
-                    + "\tflushed=" + totalFlushed.get() + "\tmerges=" + mergeCnt.get() + "\tmerged="
-                    + totalMerged.get());
-            LOGGER.info(
-                    "[ALLCOMPONENTS]\t" + flushCnt.get() + "\t" + mergeCnt.get() + "\t" + lsmIndex.getComponentsInfo());
+            LOGGER.info("[MERGE]\ttime=" + duration + "\tbefore=" + before + "\tsrc=" + toMerge + "\tdst=" + news
+                    + "\tafter=" + after + "\tflushes=" + flushCnt.get() + "\tflushed=" + totalFlushed.get()
+                    + "\tmerges=" + mergeCnt.get() + "\tmerged=" + totalMerged.get());
+            LOGGER.info("[ALL]\t" + flushCnt.get() + "\t" + mergeCnt.get() + "\t" + lsmIndex.getComponentsInfo());
         }
         try {
             mergeLock.acquire();
