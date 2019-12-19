@@ -53,13 +53,13 @@ public class CCLogConfigurationFactory extends ConfigurationFactory {
         LayoutComponentBuilder defaultLayout = builder.newLayout("PatternLayout").addAttribute("pattern",
                 "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n");
         ComponentBuilder triggeringPolicy = builder.newComponent("Policies")
-                .addComponent(builder.newComponent("CronTriggeringPolicy").addAttribute("schedule", "0 0 0 * * ?"))
-                .addComponent(builder.newComponent("SizeBasedTriggeringPolicy").addAttribute("size", "50M"));
-        ComponentBuilder rolloverStrategy =
-                builder.newComponent("DefaultRolloverStrategy").addAttribute("min", 30).addAttribute("max", 365);
-        AppenderComponentBuilder defaultRoll = builder.newAppender("default", "RollingFile")
-                .addAttribute("fileName", ccLog).addAttribute("filePattern", new File(logDir, "cc-%d{MM-dd-yy}.log.gz"))
-                .add(defaultLayout).addComponent(triggeringPolicy).addComponent(rolloverStrategy);
+                // .addComponent(builder.newComponent("CronTriggeringPolicy").addAttribute("schedule", "0 0 0 * * ?"))
+                .addComponent(builder.newComponent("SizeBasedTriggeringPolicy").addAttribute("size", "100M"));
+        ComponentBuilder rolloverStrategy = builder.newComponent("DefaultRolloverStrategy").addAttribute("max", 9999);
+        AppenderComponentBuilder defaultRoll =
+                builder.newAppender("default", "RollingFile").addAttribute("fileName", ccLog)
+                        .addAttribute("filePattern", new File(logDir, "cc-%d{MM-dd-yy_HH-mm-ss}.log.gz"))
+                        .add(defaultLayout).addComponent(triggeringPolicy).addComponent(rolloverStrategy);
         builder.add(defaultRoll);
 
         // create the new logger

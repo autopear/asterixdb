@@ -55,14 +55,13 @@ public class NCLogConfigurationFactory extends ConfigurationFactory {
                 "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n");
 
         ComponentBuilder triggeringPolicy = builder.newComponent("Policies")
-                .addComponent(builder.newComponent("CronTriggeringPolicy").addAttribute("schedule", "0 0 0 * * ?"))
-                .addComponent(builder.newComponent("SizeBasedTriggeringPolicy").addAttribute("size", "50M"));
-        ComponentBuilder rolloverStrategy =
-                builder.newComponent("DefaultRolloverStrategy").addAttribute("min", 30).addAttribute("max", 365);
+                // .addComponent(builder.newComponent("CronTriggeringPolicy").addAttribute("schedule", "0 0 0 * * ?"))
+                .addComponent(builder.newComponent("SizeBasedTriggeringPolicy").addAttribute("size", "100M"));
+        ComponentBuilder rolloverStrategy = builder.newComponent("DefaultRolloverStrategy").addAttribute("max", 9999);
         AppenderComponentBuilder defaultRoll =
                 builder.newAppender("default", "RollingFile").addAttribute("fileName", ncLog.getAbsolutePath())
                         .addAttribute("filePattern",
-                                new File(logDir, "nc-" + nodeId + "-%d{MM-dd-yy-ss}.log.gz").getAbsolutePath())
+                                new File(logDir, "nc-" + nodeId + "-%d{MM-dd-yy_HH-mm-ss}.log.gz").getAbsolutePath())
                         .add(defaultLayout).addComponent(triggeringPolicy).addComponent(rolloverStrategy);
         builder.add(defaultRoll);
 
