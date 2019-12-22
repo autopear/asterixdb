@@ -243,7 +243,11 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             @Override
             public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
                 if (c1.getLevel() == c2.getLevel()) {
-                    return compareComponents(c1, c2);
+                    if (c1.getLevel() == 0) {
+                        return -Long.compare(c1.getLevelSequence(), c2.getLevelSequence());
+                    } else {
+                        return compareComponents(c1, c2);
+                    }
                 } else {
                     return (int) (c1.getLevel() - c2.getLevel());
                 }
