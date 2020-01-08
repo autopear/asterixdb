@@ -40,15 +40,6 @@ public class AGenericAscBinaryComparatorFactory extends AbstractAGenericBinaryCo
     }
 
     @Override
-    public String byteToString(byte[] b, int s, int l) {
-        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
-            return "";
-        } else {
-            return AGenericAscBinaryComparator.byteToString(leftType, b, s, l);
-        }
-    }
-
-    @Override
     public JsonNode toJson(IPersistedResourceRegistry registry) throws HyracksDataException {
         return convertToJson(registry, getClass(), serialVersionUID);
     }

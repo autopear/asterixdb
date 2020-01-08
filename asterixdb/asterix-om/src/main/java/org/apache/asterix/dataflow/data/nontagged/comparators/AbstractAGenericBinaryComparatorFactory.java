@@ -18,6 +18,12 @@
  */
 package org.apache.asterix.dataflow.data.nontagged.comparators;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+
+import org.apache.asterix.dataflow.data.nontagged.printers.adm.AObjectPrinterFactory;
 import org.apache.asterix.om.typecomputer.impl.TypeComputeUtils;
 import org.apache.asterix.om.types.BuiltinType;
 import org.apache.asterix.om.types.IAType;
@@ -48,6 +54,21 @@ abstract class AbstractAGenericBinaryComparatorFactory implements IBinaryCompara
     @Override
     public String byteToString(byte[] b) {
         return (b == null || b.length == 0) ? "" : byteToString(b, 0, b.length);
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length == 0 || l == 0 || s >= b.length) {
+            return "";
+        } else {
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (PrintStream ps = new PrintStream(baos, true, "UTF-8")) {
+                AObjectPrinterFactory.printFlatValue(leftType.getTypeTag(), b, s, l, ps);
+            } catch (UnsupportedEncodingException | HyracksDataException ex) {
+                return "Error";
+            }
+            return new String(baos.toByteArray(), StandardCharsets.UTF_8);
+        }
     }
 
     JsonNode convertToJson(IPersistedResourceRegistry registry, Class<? extends IJsonSerializable> clazz, long version)
