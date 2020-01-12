@@ -106,7 +106,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     if (mergedComponents.size() == 1) {
                         long numElements = getNumberOfElements(mergedComponents);
                         LSMComponentFileReferences refs = lsmBTree.getNextMergeFileReferencesAtLevel(
-                                ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1, 1);
+                                ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1);
                         newComponent = lsmBTree.createDiskComponent(refs.getInsertIndexFileReference(), null,
                                 refs.getBloomFilterFileReference(), true);
                         IPageWriteCallback pageWriteCallback =
@@ -147,7 +147,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         ITupleReference maxTuple = null;
                         MultiComparator filterCmp = null;
                         long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1;
-                        long start = lsmBTree.getNextLevelSequence(levelTo);
+                        // long start = lsmBTree.getNextLevelSequence(levelTo);
                         List<FileReference> mergeFileTargets = new ArrayList<>();
                         List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
                         byte[] minKey = null;
@@ -164,8 +164,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                             cursor.next();
                             ITupleReference frameTuple = cursor.getTuple();
                             if (newComponent == null) {
-                                LSMComponentFileReferences refs =
-                                        lsmBTree.getNextMergeFileReferencesAtLevel(levelTo, start++);
+                                LSMComponentFileReferences refs = lsmBTree.getNextMergeFileReferencesAtLevel(levelTo);
                                 mergeFileTargets.add(refs.getInsertIndexFileReference());
                                 mergeBloomFilterTargets.add(refs.getBloomFilterFileReference());
                                 newComponent = lsmBTree.createDiskComponent(refs.getInsertIndexFileReference(), null,

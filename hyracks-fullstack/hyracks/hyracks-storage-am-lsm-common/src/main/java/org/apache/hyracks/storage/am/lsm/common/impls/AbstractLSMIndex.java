@@ -121,6 +121,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     public final long level0Tables;
     public final long level1Tables;
     public final long memTableSize;
+    private Map<Long, Long> levelSequences;
 
     public AbstractLSMIndex(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,
             IBufferCache diskBufferCache, ILSMIndexFileManager fileManager, double bloomFilterFalsePositiveRate,
@@ -162,11 +163,13 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             levelMergePolicy = (LevelMergePolicy) mergePolicy;
             this.level0Tables = ((LevelMergePolicy) mergePolicy).getLevel0Components();
             this.level1Tables = ((LevelMergePolicy) mergePolicy).getLevel1Components();
+            levelSequences = new HashMap<>();
         } else {
             this.isLeveled = false;
             levelMergePolicy = null;
             this.level0Tables = 0L;
             this.level1Tables = 0L;
+            levelSequences = new HashMap<>();
         }
         memTableSize = virtualBufferCaches.get(0).getPageSize() * virtualBufferCaches.get(0).getPageBudget();
     }
@@ -267,6 +270,13 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         }
         if (isLeveled) {
             sortLeveledDiskComponents();
+            for (ILSMDiskComponent c : diskComponents) {
+                long level = c.getLevel();
+                long seq = c.getLevelSequence();
+                if (level > 0 && seq > levelSequences.getOrDefault(level, 0L)) {
+                    levelSequences.put(level, seq);
+                }
+            }
         }
     }
 
@@ -1044,10 +1054,9 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 .of(IndexComponentFileReference.of(Paths.get(fileName).getFileName().toString()).getSequenceEnd());
     }
 
-    public LSMComponentFileReferences getNextMergeFileReferencesAtLevel(long level, long start)
-            throws HyracksDataException {
+    public LSMComponentFileReferences getNextMergeFileReferencesAtLevel(long level) throws HyracksDataException {
         long next = getNextLevelSequence(level);
-        String newName = level + AbstractLSMIndexFileManager.DELIMITER + (start >= next ? start : next);
+        String newName = level + AbstractLSMIndexFileManager.DELIMITER + next;
         return fileManager.getRelMergeFileReference(newName);
     }
 
@@ -1060,19 +1069,29 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         return component;
     }
 
-    public long getMaxLevel() {
-        long maxLevel = -1L;
-        for (ILSMDiskComponent c : diskComponents) {
+    public synchronized long getMaxLevel() {
+        long maxLevel = 0L;
+        for (long level : levelSequences.keySet()) {
+            if (level > maxLevel) {
+                maxLevel = level;
+            }
+        }
+        return diskComponents.isEmpty() ? -1L : maxLevel;
+
+        /* for (ILSMDiskComponent c : diskComponents) {
             long level = c.getLevel();
             if (level > maxLevel) {
                 maxLevel = level;
             }
         }
-        return maxLevel;
+        return maxLevel; */
     }
 
-    public long getNextLevelSequence(long level) {
-        long maxLevelSequence = 0L;
+    public synchronized long getNextLevelSequence(long level) {
+        long seq = levelSequences.getOrDefault(level, 0L);
+        levelSequences.put(level, seq + 1);
+        return seq + 1;
+        /* long maxLevelSequence = 0L;
         for (ILSMDiskComponent component : diskComponents) {
             if (component.getLevel() == level) {
                 long levelSequence = component.getLevelSequence();
@@ -1081,7 +1100,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 }
             }
         }
-        return maxLevelSequence + 1;
+        return maxLevelSequence + 1; */
     }
 
     public boolean isLeveledLSM() {
