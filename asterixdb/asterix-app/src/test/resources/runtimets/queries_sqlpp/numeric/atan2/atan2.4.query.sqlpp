@@ -16,22 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.hyracks.storage.common;
 
-import org.apache.hyracks.api.application.INCServiceContext;
-import org.apache.hyracks.api.exceptions.HyracksDataException;
-import org.apache.hyracks.api.io.IJsonSerializable;
+use test;
 
-public interface IResource extends IJsonSerializable {
-
-    IIndex createInstance(INCServiceContext ncServiceCtx) throws HyracksDataException;
-
-    String getPath();
-
-    /**
-     * Sets the path of {@link IResource}.
-     *
-     * @param path
-     */
-    void setPath(String path);
-}
+from ds1 select value atan2(field, 1.0f);
