@@ -17,18 +17,16 @@
  * under the License.
  */
 
-package org.apache.asterix.runtime.evaluators.functions;
+use test;
 
-import org.apache.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
-import org.apache.hyracks.algebricks.runtime.base.IScalarEvaluator;
-import org.apache.hyracks.api.exceptions.SourceLocation;
-
-public abstract class AbstractScalarEval implements IScalarEvaluator {
-    protected final SourceLocation srcLoc;
-    protected final FunctionIdentifier funID;
-
-    public AbstractScalarEval(SourceLocation sourceLoc, FunctionIdentifier functionIdentifier) {
-        this.srcLoc = sourceLoc;
-        this.funID = functionIdentifier;
-    }
+insert into ds1([
+{
+"id": 1, "str1": "text", "str2": "text",
+"d1": date("2013-05-05"), "d2": date("2013-05-05"),
+"t1": time("12:12:12.039Z"), "t2": time("12:12:12.039Z"),
+"dt1": datetime("2012-08-20T10:10:00"), "dt2": datetime("2012-08-20T10:10:00"),
+"dur1": duration("P100Y12MT12M"), "dur1": duration("P100Y12MT12M"),
+"ymd1": year_month_duration("P2Y1M"), "ymd2": year_month_duration("P2Y1M"),
+"dtd1": `day_time_duration`('PT5M'), "dtd2": `day_time_duration`('PT5M')
 }
+]);
