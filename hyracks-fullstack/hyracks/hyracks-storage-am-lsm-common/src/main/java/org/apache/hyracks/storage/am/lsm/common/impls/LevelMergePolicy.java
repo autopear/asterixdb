@@ -119,7 +119,8 @@ public class LevelMergePolicy implements ILSMMergePolicy {
     }
 
     @Override
-    public List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> immutableComponents) {
+    public List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> components) {
+        List<ILSMDiskComponent> immutableComponents = new ArrayList<>(components);
         List<Long> levels = new ArrayList<>();
         for (ILSMDiskComponent component : immutableComponents) {
             long level = component.getLevel();
@@ -130,20 +131,20 @@ public class LevelMergePolicy implements ILSMMergePolicy {
         levels.sort(Collections.reverseOrder());
         ILSMDiskComponent picked = null;
         for (long level : levels) {
-            List<ILSMDiskComponent> components = helper.getComponents(immutableComponents, level);
+            List<ILSMDiskComponent> componentsAtLevel = helper.getComponents(immutableComponents, level);
             if (level == 0) {
-                if (components.size() > level0Components) {
-                    picked = helper.getOldestComponent(components, 0);
+                if (componentsAtLevel.size() > level0Components) {
+                    picked = helper.getOldestComponent(componentsAtLevel, 0);
                     break;
                 }
             } else {
-                if (components.size() > Math.pow(level1Components, level)) {
+                if (componentsAtLevel.size() > Math.pow(level1Components, level)) {
                     if (pickStrategy.compareTo(LevelMergePolicyFactory.NEWEST) == 0) {
-                        picked = helper.getNewestComponent(components, level);
+                        picked = helper.getNewestComponent(componentsAtLevel, level);
                     } else if (pickStrategy.compareTo(LevelMergePolicyFactory.BEST) == 0) {
-                        return helper.getBestComponents(components, level, absoluteOverlap);
+                        return helper.getBestComponents(componentsAtLevel, level, absoluteOverlap);
                     } else if (dist.containsKey(pickStrategy)) {
-                        picked = helper.getRandomComponent(components, level, dist.get(pickStrategy));
+                        picked = helper.getRandomComponent(componentsAtLevel, level, dist.get(pickStrategy));
                     } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MIN_OVERLAP) == 0) {
                         return helper.getMinimumOverlappingComponents(immutableComponents, level, absoluteOverlap);
                     } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MAX_OVERLAP) == 0) {

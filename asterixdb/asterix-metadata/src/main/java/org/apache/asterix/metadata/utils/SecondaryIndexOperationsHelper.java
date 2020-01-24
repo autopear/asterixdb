@@ -88,6 +88,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.MinLatencyMergePolicyFacto
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.TieringMergePolicyFactory;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -308,6 +309,9 @@ public abstract class SecondaryIndexOperationsHelper {
                             mergePolicyProperties = secondaryIndexProperties;
                         } else if (policyName.compareTo(FixedMergePolicyFactory.NAME) == 0) {
                             mergePolicyFactory = new FixedMergePolicyFactory();
+                            mergePolicyProperties = secondaryIndexProperties;
+                        } else if (policyName.compareTo(TieringMergePolicyFactory.NAME) == 0) {
+                            mergePolicyFactory = new TieringMergePolicyFactory();
                             mergePolicyProperties = secondaryIndexProperties;
                         } else {
                             mergePolicyFactory = compactionInfo.first;

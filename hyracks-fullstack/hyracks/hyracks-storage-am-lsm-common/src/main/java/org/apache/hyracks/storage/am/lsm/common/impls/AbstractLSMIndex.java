@@ -217,7 +217,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             this.level0Tables = 0L;
             this.level1Tables = 0L;
         }
-        memTableSize = 0;
+        memTableSize = -1L;
     }
 
     @Override

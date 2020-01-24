@@ -33,12 +33,9 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 
-public class SizeTieredMergePolicy extends StackMergePolicy {
-    private double lowBucket;
+public class TieringMergePolicy extends StackMergePolicy {
+    private int numComponents;
     private double highBucket;
-    private int minComponents;
-    private int maxComponents;
-    private long minSSTable;
 
     @Override
     public void diskComponentAdded(ILSMIndex index, List<ILSMDiskComponent> newComponents, boolean fullMergeIsRequested,
@@ -58,49 +55,48 @@ public class SizeTieredMergePolicy extends StackMergePolicy {
     @Override
     public List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> components) {
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(components);
-        int length = immutableComponents.size();
-        List<ILSMDiskComponent> mergableComponents = new ArrayList<>();
-        for (int start = 0; start <= length - minComponents; start++) {
-            int max_end = start + maxComponents;
-            if (max_end > length)
-                max_end = length;
-            for (int end = max_end - 1; end >= start + minComponents - 1; end--) {
-                boolean all_small = true;
-                double total = 0;
-                mergableComponents.clear();
-                for (int i = start; i <= end; i++) {
-                    ILSMDiskComponent c = immutableComponents.get(i);
-                    mergableComponents.add(c);
-                    long size = c.getComponentSize();
-                    total += size;
-                    if (size >= minSSTable)
-                        all_small = false;
-                }
-                if (all_small)
-                    return mergableComponents;
-                double avg_size = total / (end - start + 1);
-                boolean is_bucket = true;
-                for (ILSMDiskComponent c : mergableComponents) {
-                    double size = (double) c.getComponentSize();
-                    if (size < avg_size * lowBucket || size > avg_size * highBucket) {
-                        is_bucket = false;
-                        break;
+        if (components == null || immutableComponents.isEmpty()) {
+            return Collections.emptyList();
+        }
+        long memTableSize = (long) Math.ceil(immutableComponents.get(0).getLsmIndex().memTableSize * highBucket);
+        List<List<ILSMDiskComponent>> tiers = new ArrayList<>();
+        for (ILSMDiskComponent c : immutableComponents) {
+            int t = getTier(c);
+            int tierSize = tiers.size();
+            if (t > tierSize) {
+                if (t - tierSize > 1) {
+                    for (int i = tierSize; i < t - 1; i++) {
+                        tiers.add(Collections.emptyList());
                     }
                 }
-                if (is_bucket)
-                    return mergableComponents;
+                List<ILSMDiskComponent> tierComponents = new ArrayList<>();
+                tierComponents.add(c);
+                tiers.add(tierComponents);
+            } else {
+                tiers.get(tiers.size() - 1).add(c);
+            }
+        }
+        for (int t = tiers.size() - 1; t >= 0; t--) {
+            List<ILSMDiskComponent> tierComponents = tiers.get(t);
+            long nextTierSize = Math.round(memTableSize * Math.pow(numComponents, t + 1));
+            if (tierComponents.size() >= numComponents) {
+                for (int l = tierComponents.size(); l >= numComponents; l--) {
+                    long total = getComponentsSize(tierComponents, 0, l - 1);
+                    if (total <= nextTierSize) {
+                        return tierComponents.subList(0, l);
+                    }
+                }
             }
         }
         return Collections.emptyList();
     }
 
-    private boolean areComponentsMergable(List<ILSMDiskComponent> immutableComponents) {
-        for (ILSMComponent c : immutableComponents) {
-            if (c.getState() != ComponentState.READABLE_UNWRITABLE) {
-                return false;
-            }
+    private long getComponentsSize(List<ILSMDiskComponent> components, int start, int end) {
+        long s = 0L;
+        for (int i = start; i <= end; i++) {
+            s += components.get(i).getComponentSize();
         }
-        return true;
+        return s;
     }
 
     private boolean areComponentsReadableWritableState(List<ILSMDiskComponent> immutableComponents) {
@@ -118,11 +114,8 @@ public class SizeTieredMergePolicy extends StackMergePolicy {
         while (this.properties.contains("  ")) {
             this.properties = this.properties.replaceAll("  ", " ");
         }
-        lowBucket = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.LOW_BUCKET));
-        highBucket = Double.parseDouble(properties.get(SizeTieredMergePolicyFactory.HIGH_BUCKET));
-        minComponents = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.MIN_COMPONENTS));
-        maxComponents = Integer.parseInt(properties.get(SizeTieredMergePolicyFactory.MAX_COMPONENTS));
-        minSSTable = Long.parseLong(properties.get(SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE));
+        numComponents = Integer.parseInt(properties.get(TieringMergePolicyFactory.NUM_COMPONENTS));
+        highBucket = Double.parseDouble(properties.get(TieringMergePolicyFactory.HIGH_BUCKET));
     }
 
     @Override
@@ -140,5 +133,11 @@ public class SizeTieredMergePolicy extends StackMergePolicy {
             }
         }
         return false;
+    }
+
+    private int getTier(ILSMDiskComponent component) {
+        long memTableSize = (long) Math.ceil(component.getLsmIndex().memTableSize * highBucket);
+        long numMemTables = (long) (Math.ceil((double) component.getComponentSize() / memTableSize));
+        return (int) Math.ceil((Math.log(numMemTables) / Math.log(numComponents))) + 1;
     }
 }

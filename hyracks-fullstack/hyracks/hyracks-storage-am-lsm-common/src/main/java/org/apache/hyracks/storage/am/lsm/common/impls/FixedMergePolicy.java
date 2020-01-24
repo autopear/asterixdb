@@ -20,6 +20,7 @@
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -77,9 +78,11 @@ public class FixedMergePolicy extends StackMergePolicy {
 
     @Override
     public List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> components) {
-        int l = components.size();
-        if (l < 2 || l <= numComponents)
-            return null;
+        List<ILSMDiskComponent> immutableComponents = new ArrayList<>(components);
+        int l = immutableComponents.size();
+        if (l < 2 || l <= numComponents) {
+            return Collections.emptyList();
+        }
 
         int numToMerge = l - numComponents + 1;
 
@@ -87,12 +90,12 @@ public class FixedMergePolicy extends StackMergePolicy {
         int start = 0;
 
         for (int i = 0; i < numToMerge; i++)
-            total += components.get(i).getComponentSize();
+            total += immutableComponents.get(i).getComponentSize();
 
         for (int i = 1; i <= l - numToMerge; i++) {
             long sum = 0;
             for (int j = 0; j < numToMerge; j++)
-                sum += components.get(i + j).getComponentSize();
+                sum += immutableComponents.get(i + j).getComponentSize();
             if (sum < total) {
                 total = sum;
                 start = i;
@@ -101,7 +104,7 @@ public class FixedMergePolicy extends StackMergePolicy {
 
         List<ILSMDiskComponent> componentsToBeMerged = new ArrayList<>();
         for (int i = 0; i < numToMerge; i++)
-            componentsToBeMerged.add(components.get(start + i));
+            componentsToBeMerged.add(immutableComponents.get(start + i));
         return componentsToBeMerged;
     }
 }

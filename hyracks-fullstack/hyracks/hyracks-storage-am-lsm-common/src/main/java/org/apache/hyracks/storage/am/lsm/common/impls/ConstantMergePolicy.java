@@ -62,10 +62,11 @@ public class ConstantMergePolicy extends StackMergePolicy {
 
     @Override
     public List<ILSMDiskComponent> getMergableComponents(List<ILSMDiskComponent> components) {
-        if (components == null || components.size() <= numComponents) {
+        List<ILSMDiskComponent> immutableComponents = new ArrayList<>(components);
+        if (components == null || immutableComponents.size() <= numComponents) {
             return Collections.emptyList();
         }
-        return components;
+        return immutableComponents;
     }
 
     @Override

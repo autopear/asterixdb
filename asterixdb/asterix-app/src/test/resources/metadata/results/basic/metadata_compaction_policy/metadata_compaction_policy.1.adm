@@ -10,3 +10,4 @@
 { "DataverseName": "Metadata", "CompactionPolicy": "bigtable", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.BigtableMergePolicyFactory" }
 { "DataverseName": "Metadata", "CompactionPolicy": "exploring", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.ExploringMergePolicyFactory" }
 { "DataverseName": "Metadata", "CompactionPolicy": "fixed", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.FixedMergePolicyFactory" }
+{ "DataverseName": "Metadata", "CompactionPolicy": "tiering", "Classname": "org.apache.hyracks.storage.am.lsm.common.impls.TieringMergePolicyFactory" }

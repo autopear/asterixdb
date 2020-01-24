@@ -95,6 +95,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.MinLatencyMergePolicyFacto
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.TieringMergePolicyFactory;
 import org.apache.hyracks.storage.common.ILocalResourceRepository;
 import org.apache.hyracks.storage.common.LocalResource;
 import org.apache.hyracks.storage.common.compression.NoOpCompressorDecompressorFactory;
@@ -282,7 +283,7 @@ public class MetadataBootstrap {
                 CorrelatedPrefixMergePolicyFactory.class.getName(), ConcurrentMergePolicyFactory.class.getName(),
                 BinomialMergePolicyFactory.class.getName(), MinLatencyMergePolicyFactory.class.getName(),
                 BigtableMergePolicyFactory.class.getName(), ExploringMergePolicyFactory.class.getName(),
-                FixedMergePolicyFactory.class.getName() };
+                FixedMergePolicyFactory.class.getName(), TieringMergePolicyFactory.class.getName() };
         for (String policyClassName : builtInCompactionPolicyClassNames) {
             CompactionPolicy compactionPolicy = getCompactionPolicyEntity(policyClassName);
             MetadataManager.INSTANCE.addCompactionPolicy(mdTxnCtx, compactionPolicy);
