@@ -71,7 +71,7 @@ public class BinomialMergePolicy extends StackMergePolicy {
             return Collections.emptyList();
         }
         // sequence number starts from 0, and thus latestSeq + 1 gives the number of flushes
-        int numFlushes = latestSeq.get().intValue() + 1;
+        int numFlushes = latestSeq.get().intValue();
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(components);
         Collections.reverse(immutableComponents);
         int size = immutableComponents.size();

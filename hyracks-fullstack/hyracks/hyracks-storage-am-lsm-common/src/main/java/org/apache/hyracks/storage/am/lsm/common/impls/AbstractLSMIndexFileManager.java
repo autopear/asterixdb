@@ -45,8 +45,6 @@ import org.apache.hyracks.storage.common.compression.NoOpCompressorDecompressorF
 import org.apache.hyracks.storage.common.compression.file.CompressedFileReference;
 import org.apache.hyracks.storage.common.file.BufferedFileHandle;
 import org.apache.hyracks.util.annotations.NotThreadSafe;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 @NotThreadSafe
 public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManager {
@@ -100,8 +98,6 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     protected final TreeIndexFactory<? extends ITreeIndex> treeFactory;
     private long lastUsedComponentSeq = UNINITALIZED_COMPONENT_SEQ;
     private final ICompressorDecompressorFactory compressorDecompressorFactory;
-
-    private static final Logger LOGGER = LogManager.getLogger();
 
     public AbstractLSMIndexFileManager(IIOManager ioManager, FileReference file,
             TreeIndexFactory<? extends ITreeIndex> treeFactory) {
@@ -390,9 +386,6 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
         if (lastUsedComponentSeq == UNINITALIZED_COMPONENT_SEQ) {
             lastUsedComponentSeq = getOnDiskLastUsedComponentSequence(filenameFilter);
         }
-        if (isLeveled && lastUsedComponentSeq == -1L) {
-            lastUsedComponentSeq = 0L;
-        }
         return isLeveled ? IndexComponentFileReference.getLevelFlushSequence(++lastUsedComponentSeq)
                 : IndexComponentFileReference.getFlushSequence(++lastUsedComponentSeq);
     }
@@ -413,7 +406,7 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     }
 
     private long getOnDiskLastUsedComponentSequence(FilenameFilter filenameFilter) throws HyracksDataException {
-        long maxComponentSeq = -1;
+        long maxComponentSeq = 0L;
         final String[] files = listDirFiles(baseDir, filenameFilter);
         for (String fileName : files) {
             maxComponentSeq = Math.max(maxComponentSeq, IndexComponentFileReference.of(fileName).getSequenceEnd());
