@@ -226,7 +226,9 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             throw HyracksDataException.create(ErrorCode.CANNOT_CREATE_ACTIVE_INDEX);
         }
         fileManager.createDirs();
-        diskComponents.clear();
+        synchronized (diskComponents) {
+            diskComponents.clear();
+        }
     }
 
     @Override
@@ -238,7 +240,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         isActive = true;
     }
 
-    private void sortLeveledDiskComponents() throws HyracksDataException {
+    private synchronized void sortLeveledDiskComponents() throws HyracksDataException {
         if (!isLeveled) {
             return;
         }
@@ -259,22 +261,24 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     }
 
     private void loadDiskComponents() throws HyracksDataException {
-        diskComponents.clear();
-        List<LSMComponentFileReferences> validFileReferences = fileManager.cleanupAndGetValidFiles();
-        for (LSMComponentFileReferences lsmComponentFileReferences : validFileReferences) {
-            ILSMDiskComponent component =
-                    createDiskComponent(componentFactory, lsmComponentFileReferences.getInsertIndexFileReference(),
-                            lsmComponentFileReferences.getDeleteIndexFileReference(),
-                            lsmComponentFileReferences.getBloomFilterFileReference(), false);
-            diskComponents.add(component);
-        }
-        if (isLeveled) {
-            sortLeveledDiskComponents();
-            for (ILSMDiskComponent c : diskComponents) {
-                long level = c.getLevel();
-                long seq = c.getLevelSequence();
-                if (level > 0 && seq > levelSequences.getOrDefault(level, 0L)) {
-                    levelSequences.put(level, seq);
+        synchronized (diskComponents) {
+            diskComponents.clear();
+            List<LSMComponentFileReferences> validFileReferences = fileManager.cleanupAndGetValidFiles();
+            for (LSMComponentFileReferences lsmComponentFileReferences : validFileReferences) {
+                ILSMDiskComponent component =
+                        createDiskComponent(componentFactory, lsmComponentFileReferences.getInsertIndexFileReference(),
+                                lsmComponentFileReferences.getDeleteIndexFileReference(),
+                                lsmComponentFileReferences.getBloomFilterFileReference(), false);
+                diskComponents.add(component);
+            }
+            if (isLeveled) {
+                sortLeveledDiskComponents();
+                for (ILSMDiskComponent c : diskComponents) {
+                    long level = c.getLevel();
+                    long seq = c.getLevelSequence();
+                    if (level > 0 && seq > levelSequences.getOrDefault(level, 0L)) {
+                        levelSequences.put(level, seq);
+                    }
                 }
             }
         }
@@ -318,8 +322,10 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     }
 
     private void deactivateDiskComponents() throws HyracksDataException {
-        for (ILSMDiskComponent component : diskComponents) {
-            component.deactivateAndPurge();
+        synchronized (diskComponents) {
+            for (ILSMDiskComponent component : diskComponents) {
+                component.deactivateAndPurge();
+            }
         }
     }
 
@@ -342,8 +348,10 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     }
 
     private void destroyDiskComponents() throws HyracksDataException {
-        for (ILSMDiskComponent component : diskComponents) {
-            component.destroy();
+        synchronized (diskComponents) {
+            for (ILSMDiskComponent component : diskComponents) {
+                component.destroy();
+            }
         }
     }
 
@@ -357,10 +365,12 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     }
 
     private void deactivateAndDestroyDiskComponents() throws HyracksDataException {
-        for (ILSMDiskComponent component : diskComponents) {
-            component.deactivateAndDestroy();
+        synchronized (diskComponents) {
+            for (ILSMDiskComponent component : diskComponents) {
+                component.deactivateAndDestroy();
+            }
+            diskComponents.clear();
         }
-        diskComponents.clear();
     }
 
     private void resetMemoryComponents() throws HyracksDataException {
@@ -670,46 +680,52 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     @Override
     public void addDiskComponent(ILSMDiskComponent component) throws HyracksDataException {
-        if (component != EmptyComponent.INSTANCE) {
-            diskComponents.add(0, component);
-            if (isLeveled) {
-                sortLeveledDiskComponents();
+        synchronized (diskComponents) {
+            if (component != EmptyComponent.INSTANCE) {
+                diskComponents.add(0, component);
+                if (isLeveled) {
+                    sortLeveledDiskComponents();
+                }
             }
+            validateComponentIds();
         }
-        validateComponentIds();
     }
 
     @Override
     public void addDiskComponents(List<ILSMDiskComponent> components) throws HyracksDataException {
-        for (ILSMDiskComponent component : components) {
-            if (component != EmptyComponent.INSTANCE) {
-                diskComponents.add(0, component);
+        synchronized (diskComponents) {
+            for (ILSMDiskComponent component : components) {
+                if (component != EmptyComponent.INSTANCE) {
+                    diskComponents.add(0, component);
+                }
             }
+            if (isLeveled) {
+                sortLeveledDiskComponents();
+            }
+            validateComponentIds();
         }
-        if (isLeveled) {
-            sortLeveledDiskComponents();
-        }
-        validateComponentIds();
     }
 
     @Override
     public void subsumeMergedComponents(List<ILSMDiskComponent> newComponents, List<ILSMComponent> mergedComponents)
             throws HyracksDataException {
-        if (isLeveled) {
-            diskComponents.removeAll(mergedComponents);
-            diskComponents.addAll(newComponents);
-            sortLeveledDiskComponents();
-        } else {
-            int swapIndex = diskComponents.indexOf(mergedComponents.get(0));
-            diskComponents.removeAll(mergedComponents);
-            for (int i = newComponents.size() - 1; i >= 0; i--) {
-                ILSMDiskComponent newComponent = newComponents.get(i);
-                if (newComponent != EmptyComponent.INSTANCE) {
-                    diskComponents.add(swapIndex, newComponent);
+        synchronized (diskComponents) {
+            if (isLeveled) {
+                diskComponents.removeAll(mergedComponents);
+                diskComponents.addAll(newComponents);
+                sortLeveledDiskComponents();
+            } else {
+                int swapIndex = diskComponents.indexOf(mergedComponents.get(0));
+                diskComponents.removeAll(mergedComponents);
+                for (int i = newComponents.size() - 1; i >= 0; i--) {
+                    ILSMDiskComponent newComponent = newComponents.get(i);
+                    if (newComponent != EmptyComponent.INSTANCE) {
+                        diskComponents.add(swapIndex, newComponent);
+                    }
                 }
             }
+            validateComponentIds();
         }
-        validateComponentIds();
     }
 
     private String printComponents(List<? extends ILSMComponent> components) {
@@ -775,7 +791,11 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     @Override
     public List<ILSMDiskComponent> getDiskComponents() {
-        return diskComponents;
+        List<ILSMDiskComponent> components;
+        synchronized (diskComponents) {
+            components = new LinkedList<>(diskComponents);
+        }
+        return components;
     }
 
     @Override
@@ -812,14 +832,18 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 break;
             }
         }
-        return diskComponents.isEmpty() && !isModified;
+        boolean noDiskComponent;
+        synchronized (diskComponents) {
+            noDiskComponent = diskComponents.isEmpty();
+        }
+        return noDiskComponent && !isModified;
     }
 
     @Override
     public final String toString() {
         return "{\"class\" : \"" + getClass().getSimpleName() + "\", \"dir\" : \"" + fileManager.getBaseDir()
                 + "\", \"memory\" : " + (memoryComponents == null ? 0 : memoryComponents) + ", \"disk\" : "
-                + diskComponents.size() + ", \"num-scheduled-flushes\":" + numScheduledFlushes
+                + getDiskComponents().size() + ", \"num-scheduled-flushes\":" + numScheduledFlushes
                 + ", \"current-memory-component\":" + currentMutableComponentId.get() + "}";
     }
 
@@ -952,8 +976,10 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 c.validate();
             }
         }
-        for (ILSMDiskComponent c : diskComponents) {
-            c.validate();
+        synchronized (diskComponents) {
+            for (ILSMDiskComponent c : diskComponents) {
+                c.validate();
+            }
         }
     }
 
@@ -1043,15 +1069,17 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     protected abstract List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException;
 
     public Optional<Long> getLatestDiskComponentSequence() {
-        if (diskComponents.isEmpty()) {
-            return Optional.empty();
+        synchronized (diskComponents) {
+            if (diskComponents.isEmpty()) {
+                return Optional.empty();
+            }
+            final ILSMDiskComponent latestDiskComponent = diskComponents.get(0);
+            final Set<String> diskComponentPhysicalFiles = latestDiskComponent.getLSMComponentPhysicalFiles();
+            final String fileName = diskComponentPhysicalFiles.stream().findAny()
+                    .orElseThrow(() -> new IllegalStateException("Disk component without any physical files"));
+            return Optional
+                    .of(IndexComponentFileReference.of(Paths.get(fileName).getFileName().toString()).getSequenceEnd());
         }
-        final ILSMDiskComponent latestDiskComponent = diskComponents.get(0);
-        final Set<String> diskComponentPhysicalFiles = latestDiskComponent.getLSMComponentPhysicalFiles();
-        final String fileName = diskComponentPhysicalFiles.stream().findAny()
-                .orElseThrow(() -> new IllegalStateException("Disk component without any physical files"));
-        return Optional
-                .of(IndexComponentFileReference.of(Paths.get(fileName).getFileName().toString()).getSequenceEnd());
     }
 
     public LSMComponentFileReferences getNextMergeFileReferencesAtLevel(long level) throws HyracksDataException {
@@ -1070,13 +1098,15 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     }
 
     public synchronized long getMaxLevel() {
-        long maxLevel = 0L;
-        for (long level : levelSequences.keySet()) {
-            if (level > maxLevel) {
-                maxLevel = level;
+        synchronized (diskComponents) {
+            long maxLevel = 0L;
+            for (long level : levelSequences.keySet()) {
+                if (level > maxLevel) {
+                    maxLevel = level;
+                }
             }
+            return diskComponents.isEmpty() ? -1L : maxLevel;
         }
-        return diskComponents.isEmpty() ? -1L : maxLevel;
 
         /* for (ILSMDiskComponent c : diskComponents) {
             long level = c.getLevel();
@@ -1138,70 +1168,74 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     public String componentsToString() {
         String dirStr = "{\n  dir: " + fileManager.getBaseDir().getFile().getName() + "\n}";
         String memStr = "{\n  Mem: " + memoryComponents.size() + "\n}";
-        if (diskComponents.isEmpty()) {
-            return dirStr + ",\n" + memStr;
-        }
-        String diskStr = "";
-        if (isLeveled) {
-            long currentLevel = -1;
-            String levelStr = "";
-            for (ILSMDiskComponent component : diskComponents) {
-                long level = component.getLevel();
-                if (level == currentLevel) {
-                    if (levelStr.isEmpty()) {
-                        levelStr = componentToString(component, 2);
-                    } else {
-                        levelStr += ",\n" + componentToString(component, 2);
-                    }
-                } else {
-                    if (!levelStr.isEmpty()) {
-                        if (diskStr.isEmpty()) {
-                            diskStr = "  " + currentLevel + ": [\n" + levelStr + "\n  ]";
+        synchronized (diskComponents) {
+            if (diskComponents.isEmpty()) {
+                return dirStr + ",\n" + memStr;
+            }
+            String diskStr = "";
+            if (isLeveled) {
+                long currentLevel = -1;
+                String levelStr = "";
+                for (ILSMDiskComponent component : diskComponents) {
+                    long level = component.getLevel();
+                    if (level == currentLevel) {
+                        if (levelStr.isEmpty()) {
+                            levelStr = componentToString(component, 2);
                         } else {
-                            diskStr += ",\n  " + currentLevel + ": [\n" + levelStr + "\n  ]";
+                            levelStr += ",\n" + componentToString(component, 2);
                         }
+                    } else {
+                        if (!levelStr.isEmpty()) {
+                            if (diskStr.isEmpty()) {
+                                diskStr = "  " + currentLevel + ": [\n" + levelStr + "\n  ]";
+                            } else {
+                                diskStr += ",\n  " + currentLevel + ": [\n" + levelStr + "\n  ]";
+                            }
+                        }
+                        currentLevel = level;
+                        levelStr = componentToString(component, 2);
                     }
-                    currentLevel = level;
-                    levelStr = componentToString(component, 2);
+                }
+                if (!levelStr.isEmpty()) {
+                    if (diskStr.isEmpty()) {
+                        diskStr = "  " + currentLevel + ": [\n" + levelStr + "\n  ]";
+                    } else {
+                        diskStr += ",\n  " + currentLevel + ": [\n" + levelStr + "\n  ]";
+                    }
+                }
+            } else {
+                diskStr = componentToString(diskComponents.get(0), 1);
+                for (int i = 1; i < diskComponents.size(); i++) {
+                    diskStr += ",\n" + componentToString(diskComponents.get(i), 1);
                 }
             }
-            if (!levelStr.isEmpty()) {
-                if (diskStr.isEmpty()) {
-                    diskStr = "  " + currentLevel + ": [\n" + levelStr + "\n  ]";
-                } else {
-                    diskStr += ",\n  " + currentLevel + ": [\n" + levelStr + "\n  ]";
-                }
-            }
-        } else {
-            diskStr = componentToString(diskComponents.get(0), 1);
-            for (int i = 1; i < diskComponents.size(); i++) {
-                diskStr += ",\n" + componentToString(diskComponents.get(i), 1);
-            }
+            return dirStr + ",\n" + memStr + ",\n[\n" + diskStr + "\n]";
         }
-        return dirStr + ",\n" + memStr + ",\n[\n" + diskStr + "\n]";
     }
 
     public String getComponentsInfo() {
-        int size = diskComponents.size();
-        if (size == 0) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder();
-        ILSMDiskComponent c = diskComponents.get(0);
-        try {
-            sb.append(c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getTupleCount());
-        } catch (HyracksDataException ex) {
-            sb.append(c.getLevel() + "_" + c.getLevelSequence() + ":-1");
-        }
-        for (int i = 1; i < size; i++) {
-            c = diskComponents.get(i);
-            try {
-                sb.append(";" + c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getTupleCount());
-            } catch (HyracksDataException ex) {
-                sb.append(";" + c.getLevel() + "_" + c.getLevelSequence() + ":-1");
+        synchronized (diskComponents) {
+            int size = diskComponents.size();
+            if (size == 0) {
+                return "";
             }
+            StringBuilder sb = new StringBuilder();
+            ILSMDiskComponent c = diskComponents.get(0);
+            try {
+                sb.append(c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getTupleCount());
+            } catch (HyracksDataException ex) {
+                sb.append(c.getLevel() + "_" + c.getLevelSequence() + ":-1");
+            }
+            for (int i = 1; i < size; i++) {
+                c = diskComponents.get(i);
+                try {
+                    sb.append(";" + c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getTupleCount());
+                } catch (HyracksDataException ex) {
+                    sb.append(";" + c.getLevel() + "_" + c.getLevelSequence() + ":-1");
+                }
+            }
+            return sb.toString();
         }
-        return sb.toString();
     }
 
     public ILSMPageWriteCallbackFactory getPageWriteCallbackFactory() {

@@ -320,49 +320,51 @@ public class LSMRTree extends AbstractLSMRTree {
 
     private ILSMDiskComponentBulkLoader loadMergeBulkLoader(LSMRTreeMergeOperation mergeOp, IIndexCursor cursor,
             ILSMDiskComponent mergedComponent) throws HyracksDataException {
-        ILSMDiskComponentBulkLoader componentBulkLoader = null;
-        boolean abort = true;
-        ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
-        ILSMIndexOperationContext opCtx = ((LSMRTreeSortedCursor) cursor).getOpCtx();
-        search(opCtx, cursor, rtreeSearchPred);
-        try {
+        synchronized (diskComponents) {
+            ILSMDiskComponentBulkLoader componentBulkLoader = null;
+            boolean abort = true;
+            ISearchPredicate rtreeSearchPred = new SearchPredicate(null, null);
+            ILSMIndexOperationContext opCtx = ((LSMRTreeSortedCursor) cursor).getOpCtx();
+            search(opCtx, cursor, rtreeSearchPred);
             try {
-                // In case we must keep the deleted-keys BTrees, then they must be merged
-                // *before* merging the r-trees so that
-                // lsmHarness.endSearch() is called once when the r-trees have been merged.
-                if (mergeOp.getMergingComponents().get(mergeOp.getMergingComponents().size() - 1) != diskComponents
-                        .get(diskComponents.size() - 1)) {
-                    // Keep the deleted tuples since the oldest disk component
-                    // is not included in the merge operation
-                    long numElements = 0L;
-                    for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
-                        numElements += ((LSMRTreeDiskComponent) mergeOp.getMergingComponents().get(i)).getBloomFilter()
-                                .getNumElements();
+                try {
+                    // In case we must keep the deleted-keys BTrees, then they must be merged
+                    // *before* merging the r-trees so that
+                    // lsmHarness.endSearch() is called once when the r-trees have been merged.
+                    if (mergeOp.getMergingComponents().get(mergeOp.getMergingComponents().size() - 1) != diskComponents
+                            .get(diskComponents.size() - 1)) {
+                        // Keep the deleted tuples since the oldest disk component
+                        // is not included in the merge operation
+                        long numElements = 0L;
+                        for (int i = 0; i < mergeOp.getMergingComponents().size(); ++i) {
+                            numElements += ((LSMRTreeDiskComponent) mergeOp.getMergingComponents().get(i))
+                                    .getBloomFilter().getNumElements();
+                        }
+                        componentBulkLoader = mergedComponent.createBulkLoader(mergeOp, 1.0f, false, numElements, false,
+                                false, false, pageWriteCallbackFactory.createPageWriteCallback());
+                        mergeLoadBTree(mergeOp, opCtx, rtreeSearchPred, componentBulkLoader);
+                    } else {
+                        //no buddy-btree needed
+                        componentBulkLoader = mergedComponent.createBulkLoader(mergeOp, 1.0f, false, 0L, false, false,
+                                false, pageWriteCallbackFactory.createPageWriteCallback());
                     }
-                    componentBulkLoader = mergedComponent.createBulkLoader(mergeOp, 1.0f, false, numElements, false,
-                            false, false, pageWriteCallbackFactory.createPageWriteCallback());
-                    mergeLoadBTree(mergeOp, opCtx, rtreeSearchPred, componentBulkLoader);
-                } else {
-                    //no buddy-btree needed
-                    componentBulkLoader = mergedComponent.createBulkLoader(mergeOp, 1.0f, false, 0L, false, false,
-                            false, pageWriteCallbackFactory.createPageWriteCallback());
+                    //search old rtree components
+                    while (cursor.hasNext()) {
+                        cursor.next();
+                        ITupleReference frameTuple = cursor.getTuple();
+                        componentBulkLoader.add(frameTuple);
+                    }
+                } finally {
+                    cursor.close();
                 }
-                //search old rtree components
-                while (cursor.hasNext()) {
-                    cursor.next();
-                    ITupleReference frameTuple = cursor.getTuple();
-                    componentBulkLoader.add(frameTuple);
-                }
+                abort = false;
             } finally {
-                cursor.close();
+                if (abort && componentBulkLoader != null) {
+                    componentBulkLoader.abort();
+                }
             }
-            abort = false;
-        } finally {
-            if (abort && componentBulkLoader != null) {
-                componentBulkLoader.abort();
-            }
+            return componentBulkLoader;
         }
-        return componentBulkLoader;
     }
 
     private void mergeLoadBTree(LSMRTreeMergeOperation mergeOp, ILSMIndexOperationContext opCtx,

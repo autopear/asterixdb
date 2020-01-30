@@ -329,9 +329,11 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
 
     public long getMaxNumTuplesPerComponent() throws HyracksDataException {
         long m = 0L;
-        for (ILSMDiskComponent c : diskComponents) {
-            if (c.getTupleCount() > m) {
-                m = c.getTupleCount();
+        synchronized (diskComponents) {
+            for (ILSMDiskComponent c : diskComponents) {
+                if (c.getTupleCount() > m) {
+                    m = c.getTupleCount();
+                }
             }
         }
         return m;
@@ -483,15 +485,17 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
 
     @Override
     public String getComponentsInfo() {
-        int size = diskComponents.size();
-        if (size == 0) {
-            return "";
+        synchronized (diskComponents) {
+            int size = diskComponents.size();
+            if (size == 0) {
+                return "";
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append(getComponentInfo(diskComponents.get(0)));
+            for (int i = 1; i < size; i++) {
+                sb.append(";" + getComponentInfo(diskComponents.get(i)));
+            }
+            return sb.toString();
         }
-        StringBuilder sb = new StringBuilder();
-        sb.append(getComponentInfo(diskComponents.get(0)));
-        for (int i = 1; i < size; i++) {
-            sb.append(";" + getComponentInfo(diskComponents.get(i)));
-        }
-        return sb.toString();
     }
 }

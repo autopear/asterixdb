@@ -627,24 +627,27 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
     @Override
     protected ILSMIOOperation createMergeOperation(AbstractLSMIndexOperationContext opCtx,
             LSMComponentFileReferences mergeFileRefs, ILSMIOOperationCallback callback) {
-        boolean returnDeletedTuples = false;
-        List<ILSMComponent> mergingComponents = opCtx.getComponentHolder();
-        if (isLeveled) {
-            ILSMDiskComponent lastMergingComponent =
-                    (ILSMDiskComponent) (mergingComponents.get(mergingComponents.size() - 1));
-            if (lastMergingComponent.getLevel() < getMaxLevel()) {
-                returnDeletedTuples = true;
+        synchronized (diskComponents) {
+            boolean returnDeletedTuples = false;
+            List<ILSMComponent> mergingComponents = opCtx.getComponentHolder();
+            if (isLeveled) {
+                ILSMDiskComponent lastMergingComponent =
+                        (ILSMDiskComponent) (mergingComponents.get(mergingComponents.size() - 1));
+                if (lastMergingComponent.getLevel() < getMaxLevel()) {
+                    returnDeletedTuples = true;
+                }
+            } else {
+                if (mergingComponents.get(mergingComponents.size() - 1) != diskComponents
+                        .get(diskComponents.size() - 1)) {
+                    returnDeletedTuples = true;
+                }
             }
-        } else {
-            if (mergingComponents.get(mergingComponents.size() - 1) != diskComponents.get(diskComponents.size() - 1)) {
-                returnDeletedTuples = true;
-            }
+            ILSMIndexAccessor accessor = createAccessor(opCtx);
+            IIndexCursorStats stats = new IndexCursorStats();
+            LSMBTreeRangeSearchCursor cursor = new LSMBTreeRangeSearchCursor(opCtx, returnDeletedTuples, stats);
+            return new LSMBTreeMergeOperation(accessor, cursor, stats, mergeFileRefs.getInsertIndexFileReference(),
+                    mergeFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
         }
-        ILSMIndexAccessor accessor = createAccessor(opCtx);
-        IIndexCursorStats stats = new IndexCursorStats();
-        LSMBTreeRangeSearchCursor cursor = new LSMBTreeRangeSearchCursor(opCtx, returnDeletedTuples, stats);
-        return new LSMBTreeMergeOperation(accessor, cursor, stats, mergeFileRefs.getInsertIndexFileReference(),
-                mergeFileRefs.getBloomFilterFileReference(), callback, getIndexIdentifier());
     }
 
     public String keyToString(byte[] b) {
@@ -713,15 +716,17 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
 
     @Override
     public String getComponentsInfo() {
-        int size = diskComponents.size();
-        if (size == 0) {
-            return "";
+        synchronized (diskComponents) {
+            int size = diskComponents.size();
+            if (size == 0) {
+                return "";
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append(getComponentInfo(diskComponents.get(0)));
+            for (int i = 1; i < size; i++) {
+                sb.append(";" + getComponentInfo(diskComponents.get(i)));
+            }
+            return sb.toString();
         }
-        StringBuilder sb = new StringBuilder();
-        sb.append(getComponentInfo(diskComponents.get(0)));
-        for (int i = 1; i < size; i++) {
-            sb.append(";" + getComponentInfo(diskComponents.get(i)));
-        }
-        return sb.toString();
     }
 }
