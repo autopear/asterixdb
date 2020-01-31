@@ -18,6 +18,7 @@
  */
 package org.apache.asterix.lang.common.statement;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
@@ -123,7 +124,7 @@ public class DatasetDecl extends AbstractStatement {
         IAdmNode mergePolicyParameters =
                 mergePolicy.get(DatasetDeclParametersUtil.MERGE_POLICY_PARAMETERS_PARAMETER_NAME);
         if (mergePolicyParameters == null) {
-            return null;
+            return new LinkedHashMap<>();
         }
         return ConfigurationUtil.toProperties((AdmObjectNode) mergePolicyParameters);
     }

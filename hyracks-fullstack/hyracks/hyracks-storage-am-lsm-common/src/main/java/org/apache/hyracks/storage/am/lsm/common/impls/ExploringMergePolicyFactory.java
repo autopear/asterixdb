@@ -42,8 +42,8 @@ public class ExploringMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String LAMBDA = "lambda";
     public static final String MIN_COMPONENTS = "min-components";
     public static final String MAX_COMPONENTS = "max-components";
-    public static final Set<String> PROPERTIES_NAMES = Collections
-            .unmodifiableSet(new HashSet<>(Arrays.asList(SECONDARY_INDEX, LAMBDA, MIN_COMPONENTS, MAX_COMPONENTS)));
+    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(new HashSet<>(
+            Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX, LAMBDA, MIN_COMPONENTS, MAX_COMPONENTS)));
 
     public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
         {

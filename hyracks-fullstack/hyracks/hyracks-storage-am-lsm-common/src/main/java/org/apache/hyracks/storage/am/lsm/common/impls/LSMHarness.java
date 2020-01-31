@@ -123,8 +123,8 @@ public class LSMHarness implements ILSMHarness {
         mergeFlagFile = Paths.get(lsmIndex.getIndexIdentifier(), "is_merging").toAbsolutePath().toString();
         mergeLock = new Semaphore(1);
 
-        LOGGER.info("Index: " + lsmIndex.getIndexIdentifier() + ", merge-policy: "
-                + mergePolicy.getClass().getCanonicalName() + ", properties: " + mergePolicy.getProperties());
+        LOGGER.info("Index: " + indexName + ", merge-policy: " + mergePolicy.getClass().getSimpleName()
+                + ", properties: " + mergePolicy.getProperties());
     }
 
     @Override

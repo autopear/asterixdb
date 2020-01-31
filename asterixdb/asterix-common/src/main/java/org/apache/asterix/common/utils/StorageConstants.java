@@ -18,9 +18,11 @@
  */
 package org.apache.asterix.common.utils;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.hyracks.storage.am.common.api.ITreeIndexFrame;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndexFileManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.ConcurrentMergePolicyFactory;
 
@@ -43,8 +45,14 @@ public class StorageConstants {
     public static final float DEFAULT_TREE_FILL_FACTOR = 1.00f;
     public static final String DEFAULT_COMPACTION_POLICY_NAME = ConcurrentMergePolicyFactory.NAME;
     public static final String DEFAULT_FILTERED_DATASET_COMPACTION_POLICY_NAME = "correlated-prefix";
-    public static final Map<String, String> DEFAULT_COMPACTION_POLICY_PROPERTIES =
-            ConcurrentMergePolicyFactory.DEFAULT_PROPERTIES;
+    public static final Map<String, String> DEFAULT_COMPACTION_POLICY_PROPERTIES = new LinkedHashMap<String, String>() {
+        {
+            put(ILSMMergePolicyFactory.BTREE_INDEX, "");
+            put(ILSMMergePolicyFactory.INVERTED_INDEX, "");
+            put(ILSMMergePolicyFactory.RTREE_INDEX, "");
+            putAll(ConcurrentMergePolicyFactory.DEFAULT_PROPERTIES);
+        }
+    };
 
     /**
      * The storage version of AsterixDB related artifacts (e.g. log files, checkpoint files, etc..).

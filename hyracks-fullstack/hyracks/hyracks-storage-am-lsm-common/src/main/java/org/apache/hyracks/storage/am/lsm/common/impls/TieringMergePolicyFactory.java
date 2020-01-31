@@ -40,8 +40,8 @@ public class TieringMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String NAME = "tiering";
     public static final String NUM_COMPONENTS = "num-components";
     public static final String HIGH_BUCKET = "high-bucket";
-    public static final Set<String> PROPERTIES_NAMES =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(SECONDARY_INDEX, NUM_COMPONENTS, HIGH_BUCKET)));
+    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX, NUM_COMPONENTS, HIGH_BUCKET)));
 
     public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
         {

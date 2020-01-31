@@ -550,6 +550,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         "Compaction policy properties are missing.");
             }
         } else {
+            Map<String, String> defaultProperties = mergePolicyFactory.getDefaultPropertiesForPrimaryIndex();
+            for (String key : defaultProperties.keySet()) {
+                if (!compactionPolicyProperties.containsKey(key)) {
+                    String value = defaultProperties.get(key);
+                    compactionPolicyProperties.put(key, value);
+                    LOGGER.info("Policy " + mergePolicyFactory.getName() + " with default property: " + key
+                            + ", value: " + value);
+                }
+            }
             for (Map.Entry<String, String> entry : compactionPolicyProperties.entrySet()) {
                 if (!mergePolicyFactory.getPropertiesNames().contains(entry.getKey())) {
                     throw new CompilationException(ErrorCode.COMPILATION_ERROR, sourceLoc,
@@ -634,7 +643,25 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
             if (compactionPolicy == null) {
                 compactionPolicy = StorageConstants.DEFAULT_COMPACTION_POLICY_NAME;
                 compactionPolicyProperties = StorageConstants.DEFAULT_COMPACTION_POLICY_PROPERTIES;
+                if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.BTREE_INDEX)) {
+                    compactionPolicyProperties.put(ILSMMergePolicyFactory.BTREE_INDEX, "");
+                }
+                if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.INVERTED_INDEX)) {
+                    compactionPolicyProperties.put(ILSMMergePolicyFactory.INVERTED_INDEX, "");
+                }
+                if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_INDEX)) {
+                    compactionPolicyProperties.put(ILSMMergePolicyFactory.RTREE_INDEX, "");
+                }
             } else {
+                if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.BTREE_INDEX)) {
+                    compactionPolicyProperties.put(ILSMMergePolicyFactory.BTREE_INDEX, "");
+                }
+                if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.INVERTED_INDEX)) {
+                    compactionPolicyProperties.put(ILSMMergePolicyFactory.INVERTED_INDEX, "");
+                }
+                if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_INDEX)) {
+                    compactionPolicyProperties.put(ILSMMergePolicyFactory.RTREE_INDEX, "");
+                }
                 validateCompactionPolicy(compactionPolicy, compactionPolicyProperties, mdTxnCtx, false, sourceLoc);
             }
             switch (dd.getDatasetType()) {
@@ -674,6 +701,15 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         // correlated-prefix as the default merge policy.
                         compactionPolicy = StorageConstants.DEFAULT_FILTERED_DATASET_COMPACTION_POLICY_NAME;
                         compactionPolicyProperties = StorageConstants.DEFAULT_COMPACTION_POLICY_PROPERTIES;
+                        if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.BTREE_INDEX)) {
+                            compactionPolicyProperties.put(ILSMMergePolicyFactory.BTREE_INDEX, "");
+                        }
+                        if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.INVERTED_INDEX)) {
+                            compactionPolicyProperties.put(ILSMMergePolicyFactory.INVERTED_INDEX, "");
+                        }
+                        if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_INDEX)) {
+                            compactionPolicyProperties.put(ILSMMergePolicyFactory.RTREE_INDEX, "");
+                        }
                     }
                     datasetDetails = new InternalDatasetDetails(InternalDatasetDetails.FileStructure.BTREE,
                             InternalDatasetDetails.PartitioningStrategy.HASH, partitioningExprs, partitioningExprs,

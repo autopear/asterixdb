@@ -27,7 +27,9 @@ import org.apache.hyracks.api.io.IJsonSerializable;
 
 public interface ILSMMergePolicyFactory extends Serializable, IJsonSerializable {
 
-    String SECONDARY_INDEX = "secondary-index";
+    String BTREE_INDEX = "btree-index";
+    String INVERTED_INDEX = "inverted-index";
+    String RTREE_INDEX = "rtree-index";
 
     ILSMMergePolicy createMergePolicy(Map<String, String> configuration, INCServiceContext ctx);
 

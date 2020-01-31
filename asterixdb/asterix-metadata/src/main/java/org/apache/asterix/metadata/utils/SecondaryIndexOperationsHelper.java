@@ -28,7 +28,6 @@ import java.util.Set;
 import org.apache.asterix.common.config.DatasetConfig.DatasetType;
 import org.apache.asterix.common.config.DatasetConfig.ExternalFilePendingOp;
 import org.apache.asterix.common.config.OptimizationConfUtil;
-import org.apache.asterix.common.context.CorrelatedPrefixMergePolicyFactory;
 import org.apache.asterix.common.exceptions.CompilationException;
 import org.apache.asterix.common.exceptions.ErrorCode;
 import org.apache.asterix.external.indexing.ExternalFile;
@@ -40,6 +39,7 @@ import org.apache.asterix.formats.nontagged.BinaryBooleanInspector;
 import org.apache.asterix.formats.nontagged.BinaryComparatorFactoryProvider;
 import org.apache.asterix.formats.nontagged.SerializerDeserializerProvider;
 import org.apache.asterix.formats.nontagged.TypeTraitProvider;
+import org.apache.asterix.metadata.MetadataManager;
 import org.apache.asterix.metadata.declared.MetadataProvider;
 import org.apache.asterix.metadata.entities.Dataset;
 import org.apache.asterix.metadata.entities.Index;
@@ -78,17 +78,9 @@ import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDropOperatorDescriptor.DropOption;
 import org.apache.hyracks.storage.am.common.dataflow.TreeIndexBulkLoadOperatorDescriptor;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.BigtableMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.BinomialMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.ConstantMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.ExploringMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.FixedMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.MinLatencyMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.TieringMergePolicyFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -136,6 +128,8 @@ public abstract class SecondaryIndexOperationsHelper {
     protected int numPrimaryKeys;
     protected final SourceLocation sourceLoc;
     protected final int sortNumFrames;
+
+    private static final Logger LOGGER = LogManager.getLogger();
 
     // Prevent public construction. Should be created via createIndexCreator().
     protected SecondaryIndexOperationsHelper(Dataset dataset, Index index, MetadataProvider metadataProvider,
@@ -232,106 +226,110 @@ public abstract class SecondaryIndexOperationsHelper {
                 DatasetUtil.getMergePolicyFactory(dataset, metadataProvider.getMetadataTxnContext());
         if (dataset.getDatasetType() == DatasetType.INTERNAL) {
             JSONParser jsonParser = new JSONParser();
-            try {
-                JSONObject allIndex = (JSONObject) jsonParser
-                        .parse(compactionInfo.second.get(ILSMMergePolicyFactory.SECONDARY_INDEX));
-                JSONObject selectedIndex = null;
-                switch (index.getIndexType()) {
-                    case BTREE:
-                        if (allIndex.containsKey("btree-index")) {
-                            selectedIndex = (JSONObject) allIndex.get("btree-index");
-                        } else {
-                            mergePolicyFactory = compactionInfo.first;
-                            mergePolicyProperties = compactionInfo.second;
-                        }
-                        break;
-                    case RTREE:
-                        if (allIndex.containsKey("rtree-index")) {
-                            selectedIndex = (JSONObject) allIndex.get("rtree-index");
-                        } else {
-                            mergePolicyFactory = compactionInfo.first;
-                            mergePolicyProperties = compactionInfo.second;
-                        }
-                        break;
-                    case SINGLE_PARTITION_WORD_INVIX:
-                    case LENGTH_PARTITIONED_WORD_INVIX:
-                    case SINGLE_PARTITION_NGRAM_INVIX:
-                    case LENGTH_PARTITIONED_NGRAM_INVIX:
-                        if (allIndex.containsKey("inverted-index")) {
-                            selectedIndex = (JSONObject) allIndex.get("inverted-index");
-                        } else {
-                            mergePolicyFactory = compactionInfo.first;
-                            mergePolicyProperties = compactionInfo.second;
-                        }
-                        break;
-                    default:
-                        mergePolicyFactory = compactionInfo.first;
-                        mergePolicyProperties = compactionInfo.second;
-                        break;
-                }
-                if (selectedIndex != null && !selectedIndex.isEmpty()) {
-                    String policyName = selectedIndex.get("name").toString();
-                    if (policyName.compareTo(NoMergePolicyFactory.NAME) == 0) {
-                        mergePolicyFactory = new NoMergePolicyFactory();
-                        mergePolicyProperties = Collections.emptyMap();
-                    } else {
-                        JSONObject parameters = (JSONObject) selectedIndex.get("parameters");
-                        Map<String, String> secondaryIndexProperties = new LinkedHashMap<>();
-                        for (Object key : parameters.keySet()) {
-                            secondaryIndexProperties.put(key.toString(), parameters.get(key).toString());
-                        }
-                        if (policyName.compareTo(ConstantMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new ConstantMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(LevelMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new LevelMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(PrefixMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new PrefixMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(CorrelatedPrefixMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new CorrelatedPrefixMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(SizeTieredMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new SizeTieredMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(BinomialMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new BinomialMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(MinLatencyMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new MinLatencyMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(BigtableMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new BigtableMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(ExploringMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new ExploringMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(FixedMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new FixedMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else if (policyName.compareTo(TieringMergePolicyFactory.NAME) == 0) {
-                            mergePolicyFactory = new TieringMergePolicyFactory();
-                            mergePolicyProperties = secondaryIndexProperties;
-                        } else {
-                            mergePolicyFactory = compactionInfo.first;
-                            mergePolicyProperties = compactionInfo.second;
-                        }
-                    }
-                }
-            } catch (ParseException ex) {
+            String secondaryIndexInfo;
+            switch (index.getIndexType()) {
+                case BTREE:
+                    secondaryIndexInfo = compactionInfo.second.getOrDefault(ILSMMergePolicyFactory.BTREE_INDEX, "");
+                    break;
+                case RTREE:
+                    secondaryIndexInfo = compactionInfo.second.getOrDefault(ILSMMergePolicyFactory.RTREE_INDEX, "");
+                    break;
+                case SINGLE_PARTITION_WORD_INVIX:
+                case LENGTH_PARTITIONED_WORD_INVIX:
+                case SINGLE_PARTITION_NGRAM_INVIX:
+                case LENGTH_PARTITIONED_NGRAM_INVIX:
+                    secondaryIndexInfo = compactionInfo.second.getOrDefault(ILSMMergePolicyFactory.INVERTED_INDEX, "");
+                    break;
+                default:
+                    secondaryIndexInfo = "";
+                    break;
+            }
+            JSONObject secondaryIndex = null;
+            if (secondaryIndexInfo.isEmpty()) {
                 mergePolicyFactory = compactionInfo.first;
                 mergePolicyProperties = compactionInfo.second;
+            } else {
+                try {
+                    secondaryIndex = (JSONObject) jsonParser.parse(secondaryIndexInfo);
+                } catch (ParseException ex) {
+                    mergePolicyFactory = compactionInfo.first;
+                    mergePolicyProperties = compactionInfo.second;
+                }
+                if (!secondaryIndex.containsKey("name")) {
+                    secondaryIndex = null;
+                    mergePolicyFactory = compactionInfo.first;
+                    mergePolicyProperties = compactionInfo.second;
+                    LOGGER.warn("Invalid value for index " + index.getIndexName() + ": " + secondaryIndexInfo);
+                }
             }
-            if (mergePolicyProperties.containsKey(ILSMMergePolicyFactory.SECONDARY_INDEX)) {
-                mergePolicyProperties.remove(ILSMMergePolicyFactory.SECONDARY_INDEX);
+            if (secondaryIndex != null && !secondaryIndex.isEmpty()) {
+                String policyName = secondaryIndex.get("name").toString();
+                try {
+                    String factoryName =
+                            MetadataManager.INSTANCE.getCompactionPolicy(metadataProvider.getMetadataTxnContext(),
+                                    MetadataConstants.METADATA_DATAVERSE_NAME, policyName).getClassName();
+                    try {
+                        mergePolicyFactory = (ILSMMergePolicyFactory) Class.forName(factoryName).newInstance();
+                        if (mergePolicyFactory instanceof NoMergePolicyFactory) {
+                            mergePolicyProperties = Collections.emptyMap();
+                        } else {
+                            mergePolicyProperties = new LinkedHashMap<>();
+                            switch (index.getIndexType()) {
+                                case BTREE:
+                                    mergePolicyProperties =
+                                            new LinkedHashMap<>(mergePolicyFactory.getDefaultPropertiesForBTreeIndex());
+                                    break;
+                                case RTREE:
+                                    mergePolicyProperties =
+                                            new LinkedHashMap<>(mergePolicyFactory.getDefaultPropertiesForRTreeIndex());
+                                    break;
+                                case SINGLE_PARTITION_WORD_INVIX:
+                                case LENGTH_PARTITIONED_WORD_INVIX:
+                                case SINGLE_PARTITION_NGRAM_INVIX:
+                                case LENGTH_PARTITIONED_NGRAM_INVIX:
+                                    mergePolicyProperties = new LinkedHashMap<>(
+                                            mergePolicyFactory.getDefaultPropertiesForInvertedIndex());
+                                    break;
+                                default:
+                                    mergePolicyProperties = new LinkedHashMap<>();
+                                    break;
+                            }
+                            if (secondaryIndex.containsKey("parameters")) {
+                                JSONObject parameters = (JSONObject) secondaryIndex.get("parameters");
+                                if (parameters != null) {
+                                    for (Object key : parameters.keySet()) {
+                                        mergePolicyProperties.put(key.toString(), parameters.get(key).toString());
+                                    }
+                                }
+                            }
+                        }
+                    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+                        mergePolicyFactory = compactionInfo.first;
+                        mergePolicyProperties = compactionInfo.second;
+                        LOGGER.warn("Policy " + policyName + " not found for index " + index.getIndexName() + ": "
+                                + e.getClass().getSimpleName() + " " + e.getMessage());
+                        mergePolicyFactory = compactionInfo.first;
+                        mergePolicyProperties = compactionInfo.second;
+                    }
+                } catch (NullPointerException e) {
+                    LOGGER.warn("Policy " + policyName + " not found for index " + index.getIndexName() + ": "
+                            + e.getClass().getSimpleName() + " " + e.getMessage());
+                    mergePolicyFactory = compactionInfo.first;
+                    mergePolicyProperties = compactionInfo.second;
+                }
             }
         } else {
             mergePolicyFactory = compactionInfo.first;
             mergePolicyProperties = compactionInfo.second;
-            if (mergePolicyProperties.containsKey(ILSMMergePolicyFactory.SECONDARY_INDEX)) {
-                mergePolicyProperties.remove(ILSMMergePolicyFactory.SECONDARY_INDEX);
-            }
+        }
+        if (mergePolicyProperties.containsKey(ILSMMergePolicyFactory.BTREE_INDEX)) {
+            mergePolicyProperties.remove(ILSMMergePolicyFactory.BTREE_INDEX);
+        }
+        if (mergePolicyProperties.containsKey(ILSMMergePolicyFactory.INVERTED_INDEX)) {
+            mergePolicyProperties.remove(ILSMMergePolicyFactory.INVERTED_INDEX);
+        }
+        if (mergePolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_INDEX)) {
+            mergePolicyProperties.remove(ILSMMergePolicyFactory.RTREE_INDEX);
         }
 
         if (numFilterFields > 0) {
