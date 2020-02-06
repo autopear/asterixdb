@@ -240,36 +240,29 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             byte[] searchData = LSMBTree.getKeyBytes(searchPred.getLowKey());
             searchKey =
                     (searchData == null) ? "Unknown" : ((LSMBTree) lsmHarness.getLSMIndex()).keyToString(searchData);
-            if (availComponents.isEmpty()) {
-                numDiskComponents = 0;
-                readAmpf = 0;
-                availComponents = "";
-            } else {
-                StringBuilder s = new StringBuilder();
-                for (int i = 0; i < operationalComponents.size(); i++) {
-                    ILSMComponent c = operationalComponents.get(i);
-                    String name =
-                            c.getType() == LSMComponentType.MEMORY ? "Mem" : ((ILSMDiskComponent) c).getBasename();
-                    if (i == 0) {
-                        s.append(name);
-                    } else {
-                        s.append(";").append(name);
-                    }
-                }
-                availComponents = s.toString();
-                AbstractLSMIndex index = (AbstractLSMIndex) lsmHarness.getLSMIndex();
-                if (index.isLeveledLSM()) {
-                    List<ILSMDiskComponent> diskComponents = index.getDiskComponents();
-                    numDiskComponents = diskComponents.size();
-                    Set<Long> levels = new HashSet<>();
-                    for (ILSMDiskComponent c : diskComponents) {
-                        levels.add(c.getMinId());
-                    }
-                    readAmpf = levels.size() + index.level0Tables - 1;
+            StringBuilder s = new StringBuilder();
+            for (int i = 0; i < operationalComponents.size(); i++) {
+                ILSMComponent c = operationalComponents.get(i);
+                String name = c.getType() == LSMComponentType.MEMORY ? "Mem" : ((ILSMDiskComponent) c).getBasename();
+                if (i == 0) {
+                    s.append(name);
                 } else {
-                    numDiskComponents = index.getDiskComponents().size();
-                    readAmpf = numDiskComponents;
+                    s.append(";").append(name);
                 }
+            }
+            availComponents = s.toString();
+            AbstractLSMIndex index = (AbstractLSMIndex) lsmHarness.getLSMIndex();
+            if (index.isLeveledLSM()) {
+                List<ILSMDiskComponent> diskComponents = index.getDiskComponents();
+                numDiskComponents = diskComponents.size();
+                Set<Long> levels = new HashSet<>();
+                for (ILSMDiskComponent c : diskComponents) {
+                    levels.add(c.getMinId());
+                }
+                readAmpf = levels.size() + index.level0Tables - 1;
+            } else {
+                numDiskComponents = index.getDiskComponents().size();
+                readAmpf = numDiskComponents;
             }
             timeStr = "";
             startTime = System.nanoTime();
