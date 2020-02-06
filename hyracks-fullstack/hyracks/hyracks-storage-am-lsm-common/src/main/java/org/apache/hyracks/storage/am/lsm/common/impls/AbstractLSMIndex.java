@@ -120,8 +120,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     public final boolean isLeveled;
     public final LevelMergePolicy levelMergePolicy;
-    public final long level0Tables;
-    public final long level1Tables;
+    public final int level0Tables;
+    public final int level1Tables;
     public final long memTableSize;
     private Map<Long, Long> inLevelIds;
 
@@ -183,8 +183,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         } else {
             this.isLeveled = false;
             levelMergePolicy = null;
-            this.level0Tables = 0L;
-            this.level1Tables = 0L;
+            this.level0Tables = 0;
+            this.level1Tables = 0;
             inLevelIds = new HashMap<>();
         }
         memTableSize = virtualBufferCaches.get(0).getPageSize() * virtualBufferCaches.get(0).getPageBudget();
@@ -204,8 +204,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         currentMerges = new AtomicInteger(0);
         mergeFlagFile = Paths.get(getIndexIdentifier(), "is_merging").toAbsolutePath().toString();
 
-        LOGGER.warn("Index: " + indexName + ", merge-policy: " + mergePolicy.getClass().getSimpleName()
-                + ", properties: " + mergePolicy.getProperties());
+        writeLog("Index: " + indexName + ", merge-policy: " + mergePolicy.getClass().getSimpleName() + ", properties: "
+                + mergePolicy.getProperties());
     }
 
     // The constructor used by external indexes
@@ -248,8 +248,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         } else {
             this.isLeveled = false;
             levelMergePolicy = null;
-            this.level0Tables = 0L;
-            this.level1Tables = 0L;
+            this.level0Tables = 0;
+            this.level1Tables = 0;
         }
         memTableSize = -1L;
 
@@ -1427,5 +1427,16 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     public ILSMPageWriteCallbackFactory getPageWriteCallbackFactory() {
         return pageWriteCallbackFactory;
+    }
+
+    @Override
+    public void writeLog(String msg) {
+        if (shouldLog) {
+            LOGGER.warn(msg);
+        }
+    }
+
+    public String getIndexName() {
+        return indexName;
     }
 }

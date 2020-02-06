@@ -40,8 +40,8 @@ public class LevelMergePolicy implements ILSMMergePolicy {
 
     protected ILevelMergePolicyHelper helper;
     protected String pickStrategy;
-    protected long level0Components;
-    protected long level1Components;
+    protected int level0Components;
+    protected int level1Components;
     protected boolean absoluteOverlap;
     protected String properties;
 
@@ -54,11 +54,11 @@ public class LevelMergePolicy implements ILSMMergePolicy {
         }
     };
 
-    public long getLevel0Components() {
+    public int getLevel0Components() {
         return level0Components;
     }
 
-    public long getLevel1Components() {
+    public int getLevel1Components() {
         return level1Components;
     }
 
@@ -172,8 +172,8 @@ public class LevelMergePolicy implements ILSMMergePolicy {
             this.properties = this.properties.replaceAll("  ", " ");
         }
         pickStrategy = properties.get(LevelMergePolicyFactory.PICK).toLowerCase();
-        level0Components = Long.parseLong(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_0));
-        level1Components = Long.parseLong(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_1));
+        level0Components = Integer.parseInt(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_0));
+        level1Components = Integer.parseInt(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_1));
         absoluteOverlap = false;
         // absoluteOverlap = properties.getOrDefault(LevelMergePolicyFactory.OVERLAP_MODE, "relative")
         //        .compareTo(LevelMergePolicyFactory.MODE_ABSOLUTE) == 0;

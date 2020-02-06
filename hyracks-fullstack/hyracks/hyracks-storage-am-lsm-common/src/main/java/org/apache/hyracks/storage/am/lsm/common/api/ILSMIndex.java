@@ -207,4 +207,6 @@ public interface ILSMIndex extends IIndex {
     void resetCurrentComponentIndex();
 
     String getComponentsInfo();
+
+    void writeLog(String msg);
 }
