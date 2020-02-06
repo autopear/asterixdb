@@ -19,6 +19,7 @@
 
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -121,7 +123,21 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     public final long level0Tables;
     public final long level1Tables;
     public final long memTableSize;
-    private Map<Long, Long> levelSequences;
+    private Map<Long, Long> inLevelIds;
+
+    protected final Semaphore semaphoreFlushOrMerge;
+    protected long countNumFlushes;
+    protected long countNumMerges;
+    protected long totalSizeFlushed;
+    protected long totalSizeMerged;
+
+    protected final String indexName;
+    protected final boolean shouldLog;
+
+    private final AtomicInteger currentFlushes;
+    private final String flushFlagFile;
+    private final AtomicInteger currentMerges;
+    private final String mergeFlagFile;
 
     public AbstractLSMIndex(IIOManager ioManager, List<IVirtualBufferCache> virtualBufferCaches,
             IBufferCache diskBufferCache, ILSMIndexFileManager fileManager, double bloomFilterFalsePositiveRate,
@@ -163,15 +179,33 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             levelMergePolicy = (LevelMergePolicy) mergePolicy;
             this.level0Tables = ((LevelMergePolicy) mergePolicy).getLevel0Components();
             this.level1Tables = ((LevelMergePolicy) mergePolicy).getLevel1Components();
-            levelSequences = new HashMap<>();
+            inLevelIds = new HashMap<>();
         } else {
             this.isLeveled = false;
             levelMergePolicy = null;
             this.level0Tables = 0L;
             this.level1Tables = 0L;
-            levelSequences = new HashMap<>();
+            inLevelIds = new HashMap<>();
         }
         memTableSize = virtualBufferCaches.get(0).getPageSize() * virtualBufferCaches.get(0).getPageBudget();
+
+        semaphoreFlushOrMerge = new Semaphore(1);
+        countNumFlushes = 0;
+        countNumMerges = 0;
+        totalSizeFlushed = 0;
+        totalSizeMerged = 0;
+
+        String[] pathComponents = getIndexIdentifier().replace("\\", "/").split("/");
+        indexName = pathComponents[pathComponents.length - 1];
+        shouldLog = indexName.compareTo("usertable") == 0;
+
+        currentFlushes = new AtomicInteger(0);
+        flushFlagFile = Paths.get(getIndexIdentifier(), "is_flushing").toAbsolutePath().toString();
+        currentMerges = new AtomicInteger(0);
+        mergeFlagFile = Paths.get(getIndexIdentifier(), "is_merging").toAbsolutePath().toString();
+
+        LOGGER.warn("Index: " + indexName + ", merge-policy: " + mergePolicy.getClass().getSimpleName()
+                + ", properties: " + mergePolicy.getProperties());
     }
 
     // The constructor used by external indexes
@@ -218,6 +252,24 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             this.level1Tables = 0L;
         }
         memTableSize = -1L;
+
+        semaphoreFlushOrMerge = new Semaphore(1);
+        countNumFlushes = 0;
+        countNumMerges = 0;
+        totalSizeFlushed = 0;
+        totalSizeMerged = 0;
+
+        String[] pathComponents = getIndexIdentifier().replace("\\", "/").split("/");
+        indexName = pathComponents[pathComponents.length - 1];
+        shouldLog = indexName.compareTo("usertable") == 0;
+
+        currentFlushes = new AtomicInteger(0);
+        flushFlagFile = Paths.get(getIndexIdentifier(), "is_flushing").toAbsolutePath().toString();
+        currentMerges = new AtomicInteger(0);
+        mergeFlagFile = Paths.get(getIndexIdentifier(), "is_merging").toAbsolutePath().toString();
+
+        LOGGER.warn("Index: " + indexName + ", merge-policy: " + mergePolicy.getClass().getSimpleName()
+                + ", properties: " + mergePolicy.getProperties());
     }
 
     @Override
@@ -247,14 +299,14 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         diskComponents.sort(new Comparator<ILSMDiskComponent>() {
             @Override
             public int compare(ILSMDiskComponent c1, ILSMDiskComponent c2) {
-                if (c1.getLevel() == c2.getLevel()) {
-                    if (c1.getLevel() == 0) {
-                        return -Long.compare(c1.getLevelSequence(), c2.getLevelSequence());
+                if (c1.getMinId() == c2.getMinId()) {
+                    if (c1.getMinId() == 0) {
+                        return -Long.compare(c1.getMaxId(), c2.getMaxId());
                     } else {
                         return compareComponents(c1, c2);
                     }
                 } else {
-                    return (int) (c1.getLevel() - c2.getLevel());
+                    return (int) (c1.getMinId() - c2.getMinId());
                 }
             }
         });
@@ -274,10 +326,10 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             if (isLeveled) {
                 sortLeveledDiskComponents();
                 for (ILSMDiskComponent c : diskComponents) {
-                    long level = c.getLevel();
-                    long seq = c.getLevelSequence();
-                    if (level > 0 && seq > levelSequences.getOrDefault(level, 0L)) {
-                        levelSequences.put(level, seq);
+                    long level = c.getMinId();
+                    long seq = c.getMaxId();
+                    if (level > 0 && seq > inLevelIds.getOrDefault(level, 0L)) {
+                        inLevelIds.put(level, seq);
                     }
                 }
             }
@@ -735,7 +787,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             String m = "";
             if (c instanceof ILSMDiskComponent) {
                 ILSMDiskComponent d = (ILSMDiskComponent) c;
-                m = d.getLevel() + "_" + d.getLevelSequence() + ":" + d.getComponentSize();
+                m = d.getBasename() + ":" + d.getComponentSize();
             } else {
                 m = c.toString();
             }
@@ -757,8 +809,8 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     private void validateComponentIds() throws HyracksDataException {
         if (isLeveled) {
             for (int i = 0; i < diskComponents.size() - 1; i++) {
-                long level1 = diskComponents.get(i).getLevel();
-                long level2 = diskComponents.get(i + 1).getLevel();
+                long level1 = diskComponents.get(i).getMinId();
+                long level2 = diskComponents.get(i + 1).getMinId();
                 // long levelId1 = diskComponents.get(i).getLevelSequence();
                 // long levelId2 = diskComponents.get(i + 1).getLevelSequence();
                 if (level1 > level2) {
@@ -1032,14 +1084,133 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             LOGGER.log(Level.INFO,
                     "Flushing component with id: " + flushOp.getFlushingComponent().getId() + " in the index " + this);
         }
-        return doFlush(operation);
+
+        synchronized (currentFlushes) {
+            currentFlushes.incrementAndGet();
+            File f = new File(flushFlagFile);
+            try {
+                f.createNewFile();
+            } catch (IOException ex) {
+            }
+        }
+
+        long startTime = System.nanoTime();
+        ILSMDiskComponent newComponent = doFlush(operation);
+        long duration = System.nanoTime() - startTime;
+
+        synchronized (currentFlushes) {
+            File f = new File(flushFlagFile);
+            if (currentFlushes.decrementAndGet() == 0 && f.exists()) {
+                f.delete();
+            }
+        }
+
+        if (shouldLog && newComponent != null) {
+            long flushedSize = newComponent.getComponentSize();
+            long flushedRecords = newComponent.getTupleCount();
+            String minMaxKeys = componentMinMaxKeys(newComponent);
+
+            try {
+                semaphoreFlushOrMerge.acquire();
+                countNumFlushes += 1;
+                totalSizeFlushed += flushedSize;
+                LOGGER.warn("[FLUSH]\t" + indexName + "\t" + System.nanoTime() + "\t" + countNumFlushes + "\t"
+                        + countNumMerges + "\t" + totalSizeFlushed + "\t" + totalSizeMerged + "\t" + duration + "\t"
+                        + newComponent.getBasename() + ":" + flushedSize + ":" + flushedRecords + ":" + minMaxKeys);
+            } catch (InterruptedException e) {
+            } finally {
+                semaphoreFlushOrMerge.release();
+            }
+        }
+
+        return newComponent;
     }
 
     @Override
     public final List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException {
         ILSMIndexAccessor accessor = operation.getAccessor();
         ILSMIndexOperationContext opCtx = accessor.getOpContext();
-        return opCtx.getOperation() == IndexOperation.DELETE_COMPONENTS ? Collections.emptyList() : doMerge(operation);
+
+        if (opCtx.getOperation() == IndexOperation.DELETE_COMPONENTS) {
+            if (shouldLog) {
+                List<ILSMDiskComponent> deletedComponents = opCtx.getComponentsToBeMerged();
+                if (!deletedComponents.isEmpty()) {
+                    StringBuilder s = new StringBuilder(deletedComponents.get(0).getBasename());
+                    for (int i = 1; i < deletedComponents.size(); i++) {
+                        s.append(";").append(deletedComponents.get(i).getBasename());
+                    }
+                    LOGGER.warn("[DELETE]\t" + indexName + "\t" + System.nanoTime() + "\t" + s.toString());
+                }
+            }
+            return Collections.emptyList();
+        } else {
+            List<ILSMDiskComponent> mergingComponents = opCtx.getComponentsToBeMerged();
+            String oldComponents = "";
+            if (!mergingComponents.isEmpty()) {
+                ILSMDiskComponent c = mergingComponents.get(0);
+                StringBuilder s = new StringBuilder(c.getBasename());
+                for (int i = 1; i < mergingComponents.size(); i++) {
+                    c = mergingComponents.get(i);
+                    s.append(";").append(c.getBasename());
+                }
+                oldComponents = s.toString();
+            }
+
+            synchronized (currentMerges) {
+                currentMerges.incrementAndGet();
+                File f = new File(mergeFlagFile);
+                try {
+                    f.createNewFile();
+                } catch (IOException ex) {
+                }
+            }
+
+            long startTime = System.nanoTime();
+            List<ILSMDiskComponent> newComponents = doMerge(operation);
+            long duration = System.nanoTime() - startTime;
+
+            synchronized (currentMerges) {
+                File f = new File(mergeFlagFile);
+                if (currentMerges.decrementAndGet() == 0) {
+                    f.delete();
+                }
+            }
+
+            if (shouldLog && !newComponents.isEmpty()) {
+                ILSMDiskComponent c = newComponents.get(0);
+                long componentSize = c.getComponentSize();
+                long numRecords = c.getTupleCount();
+                String minMaxKeys = componentMinMaxKeys(c);
+
+                long mergedSize = componentSize;
+
+                StringBuilder s =
+                        new StringBuilder(c.getBasename() + ":" + componentSize + ":" + numRecords + ":" + minMaxKeys);
+                for (int i = 1; i < newComponents.size(); i++) {
+                    c = newComponents.get(i);
+                    componentSize = c.getComponentSize();
+                    numRecords = c.getTupleCount();
+                    minMaxKeys = componentMinMaxKeys(c);
+                    mergedSize += componentSize;
+                    s.append(";").append(c.getBasename()).append(":").append(componentSize).append(":")
+                            .append(numRecords).append(":").append(minMaxKeys);
+                }
+
+                try {
+                    semaphoreFlushOrMerge.acquire();
+                    countNumMerges += 1;
+                    totalSizeMerged += mergedSize;
+                    LOGGER.warn("[MERGE]\t" + indexName + "\t" + System.nanoTime() + "\t" + countNumFlushes + "\t"
+                            + countNumMerges + "\t" + totalSizeFlushed + "\t" + totalSizeMerged + "\t" + duration + "\t"
+                            + oldComponents + "\t" + s.toString());
+                } catch (InterruptedException e) {
+                } finally {
+                    semaphoreFlushOrMerge.release();
+                }
+            }
+
+            return newComponents;
+        }
     }
 
     @Override
@@ -1083,7 +1254,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     }
 
     public LSMComponentFileReferences getNextMergeFileReferencesAtLevel(long level) throws HyracksDataException {
-        long next = getNextLevelSequence(level);
+        long next = getNexInLevelId(level);
         String newName = level + AbstractLSMIndexFileManager.DELIMITER + next;
         return fileManager.getRelMergeFileReference(newName);
     }
@@ -1100,7 +1271,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     public synchronized long getMaxLevel() {
         synchronized (diskComponents) {
             long maxLevel = 0L;
-            for (long level : levelSequences.keySet()) {
+            for (long level : inLevelIds.keySet()) {
                 if (level > maxLevel) {
                     maxLevel = level;
                 }
@@ -1117,10 +1288,10 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
         return maxLevel; */
     }
 
-    public synchronized long getNextLevelSequence(long level) {
-        long seq = levelSequences.getOrDefault(level, 0L);
-        levelSequences.put(level, seq + 1);
-        return seq + 1;
+    public synchronized long getNexInLevelId(long level) {
+        long inId = inLevelIds.getOrDefault(level, 0L);
+        inLevelIds.put(level, inId + 1);
+        return inId + 1;
         /* long maxLevelSequence = 0L;
         for (ILSMDiskComponent component : diskComponents) {
             if (component.getLevel() == level) {
@@ -1177,7 +1348,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
                 long currentLevel = -1;
                 String levelStr = "";
                 for (ILSMDiskComponent component : diskComponents) {
-                    long level = component.getLevel();
+                    long level = component.getMinId();
                     if (level == currentLevel) {
                         if (levelStr.isEmpty()) {
                             levelStr = componentToString(component, 2);
@@ -1222,19 +1393,35 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             StringBuilder sb = new StringBuilder();
             ILSMDiskComponent c = diskComponents.get(0);
             try {
-                sb.append(c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getTupleCount());
+                sb.append(c.getBasename()).append(":").append(c.getTupleCount());
             } catch (HyracksDataException ex) {
-                sb.append(c.getLevel() + "_" + c.getLevelSequence() + ":-1");
+                sb.append(c.getBasename()).append(":-1");
             }
             for (int i = 1; i < size; i++) {
                 c = diskComponents.get(i);
                 try {
-                    sb.append(";" + c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getTupleCount());
+                    sb.append(";").append(c.getBasename()).append(":").append(c.getTupleCount());
                 } catch (HyracksDataException ex) {
-                    sb.append(";" + c.getLevel() + "_" + c.getLevelSequence() + ":-1");
+                    sb.append(";").append(c.getBasename()).append(":-1");
                 }
             }
             return sb.toString();
+        }
+    }
+
+    public abstract String componentMinMaxKeys(ILSMDiskComponent c);
+
+    public void printDiskComponents() throws HyracksDataException {
+        if (shouldLog) {
+            synchronized (diskComponents) {
+                if (!diskComponents.isEmpty()) {
+                    StringBuilder s = new StringBuilder(diskComponents.get(0).getBasename());
+                    for (int i = 1; i < diskComponents.size(); i++) {
+                        s.append(";").append(diskComponents.get(i).getBasename());
+                    }
+                    LOGGER.warn("[COMPONENTS]\t" + indexName + "\t" + System.nanoTime() + "\t" + s.toString());
+                }
+            }
         }
     }
 

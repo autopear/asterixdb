@@ -455,8 +455,8 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
     protected LSMComponentFileReferences getMergeFileReferences(List<ILSMDiskComponent> components)
             throws HyracksDataException {
         if (isLeveled) {
-            long levelTo = components.get(0).getLevel() + 1;
-            String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + getNextLevelSequence(levelTo);
+            long levelTo = components.get(0).getMinId() + 1;
+            String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + getNexInLevelId(levelTo);
             return fileManager.getRelMergeFileReference(newName);
         } else {
             LSMInvertedIndexDiskComponent first = (LSMInvertedIndexDiskComponent) components.get(0);
@@ -485,5 +485,10 @@ public class LSMInvertedIndex extends AbstractLSMIndex implements IInvertedIndex
         return new LSMInvertedIndexMergeOperation(accessor, cursor, stats, mergeFileRefs.getInsertIndexFileReference(),
                 mergeFileRefs.getDeleteIndexFileReference(), mergeFileRefs.getBloomFilterFileReference(), callback,
                 getIndexIdentifier());
+    }
+
+    @Override
+    public String componentMinMaxKeys(ILSMDiskComponent c) {
+        return "";
     }
 }

@@ -696,4 +696,9 @@ public class ExternalBTreeWithBuddy extends AbstractLSMIndex implements ITreeInd
             LSMComponentFileReferences mergeFileRefs, ILSMIOOperationCallback callback) throws HyracksDataException {
         return null;
     }
+
+    @Override
+    public String componentMinMaxKeys(ILSMDiskComponent c) {
+        return "";
+    }
 }

@@ -40,7 +40,7 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
         List<ILSMDiskComponent> ret = new ArrayList<>();
         for (int i = 0; i < components.size(); i++) {
             ILSMDiskComponent c = components.get(i);
-            if (c.getLevel() == level) {
+            if (c.getMinId() == level) {
                 ret.add(c);
             }
         }
@@ -51,12 +51,12 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
         long levelSequence = -1;
         ILSMDiskComponent oldest = null;
         for (ILSMDiskComponent component : components) {
-            if (component.getLevel() == level) {
+            if (component.getMinId() == level) {
                 if (oldest == null) {
-                    levelSequence = component.getLevelSequence();
+                    levelSequence = component.getMaxId();
                     oldest = component;
                 } else {
-                    long t = component.getLevelSequence();
+                    long t = component.getMaxId();
                     if (t <= levelSequence) {
                         levelSequence = t;
                         oldest = component;
@@ -71,12 +71,12 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
         long levelSequence = -1;
         ILSMDiskComponent newest = null;
         for (ILSMDiskComponent component : components) {
-            if (component.getLevel() == level) {
+            if (component.getMinId() == level) {
                 if (newest == null) {
-                    levelSequence = component.getLevelSequence();
+                    levelSequence = component.getMaxId();
                     newest = component;
                 } else {
-                    long t = component.getLevelSequence();
+                    long t = component.getMaxId();
                     if (t > levelSequence) {
                         levelSequence = t;
                         newest = component;
@@ -160,10 +160,10 @@ public abstract class AbstractLevelMergePolicyHelper implements ILevelMergePolic
         List<ILSMDiskComponent> srcComponents = new ArrayList<>();
         List<ILSMDiskComponent> dstComponents = new ArrayList<>();
         for (ILSMDiskComponent component : components) {
-            if (component.getLevel() == level) {
+            if (component.getMinId() == level) {
                 srcComponents.add(component);
             }
-            if (component.getLevel() == level + 1) {
+            if (component.getMinId() == level + 1) {
                 dstComponents.add(component);
             }
         }

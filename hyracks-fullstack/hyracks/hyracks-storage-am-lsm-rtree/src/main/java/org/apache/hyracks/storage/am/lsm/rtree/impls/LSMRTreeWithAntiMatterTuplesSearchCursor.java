@@ -114,22 +114,17 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
             }
             cs.addAll(operationalComponents.get(0).getLsmIndex().getDiskComponents());
             allComponents = LSMHarness.getComponentSizes(cs);
-            availComponents = "";
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < operationalComponents.size(); i++) {
-                String s;
                 ILSMComponent c = operationalComponents.get(i);
-                if (c.getType() == LSMComponentType.MEMORY) {
-                    s = "Mem";
-                } else {
-                    ILSMDiskComponent d = (ILSMDiskComponent) c;
-                    s = d.getLevel() + "_" + d.getLevelSequence();
-                }
+                String name = c.getType() == LSMComponentType.MEMORY ? "Mem" : ((ILSMDiskComponent) c).getBasename();
                 if (i == 0) {
-                    availComponents = s;
+                    sb.append(name);
                 } else {
-                    availComponents += ";" + s;
+                    sb.append(";").append(name);
                 }
             }
+            availComponents = sb.toString();
             startTime = System.nanoTime();
         }
 
@@ -174,7 +169,7 @@ public class LSMRTreeWithAntiMatterTuplesSearchCursor extends LSMIndexSearchCurs
                 immutableRTreeAccessors[j] = rtree.createAccessor(iap);
                 rangeCursors[j] = immutableRTreeAccessors[j].createSearchCursor(false);
                 immutableRTreeAccessors[j].search(rangeCursors[j], searchPred);
-                diskNames[j] = component.getLevel() + "_" + component.getLevelSequence();
+                diskNames[j] = component.getBasename();
                 diskTimes[j] = 0L;
                 j++;
             }

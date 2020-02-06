@@ -351,7 +351,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             if (isLeveled) {
                 ILSMDiskComponent lastMergingComponent =
                         (ILSMDiskComponent) (mergingComponents.get(mergingComponents.size() - 1));
-                if (lastMergingComponent.getLevel() < getMaxLevel()) {
+                if (lastMergingComponent.getMinId() < getMaxLevel()) {
                     returnDeletedTuples = true;
                 }
             } else {

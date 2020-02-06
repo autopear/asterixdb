@@ -33,15 +33,17 @@ import org.apache.hyracks.storage.common.compression.file.CompressedFileReferenc
 
 public class LSMBTreeDiskComponent extends AbstractLSMDiskComponent {
     protected final DiskBTree btree;
-    protected final long level;
-    protected final long levelSequence;
+    protected final long minId;
+    protected final long maxId;
+    protected final String basename;
 
     public LSMBTreeDiskComponent(AbstractLSMIndex lsmIndex, DiskBTree btree, ILSMComponentFilter filter) {
         super(lsmIndex, getMetadataPageManager(btree), filter);
         this.btree = btree;
         IndexComponentFileReference icfr = IndexComponentFileReference.of(btree.getFileReference().getFile().getName());
-        level = icfr.getSequenceStart();
-        levelSequence = icfr.getSequenceEnd();
+        minId = icfr.getSequenceStart();
+        maxId = icfr.getSequenceEnd();
+        basename = minId + "_" + maxId;
     }
 
     @Override
@@ -98,12 +100,17 @@ public class LSMBTreeDiskComponent extends AbstractLSMDiskComponent {
     }
 
     @Override
-    public long getLevel() {
-        return level;
+    public long getMinId() {
+        return minId;
     }
 
     @Override
-    public long getLevelSequence() {
-        return levelSequence;
+    public long getMaxId() {
+        return maxId;
+    }
+
+    @Override
+    public String getBasename() {
+        return basename;
     }
 }

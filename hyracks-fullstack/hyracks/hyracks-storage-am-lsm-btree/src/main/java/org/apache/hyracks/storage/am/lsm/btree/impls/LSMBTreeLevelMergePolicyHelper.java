@@ -50,7 +50,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
 
     public List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component,
             List<ILSMDiskComponent> components, boolean absolute) {
-        long levelTo = component.getLevel() + 1;
+        long levelTo = component.getMinId() + 1;
         List<ILSMDiskComponent> nextLevelComponents = getComponents(components, levelTo);
         if (nextLevelComponents.isEmpty()) {
             return Collections.emptyList();
@@ -106,7 +106,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     if (mergedComponents.size() == 1) {
                         long numElements = getNumberOfElements(mergedComponents);
                         LSMComponentFileReferences refs = lsmBTree.getNextMergeFileReferencesAtLevel(
-                                ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1);
+                                ((ILSMDiskComponent) mergedComponents.get(0)).getMinId() + 1);
                         newComponent = lsmBTree.createDiskComponent(refs.getInsertIndexFileReference(), null,
                                 refs.getBloomFilterFileReference(), true);
                         IPageWriteCallback pageWriteCallback =
@@ -146,7 +146,7 @@ public class LSMBTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         ITupleReference minTuple = null;
                         ITupleReference maxTuple = null;
                         MultiComparator filterCmp = null;
-                        long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1;
+                        long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getMinId() + 1;
                         // long start = lsmBTree.getNextLevelSequence(levelTo);
                         List<FileReference> mergeFileTargets = new ArrayList<>();
                         List<FileReference> mergeBloomFilterTargets = new ArrayList<>();

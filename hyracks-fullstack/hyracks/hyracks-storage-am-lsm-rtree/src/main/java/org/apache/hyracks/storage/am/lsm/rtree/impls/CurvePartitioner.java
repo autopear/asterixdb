@@ -42,7 +42,7 @@ public abstract class CurvePartitioner {
         this.curveValues = new HashMap<>();
         this.components = new ArrayList<>();
         for (ILSMDiskComponent c : components) {
-            if (c.getLevel() == level) {
+            if (c.getMinId() == level) {
                 this.components.add(c);
             }
         }

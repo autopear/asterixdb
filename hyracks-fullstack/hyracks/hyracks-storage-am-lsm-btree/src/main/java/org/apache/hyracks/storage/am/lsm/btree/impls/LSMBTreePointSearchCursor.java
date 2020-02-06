@@ -240,22 +240,17 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             byte[] searchData = LSMBTree.getKeyBytes(searchPred.getLowKey());
             searchKey =
                     (searchData == null) ? "Unknown" : ((LSMBTree) lsmHarness.getLSMIndex()).keyToString(searchData);
-            availComponents = "";
+            StringBuilder s = new StringBuilder();
             for (int i = 0; i < operationalComponents.size(); i++) {
-                String s;
                 ILSMComponent c = operationalComponents.get(i);
-                if (c.getType() == LSMComponentType.MEMORY) {
-                    s = "Mem";
-                } else {
-                    ILSMDiskComponent d = (ILSMDiskComponent) c;
-                    s = d.getLevel() + "_" + d.getLevelSequence();
-                }
+                String name = c.getType() == LSMComponentType.MEMORY ? "Mem" : ((ILSMDiskComponent) c).getBasename();
                 if (i == 0) {
-                    availComponents = s;
+                    s.append(name);
                 } else {
-                    availComponents += ";" + s;
+                    s.append(";").append(name);
                 }
             }
+            availComponents = s.toString();
             timeStr = "";
             startTime = System.nanoTime();
         }

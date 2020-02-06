@@ -48,9 +48,16 @@ public interface ILSMDiskComponent extends ILSMComponent {
     int getFileReferenceCount();
 
     /**
-     * @return the level of the component
+     * @return the min ID or the level
      */
-    long getLevel();
+    long getMinId();
+
+    /**
+     * @return the max ID or the in level ID
+     */
+    long getMaxId();
+
+    String getBasename();
 
     byte[] getMinKey() throws HyracksDataException;
 
@@ -63,11 +70,6 @@ public interface ILSMDiskComponent extends ILSMComponent {
     long getTupleCount() throws HyracksDataException;
 
     void setTupleCount(long count) throws HyracksDataException;
-
-    /**
-     * @return the level sequence of the component
-     */
-    long getLevelSequence();
 
     /**
      * @return LsmIndex of the component

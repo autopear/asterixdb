@@ -275,8 +275,9 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
     protected LSMComponentFileReferences getMergeFileReferences(List<ILSMDiskComponent> components)
             throws HyracksDataException {
         if (isLeveled) {
-            long levelTo = components.get(0).getLevel() + 1;
-            String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + getNextLevelSequence(levelTo);
+            // Component name will be decided when creating the component
+            long levelTo = components.get(0).getMinId() + 1;
+            String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + 0;
             return fileManager.getRelMergeFileReference(newName);
         } else {
             RTree firstTree = (RTree) components.get(0).getIndex();
@@ -321,7 +322,7 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
                     return r;
                 }
             }
-            return (int) (c2.getLevelSequence() - c1.getLevelSequence());
+            return (int) (c2.getMaxId() - c1.getMaxId());
         } catch (HyracksDataException ex) {
         }
         return 0;
@@ -428,9 +429,36 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
     }
 
     private String getComponentInfo(ILSMDiskComponent c) {
+        String mbrStr = componentMinMaxKeys(c);
+        long numTuples;
+        try {
+            numTuples = c.getTupleCount();
+        } catch (HyracksDataException ex) {
+            numTuples = -1L;
+        }
+        return c.getBasename() + ":" + numTuples + ":" + mbrStr;
+    }
+
+    @Override
+    public String getComponentsInfo() {
+        synchronized (diskComponents) {
+            int size = diskComponents.size();
+            if (size == 0) {
+                return "";
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append(getComponentInfo(diskComponents.get(0)));
+            for (int i = 1; i < size; i++) {
+                sb.append(";" + getComponentInfo(diskComponents.get(i)));
+            }
+            return sb.toString();
+        }
+    }
+
+    @Override
+    public String componentMinMaxKeys(ILSMDiskComponent c) {
         String minMBRStr;
         String maxMBRStr;
-        long numTuples;
         try {
             double[] minMBR = bytesToDoubles(c.getMinKey());
             if (minMBR == null) {
@@ -475,27 +503,6 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         } catch (HyracksDataException ex) {
             maxMBRStr = "Unknown";
         }
-        try {
-            numTuples = c.getTupleCount();
-        } catch (HyracksDataException ex) {
-            numTuples = -1L;
-        }
-        return c.getLevel() + "_" + c.getLevelSequence() + ":" + numTuples + ":[" + minMBRStr + " " + maxMBRStr + "]";
-    }
-
-    @Override
-    public String getComponentsInfo() {
-        synchronized (diskComponents) {
-            int size = diskComponents.size();
-            if (size == 0) {
-                return "";
-            }
-            StringBuilder sb = new StringBuilder();
-            sb.append(getComponentInfo(diskComponents.get(0)));
-            for (int i = 1; i < size; i++) {
-                sb.append(";" + getComponentInfo(diskComponents.get(i)));
-            }
-            return sb.toString();
-        }
+        return "[" + minMBRStr + " " + maxMBRStr + "]";
     }
 }

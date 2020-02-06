@@ -123,7 +123,7 @@ public class LevelMergePolicy implements ILSMMergePolicy {
         List<ILSMDiskComponent> immutableComponents = new ArrayList<>(components);
         List<Long> levels = new ArrayList<>();
         for (ILSMDiskComponent component : immutableComponents) {
-            long level = component.getLevel();
+            long level = component.getMinId();
             if (!levels.contains(level)) {
                 levels.add(level);
             }

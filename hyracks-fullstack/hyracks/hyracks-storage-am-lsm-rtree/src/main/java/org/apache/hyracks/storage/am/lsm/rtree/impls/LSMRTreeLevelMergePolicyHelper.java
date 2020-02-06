@@ -123,7 +123,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
     @Override
     public List<ILSMDiskComponent> getOverlappingComponents(ILSMDiskComponent component,
             List<ILSMDiskComponent> components, boolean absolute) {
-        long levelTo = component.getLevel() + 1;
+        long levelTo = component.getMinId() + 1;
         List<ILSMDiskComponent> nextLevelComponents = getComponents(components, levelTo);
         if (nextLevelComponents.isEmpty()) {
             return Collections.emptyList();
@@ -212,7 +212,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                             minPicked = c;
                         }
                         if (z == minZ) {
-                            if (c.getLevelSequence() < minPicked.getLevelSequence()) {
+                            if (c.getMaxId() < minPicked.getMaxId()) {
                                 minPicked = c;
                             }
                         }
@@ -227,7 +227,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                 nextPicked = c;
                             }
                             if (z == nextZ) {
-                                if (c.getLevelSequence() < nextPicked.getLevelSequence()) {
+                                if (c.getMaxId() < nextPicked.getMaxId()) {
                                     nextPicked = c;
                                 }
                             }
@@ -255,7 +255,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                             picked = c;
                         }
                         if (z == minZ) {
-                            if (c.getLevelSequence() < picked.getLevelSequence()) {
+                            if (c.getMaxId() < picked.getMaxId()) {
                                 picked = c;
                             }
                         }
@@ -277,7 +277,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         lsmRTree.search(opCtx, cursor, rtreeSearchPred);
 
         List<ILSMComponent> mergedComponents = mergeOp.getMergingComponents();
-        long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1;
+        long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getMinId() + 1;
         if (mergedComponents.size() == 1) {
             LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo);
             ILSMDiskComponent newComponent =
@@ -461,7 +461,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         lsmRTree.search(opCtx, cursor, rtreeSearchPred);
 
         List<ILSMComponent> mergedComponents = mergeOp.getMergingComponents();
-        long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getLevel() + 1;
+        long levelTo = ((ILSMDiskComponent) mergedComponents.get(0)).getMinId() + 1;
         if (mergedComponents.size() == 1) {
             LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo);
             ILSMDiskComponent newComponent =

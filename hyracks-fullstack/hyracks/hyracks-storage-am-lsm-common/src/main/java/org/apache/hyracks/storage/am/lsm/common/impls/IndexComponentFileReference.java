@@ -132,8 +132,8 @@ public class IndexComponentFileReference implements Comparable<IndexComponentFil
         IndexComponentFileReference ifr2 = IndexComponentFileReference.of(lastComponentName);
         long start1 = ifr1.getSequenceStart();
         long start2 = ifr2.getSequenceStart();
-        long end1 = ifr1.getSequenceStart();
+        long end1 = ifr1.getSequenceEnd();
         long end2 = ifr2.getSequenceEnd();
-        return (start1 < start2 ? start1 : start2) + DELIMITER + (end1 > end2 ? end1 : end2);
+        return Math.min(start1, start2) + DELIMITER + Math.max(end1, end2);
     }
 }

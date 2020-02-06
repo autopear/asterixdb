@@ -29,15 +29,17 @@ import org.apache.hyracks.storage.am.rtree.impls.RTree;
 
 public class LSMRTreeWithAntimatterDiskComponent extends AbstractLSMDiskComponent {
     private final RTree rtree;
-    private final long level;
-    private final long levelSequence;
+    protected final long minId;
+    protected final long maxId;
+    protected final String basename;
 
     public LSMRTreeWithAntimatterDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, ILSMComponentFilter filter) {
         super(lsmIndex, LSMRTreeDiskComponent.getMetadataPageManager(rtree), filter);
         this.rtree = rtree;
         IndexComponentFileReference icfr = IndexComponentFileReference.of(rtree.getFileReference().getFile().getName());
-        level = icfr.getSequenceStart();
-        levelSequence = icfr.getSequenceEnd();
+        minId = icfr.getSequenceStart();
+        maxId = icfr.getSequenceEnd();
+        basename = minId + "_" + maxId;
     }
 
     @Override
@@ -76,12 +78,17 @@ public class LSMRTreeWithAntimatterDiskComponent extends AbstractLSMDiskComponen
     }
 
     @Override
-    public long getLevel() {
-        return level;
+    public long getMinId() {
+        return minId;
     }
 
     @Override
-    public long getLevelSequence() {
-        return levelSequence;
+    public long getMaxId() {
+        return maxId;
+    }
+
+    @Override
+    public String getBasename() {
+        return basename;
     }
 }

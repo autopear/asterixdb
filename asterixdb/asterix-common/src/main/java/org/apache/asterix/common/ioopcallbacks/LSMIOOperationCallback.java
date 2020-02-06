@@ -206,7 +206,7 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
     private void putComponentIdIntoMetadata(ILSMDiskComponent newComponent, List<ILSMDiskComponent> oldComponents)
             throws HyracksDataException {
         //        ILSMComponentId componentId = getMergedComponentId(oldComponents);
-        ILSMComponentId componentId = new LSMComponentId(newComponent.getLevel(), newComponent.getLevelSequence());
+        ILSMComponentId componentId = new LSMComponentId(newComponent.getMinId(), newComponent.getMaxId());
         //
         //        ILSMComponentId componentId = null;
         //        for (String path : newComponent.getLSMComponentPhysicalFiles()) {
@@ -222,7 +222,7 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
 
     private void putComponentIdIntoMetadata(ILSMDiskComponent newComponent, ILSMComponentId componentId)
             throws HyracksDataException {
-        ILSMComponentId newComponentId = new LSMComponentId(newComponent.getLevel(), newComponent.getLevelSequence());
+        ILSMComponentId newComponentId = new LSMComponentId(newComponent.getMinId(), newComponent.getMaxId());
         //        for (String path : newComponent.getLSMComponentPhysicalFiles()) {
         //            IndexComponentFileReference icfr = IndexComponentFileReference.of(Paths.get(path).getFileName().toString());
         //            newComponentId = new LSMComponentId(icfr.getSequenceStart(), icfr.getSequenceEnd());

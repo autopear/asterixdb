@@ -612,8 +612,9 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
     protected LSMComponentFileReferences getMergeFileReferences(List<ILSMDiskComponent> components)
             throws HyracksDataException {
         if (isLeveled) {
-            long levelTo = components.get(0).getLevel() + 1;
-            String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + getNextLevelSequence(levelTo);
+            // Component name will be decided when creating the component
+            long levelTo = components.get(0).getMinId() + 1;
+            String newName = levelTo + AbstractLSMIndexFileManager.DELIMITER + 0;
             return fileManager.getRelMergeFileReference(newName);
         } else {
             BTree firstBTree = (BTree) components.get(0).getIndex();
@@ -633,7 +634,7 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
             if (isLeveled) {
                 ILSMDiskComponent lastMergingComponent =
                         (ILSMDiskComponent) (mergingComponents.get(mergingComponents.size() - 1));
-                if (lastMergingComponent.getLevel() < getMaxLevel()) {
+                if (lastMergingComponent.getMinId() < getMaxLevel()) {
                     returnDeletedTuples = true;
                 }
             } else {
@@ -689,10 +690,10 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
                 + maxKey + ",\n" + spaces + "  tuples: " + numTuples + "\n" + spaces + "}";
     }
 
-    private String getComponentInfo(ILSMDiskComponent c) {
+    @Override
+    public String componentMinMaxKeys(ILSMDiskComponent c) {
         String minKey;
         String maxKey;
-        long numTuples;
         try {
             byte[] minData = c.getMinKey();
             minKey = minData == null ? "Unknown" : keyToString(minData);
@@ -705,13 +706,17 @@ public class LSMBTree extends AbstractLSMIndex implements ITreeIndex {
         } catch (HyracksDataException ex) {
             maxKey = "Unknown";
         }
+        return "[" + minKey + " " + maxKey + "]";
+    }
+
+    private String getComponentInfo(ILSMDiskComponent c) {
+        long numTuples;
         try {
             numTuples = c.getTupleCount();
         } catch (HyracksDataException ex) {
             numTuples = -1L;
         }
-        return c.getLevel() + "_" + c.getLevelSequence() + ":" + c.getComponentSize() + ":" + numTuples + ":[" + minKey
-                + " " + maxKey + "]";
+        return c.getBasename() + ":" + c.getComponentSize() + ":" + numTuples + ":" + componentMinMaxKeys(c);
     }
 
     @Override

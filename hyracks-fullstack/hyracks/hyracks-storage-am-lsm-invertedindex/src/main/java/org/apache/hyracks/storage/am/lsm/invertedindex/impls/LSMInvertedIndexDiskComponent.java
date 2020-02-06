@@ -43,8 +43,9 @@ public class LSMInvertedIndexDiskComponent extends AbstractLSMWithBuddyDiskCompo
     private final OnDiskInvertedIndex invIndex;
     private final BTree deletedKeysBTree;
     private final BloomFilter bloomFilter;
-    private final long level;
-    private final long levelSequence;
+    protected final long minId;
+    protected final long maxId;
+    protected final String basename;
 
     public LSMInvertedIndexDiskComponent(AbstractLSMIndex lsmIndex, OnDiskInvertedIndex invIndex,
             BTree deletedKeysBTree, BloomFilter bloomFilter, ILSMComponentFilter filter) {
@@ -54,8 +55,9 @@ public class LSMInvertedIndexDiskComponent extends AbstractLSMWithBuddyDiskCompo
         this.bloomFilter = bloomFilter;
         IndexComponentFileReference icfr =
                 IndexComponentFileReference.of(invIndex.getBTree().getFileReference().getFile().getName());
-        level = icfr.getSequenceStart();
-        levelSequence = icfr.getSequenceEnd();
+        minId = icfr.getSequenceStart();
+        maxId = icfr.getSequenceEnd();
+        basename = minId + "_" + maxId;
     }
 
     @Override
@@ -137,12 +139,17 @@ public class LSMInvertedIndexDiskComponent extends AbstractLSMWithBuddyDiskCompo
     }
 
     @Override
-    public long getLevel() {
-        return level;
+    public long getMinId() {
+        return minId;
     }
 
     @Override
-    public long getLevelSequence() {
-        return levelSequence;
+    public long getMaxId() {
+        return maxId;
+    }
+
+    @Override
+    public String getBasename() {
+        return basename;
     }
 }

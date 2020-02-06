@@ -35,8 +35,9 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
     private final RTree rtree;
     private final BTree btree;
     private final BloomFilter bloomFilter;
-    private final long level;
-    private final long levelSequence;
+    protected final long minId;
+    protected final long maxId;
+    protected final String basename;
 
     public LSMRTreeDiskComponent(AbstractLSMIndex lsmIndex, RTree rtree, BTree btree, BloomFilter bloomFilter,
             ILSMComponentFilter filter) {
@@ -45,8 +46,9 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
         this.btree = btree;
         this.bloomFilter = bloomFilter;
         IndexComponentFileReference icfr = IndexComponentFileReference.of(rtree.getFileReference().getFile().getName());
-        level = icfr.getSequenceStart();
-        levelSequence = icfr.getSequenceEnd();
+        minId = icfr.getSequenceStart();
+        maxId = icfr.getSequenceEnd();
+        basename = minId + "_" + maxId;
     }
 
     @Override
@@ -114,12 +116,17 @@ public class LSMRTreeDiskComponent extends AbstractLSMWithBuddyDiskComponent {
     }
 
     @Override
-    public long getLevel() {
-        return level;
+    public long getMinId() {
+        return minId;
     }
 
     @Override
-    public long getLevelSequence() {
-        return levelSequence;
+    public long getMaxId() {
+        return maxId;
+    }
+
+    @Override
+    public String getBasename() {
+        return basename;
     }
 }

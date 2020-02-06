@@ -19,16 +19,11 @@
 
 package org.apache.hyracks.storage.am.lsm.common.impls;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
 import org.apache.hyracks.api.exceptions.ErrorCode;
@@ -80,19 +75,6 @@ public class LSMHarness implements ILSMHarness {
     protected ITracer tracer;
     protected long traceCategory;
 
-    private AtomicLong flushCnt;
-    private AtomicLong mergeCnt;
-    private AtomicLong totalFlushed;
-    private AtomicLong totalMerged;
-
-    private String indexName;
-    private int currentFlushes;
-    private String flushFlagFile;
-    private Semaphore flushLock;
-    private int currentMerges;
-    private String mergeFlagFile;
-    private Semaphore mergeLock;
-
     public LSMHarness(ILSMIndex lsmIndex, ILSMIOOperationScheduler ioScheduler, ILSMMergePolicy mergePolicy,
             ILSMOperationTracker opTracker, boolean replicationEnabled, ITracer tracer) {
         this.lsmIndex = lsmIndex;
@@ -108,23 +90,6 @@ public class LSMHarness implements ILSMHarness {
             this.componentsToBeReplicated = new ArrayList<>();
         }
         componentReplacementCtx = new ComponentReplacementContext(lsmIndex);
-
-        flushCnt = new AtomicLong(0);
-        mergeCnt = new AtomicLong(0);
-        totalFlushed = new AtomicLong(0);
-        totalMerged = new AtomicLong(0);
-
-        String[] paths = lsmIndex.getIndexIdentifier().replace("\\", "/").split("/");
-        indexName = paths[paths.length - 1];
-        currentFlushes = 0;
-        flushFlagFile = Paths.get(lsmIndex.getIndexIdentifier(), "is_flushing").toAbsolutePath().toString();
-        flushLock = new Semaphore(1);
-        currentMerges = 0;
-        mergeFlagFile = Paths.get(lsmIndex.getIndexIdentifier(), "is_merging").toAbsolutePath().toString();
-        mergeLock = new Semaphore(1);
-
-        LOGGER.info("Index: " + indexName + ", merge-policy: " + mergePolicy.getClass().getSimpleName()
-                + ", properties: " + mergePolicy.getProperties());
     }
 
     @Override
@@ -535,19 +500,6 @@ public class LSMHarness implements ILSMHarness {
 
     @Override
     public ILSMIOOperation scheduleFlush(ILSMIndexOperationContext ctx) throws HyracksDataException {
-        try {
-            flushLock.acquire();
-            currentFlushes++;
-            File f = new File(flushFlagFile);
-            try {
-                if (!(f.exists())) {
-                    f.createNewFile();
-                }
-            } catch (IOException ex) {
-            }
-            flushLock.release();
-        } catch (InterruptedException ex) {
-        }
         ILSMIOOperation flush;
         LOGGER.debug("Flush is being scheduled on {}", lsmIndex);
         if (!lsmIndex.isMemoryComponentsAllocated()) {
@@ -618,24 +570,10 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
-        flushCnt.incrementAndGet();
-        totalFlushed.getAndAdd(operation.getNewComponent().getComponentSize());
-        if (indexName.compareTo("rtreeidx") == 0 || indexName.compareTo("usertable") == 0) {
-            LOGGER.info("[ALL]\t" + flushCnt.get() + "\t" + mergeCnt.get() + "\t" + lsmIndex.getComponentsInfo());
-        }
-        try {
-            flushLock.acquire();
-            currentFlushes--;
-            File f = new File(flushFlagFile);
-            if (currentFlushes == 0 && f.exists()) {
-                f.delete();
-            }
-            flushLock.release();
-        } catch (InterruptedException ex) {
-        }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the flush operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }
+        ((AbstractLSMIndex) lsmIndex).printDiskComponents();
     }
 
     @Override
@@ -643,11 +581,6 @@ public class LSMHarness implements ILSMHarness {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Started a merge operation for index: {}", lsmIndex);
         }
-        String before = getComponentSizes(lsmIndex.getDiskComponents());
-        String toMerge = getComponentSizes(((MergeOperation) operation).getMergingComponents());
-        String news = "";
-        long mergedSize = 0;
-        long start = System.nanoTime();
 
         synchronized (opTracker) {
             enterComponents(operation.getAccessor().getOpContext(), LSMOperationType.MERGE);
@@ -657,12 +590,10 @@ public class LSMHarness implements ILSMHarness {
             try {
                 operation.getCallback().beforeOperation(operation);
                 newComponents = lsmIndex.merge(operation);
-                news = getComponentSizes(newComponents);
                 operation.setNewComponents(newComponents);
                 operation.getCallback().afterOperation(operation);
                 for (ILSMDiskComponent newComponent : newComponents) {
                     newComponent.markAsValid(lsmIndex.isDurable(), operation);
-                    mergedSize += newComponent.getComponentSize();
                 }
             } catch (Throwable e) { // NOSONAR Must catch all
                 operation.setStatus(LSMIOOperationStatus.FAILURE);
@@ -693,49 +624,14 @@ public class LSMHarness implements ILSMHarness {
                     operation.getAccessor().getOpContext().getSearchOperationCallback(),
                     operation.getAccessor().getOpContext().getModificationCallback());
         }
-
-        long duration = System.nanoTime() - start;
-
-        mergeCnt.incrementAndGet();
-        totalMerged.getAndAdd(mergedSize);
-
-        if (indexName.compareTo("rtreeidx") == 0 || indexName.compareTo("usertable") == 0) {
-            String after = getComponentSizes(lsmIndex.getDiskComponents());
-            LOGGER.info("[MERGE]\ttime=" + duration + "\tbefore=" + before + "\tsrc=" + toMerge + "\tdst=" + news
-                    + "\tafter=" + after + "\tflushes=" + flushCnt.get() + "\tflushed=" + totalFlushed.get()
-                    + "\tmerges=" + mergeCnt.get() + "\tmerged=" + totalMerged.get());
-            LOGGER.info("[ALL]\t" + flushCnt.get() + "\t" + mergeCnt.get() + "\t" + lsmIndex.getComponentsInfo());
-        }
-        try {
-            mergeLock.acquire();
-            currentMerges--;
-            File f = new File(mergeFlagFile);
-            if (currentMerges == 0 && f.exists()) {
-                f.delete();
-            }
-            mergeLock.release();
-        } catch (InterruptedException ex) {
-        }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Finished the merge operation for index: {}. Result: {}", lsmIndex, operation.getStatus());
         }
+        ((AbstractLSMIndex) lsmIndex).printDiskComponents();
     }
 
     @Override
     public ILSMIOOperation scheduleMerge(ILSMIndexOperationContext ctx) throws HyracksDataException {
-        try {
-            mergeLock.acquire();
-            currentMerges++;
-            File f = new File(mergeFlagFile);
-            try {
-                if (!(f.exists())) {
-                    f.createNewFile();
-                }
-            } catch (IOException ex) {
-            }
-            mergeLock.release();
-        } catch (InterruptedException ex) {
-        }
         ILSMIOOperation operation;
         synchronized (opTracker) {
             operation = lsmIndex.createMergeOperation(ctx);
@@ -1045,7 +941,7 @@ public class LSMHarness implements ILSMHarness {
     }
 
     public static String getComponentSizes(List<? extends ILSMComponent> components) {
-        String str = "";
+        StringBuilder sb = new StringBuilder();
         for (int i = 0; i < components.size(); i++) {
             String s;
             ILSMComponent c = components.get(i);
@@ -1053,15 +949,15 @@ public class LSMHarness implements ILSMHarness {
                 s = "Mem:0";
             } else {
                 ILSMDiskComponent d = (ILSMDiskComponent) c;
-                s = d.getLevel() + "_" + d.getLevelSequence() + ":" + d.getComponentSize();
+                s = d.getBasename() + ":" + d.getComponentSize();
             }
             if (i == 0) {
-                str = s;
+                sb.append(s);
             } else {
-                str += ";" + s;
+                sb.append(";").append(s);
             }
         }
-        return "[" + str + "]";
+        return "[" + sb.toString() + "]";
     }
 
     public static void writeLog(String msg) {
