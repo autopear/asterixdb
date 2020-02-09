@@ -16,28 +16,48 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.asterix.lang.common.base;
+drop dataverse test if exists;
+create dataverse test;
 
-import org.apache.asterix.common.exceptions.CompilationException;
-import org.apache.asterix.lang.common.struct.VarIdentifier;
-import org.apache.asterix.metadata.declared.MetadataProvider;
+use test;
 
-public interface IStatementRewriter {
+create type MyType1 as {
+  `id`: int,
+  `value`: string
+};
 
-    /**
-     * Returns {@code true} if given statement kind is handled by this rewriter.
-     */
-    boolean isRewritable(Statement.Kind kind);
+create function myfn001() {
+  42
+};
 
-    /**
-     * @param statement,
-     *            a non-query statement.
-     * @param metadataProvider
-     *            a metadata provider
-     */
-    void rewrite(Statement statement, MetadataProvider metadataProvider) throws CompilationException;
+create function myfn002(a) {
+  a
+};
 
-    String toExternalVariableName(String statementParameterName);
+create function myfn003(a:string, b:[bigint], c:{{boolean}}) returns string {
+  a
+};
 
-    String toFunctionParameterName(VarIdentifier paramVar);
-}
+create function myfn004(a:MyType1, b:[MyType1]) returns MyType1 {
+  a
+};
+
+create function myfn005(a:string?, b:[bigint]?, c:MyType1?, d:[MyType1]?) returns string? {
+  a
+};
+
+create function myfn006(a [string]) returns [string] {
+  a
+};
+
+create function myfn007(a {{string}}?) returns {{string}}? {
+  a
+};
+
+create function myfn008(a [MyType1]) returns [MyType1] {
+  a
+};
+
+create function myfn009(a {{MyType1}}?) returns {{MyType1}}? {
+  a
+};
