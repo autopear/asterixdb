@@ -255,7 +255,7 @@ public abstract class SecondaryIndexOperationsHelper {
                     mergePolicyFactory = compactionInfo.first;
                     mergePolicyProperties = compactionInfo.second;
                 }
-                if (!secondaryIndex.containsKey("name")) {
+                if (secondaryIndex != null && !secondaryIndex.containsKey("name")) {
                     secondaryIndex = null;
                     mergePolicyFactory = compactionInfo.first;
                     mergePolicyProperties = compactionInfo.second;

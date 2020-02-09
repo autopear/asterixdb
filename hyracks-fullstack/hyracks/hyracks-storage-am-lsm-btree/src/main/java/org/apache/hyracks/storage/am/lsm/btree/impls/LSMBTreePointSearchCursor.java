@@ -210,7 +210,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
     public void doClose() throws HyracksDataException {
         if (isSearch && !operationalComponents.isEmpty()) {
             long duration = System.nanoTime() - startTime;
-            AbstractLSMIndex index = (AbstractLSMIndex) operationalComponents.get(0).getLsmIndex();
+            AbstractLSMIndex index = (AbstractLSMIndex) lsmHarness.getLSMIndex();
             index.writeLog("[SEARCH]\t" + index.getIndexName() + "\t" + System.nanoTime() + "\t" + searchKey + "\t"
                     + duration + "\t" + numDiskComponents + "\t" + readAmpf + "\t" + availComponents + "\t" + timeStr);
         }

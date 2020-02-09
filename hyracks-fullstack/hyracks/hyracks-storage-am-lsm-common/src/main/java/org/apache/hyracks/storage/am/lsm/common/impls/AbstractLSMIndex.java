@@ -118,7 +118,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
     protected final ILSMPageWriteCallbackFactory pageWriteCallbackFactory;
     private int numScheduledFlushes = 0;
 
-    public final boolean isLeveled;
+    protected final boolean isLeveled;
     public final LevelMergePolicy levelMergePolicy;
     public final int level0Tables;
     public final int level1Tables;
@@ -197,7 +197,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
         String[] pathComponents = getIndexIdentifier().replace("\\", "/").split("/");
         indexName = pathComponents[pathComponents.length - 1];
-        shouldLog = indexName.compareTo("usertable") == 0;
+        shouldLog = indexName.compareTo("usertable") == 0 || indexName.compareTo("rtreeidx") == 0;
 
         currentFlushes = new AtomicInteger(0);
         flushFlagFile = Paths.get(getIndexIdentifier(), "is_flushing").toAbsolutePath().toString();
@@ -261,7 +261,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
         String[] pathComponents = getIndexIdentifier().replace("\\", "/").split("/");
         indexName = pathComponents[pathComponents.length - 1];
-        shouldLog = indexName.compareTo("usertable") == 0;
+        shouldLog = indexName.compareTo("usertable") == 0 || indexName.compareTo("rtreeidx") == 0;
 
         currentFlushes = new AtomicInteger(0);
         flushFlagFile = Paths.get(getIndexIdentifier(), "is_flushing").toAbsolutePath().toString();
@@ -658,7 +658,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
             Map<String, Object> parameters) throws HyracksDataException {
         AbstractLSMIndexOperationContext opCtx = createOpContext(NoOpIndexAccessParameters.INSTANCE);
         opCtx.setParameters(parameters);
-        LSMComponentFileReferences componentFileRefs = fileManager.getRelFlushFileReference();
+        LSMComponentFileReferences componentFileRefs = fileManager.getRelLoadFileReference(isLeveled);
         LoadOperation loadOp = new LoadOperation(componentFileRefs, ioOpCallback, getIndexIdentifier(), parameters);
         loadOp.setNewComponent(createDiskComponent(bulkLoadComponentFactory,
                 componentFileRefs.getInsertIndexFileReference(), componentFileRefs.getDeleteIndexFileReference(),
@@ -670,7 +670,7 @@ public abstract class AbstractLSMIndex implements ILSMIndex {
 
     @Override
     public ILSMDiskComponent createBulkLoadTarget() throws HyracksDataException {
-        LSMComponentFileReferences componentFileRefs = fileManager.getRelFlushFileReference();
+        LSMComponentFileReferences componentFileRefs = fileManager.getRelLoadFileReference(isLeveled);
         return createDiskComponent(bulkLoadComponentFactory, componentFileRefs.getInsertIndexFileReference(),
                 componentFileRefs.getDeleteIndexFileReference(), componentFileRefs.getBloomFilterFileReference(), true);
     }

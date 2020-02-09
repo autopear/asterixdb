@@ -39,7 +39,6 @@ import org.apache.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
 import org.apache.hyracks.storage.am.common.ophelpers.IndexOperation;
 import org.apache.hyracks.storage.am.lsm.common.api.IComponentFilterHelper;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentFilterFrameFactory;
-import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponentId;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponentFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallbackFactory;
@@ -377,46 +376,9 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
 
     @Override
     public String componentToString(ILSMDiskComponent component, int indent) {
-        String basename;
-        String minKey;
-        String maxKey;
+        String basename = component.getBasename();
+        String minMaxKeys = componentMinMaxKeys(component);
         long numTuples;
-        try {
-            ILSMComponentId cid = component.getId();
-            basename = cid.getMinId() + "_" + cid.getMaxId();
-        } catch (HyracksDataException ex) {
-            basename = "Unknown";
-        }
-        try {
-            byte[] minData = component.getMinKey();
-            double[] minMBR = bytesToDoubles(minData);
-            if (minMBR == null) {
-                minKey = "Unknown";
-            } else {
-                minKey = "[ " + minMBR[0];
-                for (int i = 1; i < minMBR.length; i++) {
-                    minKey += ", " + minMBR[i];
-                }
-                minKey += " ]";
-            }
-        } catch (HyracksDataException ex) {
-            minKey = "Unknown";
-        }
-        try {
-            byte[] maxData = component.getMaxKey();
-            double[] maxMBR = bytesToDoubles(maxData);
-            if (maxMBR == null) {
-                maxKey = "Unknown";
-            } else {
-                maxKey = "[ " + maxMBR[0];
-                for (int i = 1; i < maxMBR.length; i++) {
-                    maxKey += ", " + maxMBR[i];
-                }
-                maxKey += " ]";
-            }
-        } catch (HyracksDataException ex) {
-            maxKey = "Unknown";
-        }
         try {
             numTuples = component.getTupleCount();
         } catch (HyracksDataException ex) {
@@ -424,8 +386,8 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         }
         String spaces = getIndent(indent);
         return spaces + "{\n" + spaces + "  name: " + basename + ",\n" + spaces + "  size: "
-                + component.getComponentSize() + ",\n" + spaces + "  min: " + minKey + ",\n" + spaces + "  max: "
-                + maxKey + ",\n" + spaces + "  tuples: " + numTuples + "\n" + spaces + "}";
+                + component.getComponentSize() + ",\n" + spaces + "  keys: " + minMaxKeys + ",\n" + spaces
+                + "  tuples: " + numTuples + "\n" + spaces + "}";
     }
 
     private String getComponentInfo(ILSMDiskComponent c) {
@@ -449,7 +411,7 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
             StringBuilder sb = new StringBuilder();
             sb.append(getComponentInfo(diskComponents.get(0)));
             for (int i = 1; i < size; i++) {
-                sb.append(";" + getComponentInfo(diskComponents.get(i)));
+                sb.append(";").append(diskComponents.get(i));
             }
             return sb.toString();
         }
@@ -457,52 +419,58 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
 
     @Override
     public String componentMinMaxKeys(ILSMDiskComponent c) {
-        String minMBRStr;
-        String maxMBRStr;
+        double[] minMBR;
         try {
-            double[] minMBR = bytesToDoubles(c.getMinKey());
-            if (minMBR == null) {
-                minMBRStr = "Unknown";
-            } else {
-                int dim = minMBR.length;
-                if (dim == 0) {
-                    minMBRStr = "Unknown";
-                } else if (dim == 1) {
-                    minMBRStr = Double.toString(minMBR[0]);
-                } else {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append(minMBR[0]);
-                    for (int i = 1; i < dim; i++) {
-                        sb.append("," + minMBR[i]);
-                    }
-                    minMBRStr = sb.toString();
-                }
-            }
+            minMBR = bytesToDoubles(c.getMinKey());
         } catch (HyracksDataException ex) {
-            minMBRStr = "Unknown";
+            minMBR = null;
         }
+        double[] maxMBR;
         try {
-            double[] maxMBR = bytesToDoubles(c.getMaxKey());
-            if (maxMBR == null) {
-                maxMBRStr = "Unknown";
-            } else {
-                int dim = maxMBR.length;
-                if (dim == 0) {
-                    maxMBRStr = "Unknown";
-                } else if (dim == 1) {
-                    maxMBRStr = Double.toString(maxMBR[0]);
-                } else {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append(maxMBR[0]);
-                    for (int i = 1; i < dim; i++) {
-                        sb.append("," + maxMBR[i]);
-                    }
-                    maxMBRStr = sb.toString();
-                }
-            }
+            maxMBR = bytesToDoubles(c.getMaxKey());
         } catch (HyracksDataException ex) {
-            maxMBRStr = "Unknown";
+            maxMBR = null;
         }
-        return "[" + minMBRStr + " " + maxMBRStr + "]";
+        return mbrToString(minMBR, maxMBR);
+    }
+
+    private static String doubleArrayToString(double[] ds) {
+        if (ds == null || ds.length == 0) {
+            return "Unknown";
+        } else if (ds.length == 1) {
+            return Double.toString(ds[0]);
+        } else {
+            StringBuilder sb = new StringBuilder(Double.toString(ds[0]));
+            for (int i = 1; i < ds.length; i++) {
+                sb.append(",").append(ds[i]);
+            }
+            return sb.toString();
+        }
+    }
+
+    public static String mbrToString(double[] mbr) {
+        if (mbr == null || mbr.length == 0) {
+            return "Unknown";
+        }
+        int dim = mbr.length;
+        if (dim % 2 != 0) {
+            return "Error";
+        }
+        dim /= 2;
+        StringBuilder sb = new StringBuilder("[");
+        sb.append(mbr[0]);
+        for (int i = 1; i < dim; i++) {
+            sb.append(",").append(mbr[i]);
+        }
+        sb.append(" ").append(mbr[dim]);
+        for (int i = 1; i < dim; i++) {
+            sb.append(",").append(mbr[dim + i]);
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    public static String mbrToString(double[] minMBR, double[] maxMBR) {
+        return "[" + doubleArrayToString(minMBR) + " " + doubleArrayToString(maxMBR) + "]";
     }
 }

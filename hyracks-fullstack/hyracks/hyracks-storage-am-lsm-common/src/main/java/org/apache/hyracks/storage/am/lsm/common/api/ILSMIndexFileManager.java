@@ -39,6 +39,8 @@ public interface ILSMIndexFileManager {
 
     void deleteDirs() throws HyracksDataException;
 
+    LSMComponentFileReferences getRelLoadFileReference(boolean isLeveled) throws HyracksDataException;
+
     LSMComponentFileReferences getRelFlushFileReference(boolean isLeveled) throws HyracksDataException;
 
     LSMComponentFileReferences getRelFlushFileReference() throws HyracksDataException;
