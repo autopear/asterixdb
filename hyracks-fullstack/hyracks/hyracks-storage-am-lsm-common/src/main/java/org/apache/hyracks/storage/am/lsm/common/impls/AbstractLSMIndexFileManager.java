@@ -208,11 +208,6 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     }
 
     @Override
-    public LSMComponentFileReferences getRelLoadFileReference(boolean isLeveled) throws HyracksDataException {
-        return new LSMComponentFileReferences(baseDir.getChild("0_0"), null, null);
-    }
-
-    @Override
     public LSMComponentFileReferences getRelFlushFileReference(boolean isLeveled) throws HyracksDataException {
         final String sequence = getNextComponentSequence(COMPONENT_FILES_FILTER, isLeveled);
         return new LSMComponentFileReferences(baseDir.getChild(sequence), null, null);

@@ -38,6 +38,24 @@ public final class LongDescBinaryComparatorFactory implements IBinaryComparatorF
     }
 
     @Override
+    public String getTypeName() {
+        return "Long";
+    }
+
+    @Override
+    public String byteToString(byte[] b, int s, int l) {
+        if (b == null || b.length < s + 8 || l < 8) {
+            return "Unknown";
+        }
+        return Long.toString(getLong(b, s));
+    }
+
+    @Override
+    public String byteToString(byte[] b) {
+        return byteToString(b, 0, 8);
+    }
+
+    @Override
     public IBinaryComparator createBinaryComparator() {
         return new IBinaryComparator() {
             @Override
