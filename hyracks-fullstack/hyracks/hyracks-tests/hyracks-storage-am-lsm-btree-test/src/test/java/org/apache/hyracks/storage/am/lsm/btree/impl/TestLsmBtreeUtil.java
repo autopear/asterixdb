@@ -97,7 +97,7 @@ public class TestLsmBtreeUtil {
         boolean hasBloomFilter = bloomFilterKeyFields != null;
         //Primary and Primary Key LSMBTree index has a BloomFilter.
         ILSMIndexFileManager fileNameManager =
-                new LSMBTreeFileManager(ioManager, file, diskBTreeFactory, hasBloomFilter);
+                new LSMBTreeFileManager(ioManager, file, diskBTreeFactory, hasBloomFilter, needKeyDupCheck);
 
         ILSMDiskComponentFactory componentFactory;
         ILSMDiskComponentFactory bulkLoadComponentFactory;
