@@ -96,21 +96,27 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     protected final FileReference baseDir;
     protected final Comparator<IndexComponentFileReference> recencyCmp = new RecencyComparator();
     protected final TreeIndexFactory<? extends ITreeIndex> treeFactory;
-    private long lastUsedComponentSeq = UNINITALIZED_COMPONENT_SEQ;
+    private long lastUsedComponentSeq;
     private final ICompressorDecompressorFactory compressorDecompressorFactory;
+    private boolean isPrimary = false;
 
     public AbstractLSMIndexFileManager(IIOManager ioManager, FileReference file,
-            TreeIndexFactory<? extends ITreeIndex> treeFactory) {
-        this(ioManager, file, treeFactory, NoOpCompressorDecompressorFactory.INSTANCE);
+            TreeIndexFactory<? extends ITreeIndex> treeFactory, boolean isPrimaryIndex) {
+        this(ioManager, file, treeFactory, NoOpCompressorDecompressorFactory.INSTANCE, isPrimaryIndex);
     }
 
     public AbstractLSMIndexFileManager(IIOManager ioManager, FileReference file,
             TreeIndexFactory<? extends ITreeIndex> treeFactory,
-            ICompressorDecompressorFactory compressorDecompressorFactory) {
+            ICompressorDecompressorFactory compressorDecompressorFactory, boolean isPrimaryIndex) {
         this.ioManager = ioManager;
         this.baseDir = file;
         this.treeFactory = treeFactory;
         this.compressorDecompressorFactory = compressorDecompressorFactory;
+        lastUsedComponentSeq = isPrimaryIndex ? UNINITALIZED_COMPONENT_SEQ + 1 : UNINITALIZED_COMPONENT_SEQ;
+    }
+
+    public void setPrimary() {
+        isPrimary = true;
     }
 
     protected TreeIndexState isValidTreeIndex(ITreeIndex treeIndex) throws HyracksDataException {
@@ -406,7 +412,7 @@ public abstract class AbstractLSMIndexFileManager implements ILSMIndexFileManage
     }
 
     private long getOnDiskLastUsedComponentSequence(FilenameFilter filenameFilter) throws HyracksDataException {
-        long maxComponentSeq = 0L;
+        long maxComponentSeq = isPrimary ? 0L : -1L;
         final String[] files = listDirFiles(baseDir, filenameFilter);
         for (String fileName : files) {
             maxComponentSeq = Math.max(maxComponentSeq, IndexComponentFileReference.of(fileName).getSequenceEnd());

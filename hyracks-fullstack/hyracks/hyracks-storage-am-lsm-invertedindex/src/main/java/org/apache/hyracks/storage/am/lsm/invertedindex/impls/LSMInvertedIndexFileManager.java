@@ -52,7 +52,7 @@ public class LSMInvertedIndexFileManager extends AbstractLSMIndexFileManager imp
             (dir, name) -> !name.startsWith(".") && name.endsWith(DELETED_KEYS_BTREE_SUFFIX);
 
     public LSMInvertedIndexFileManager(IIOManager ioManager, FileReference file, BTreeFactory btreeFactory) {
-        super(ioManager, file, null);
+        super(ioManager, file, null, false);
         this.btreeFactory = btreeFactory;
     }
 

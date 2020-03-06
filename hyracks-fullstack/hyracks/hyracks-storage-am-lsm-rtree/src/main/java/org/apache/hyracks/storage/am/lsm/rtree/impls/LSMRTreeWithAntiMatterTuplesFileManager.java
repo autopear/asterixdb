@@ -29,6 +29,6 @@ public class LSMRTreeWithAntiMatterTuplesFileManager extends AbstractLSMIndexFil
 
     public LSMRTreeWithAntiMatterTuplesFileManager(IIOManager ioManager, FileReference file,
             TreeIndexFactory<? extends ITreeIndex> rtreeFactory) {
-        super(ioManager, file, rtreeFactory);
+        super(ioManager, file, rtreeFactory, false);
     }
 }

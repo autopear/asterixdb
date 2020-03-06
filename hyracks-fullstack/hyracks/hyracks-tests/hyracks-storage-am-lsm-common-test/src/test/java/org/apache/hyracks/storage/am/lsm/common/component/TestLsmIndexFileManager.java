@@ -37,7 +37,7 @@ public class TestLsmIndexFileManager extends AbstractLSMIndexFileManager {
 
     public TestLsmIndexFileManager(IIOManager ioManager, FileReference file,
             TreeIndexFactory<? extends ITreeIndex> treeIndexFactory) {
-        super(ioManager, file, treeIndexFactory);
+        super(ioManager, file, treeIndexFactory, false);
     }
 
     @Override

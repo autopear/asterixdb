@@ -52,15 +52,15 @@ public class LSMBTreeFileManager extends AbstractLSMIndexFileManager {
 
     public LSMBTreeFileManager(IIOManager ioManager, FileReference file,
             TreeIndexFactory<? extends ITreeIndex> btreeFactory, boolean hasBloomFilter,
-            ICompressorDecompressorFactory compressorDecompressorFactory) {
-        super(ioManager, file, null, compressorDecompressorFactory);
+            ICompressorDecompressorFactory compressorDecompressorFactory, boolean isPrimaryIndex) {
+        super(ioManager, file, null, compressorDecompressorFactory, isPrimaryIndex);
         this.btreeFactory = btreeFactory;
         this.hasBloomFilter = hasBloomFilter;
     }
 
     public LSMBTreeFileManager(IIOManager ioManager, FileReference file,
-            TreeIndexFactory<? extends ITreeIndex> btreeFactory, boolean hasBloomFilter) {
-        this(ioManager, file, btreeFactory, hasBloomFilter, NoOpCompressorDecompressorFactory.INSTANCE);
+            TreeIndexFactory<? extends ITreeIndex> btreeFactory, boolean hasBloomFilter, boolean isPrimaryIndex) {
+        this(ioManager, file, btreeFactory, hasBloomFilter, NoOpCompressorDecompressorFactory.INSTANCE, isPrimaryIndex);
     }
 
     @Override

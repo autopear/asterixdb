@@ -52,7 +52,7 @@ public class LSMBTreeWithBuddyFileManager extends AbstractLSMIndexFileManager {
     public LSMBTreeWithBuddyFileManager(IIOManager ioManager, FileReference file,
             TreeIndexFactory<? extends ITreeIndex> btreeFactory,
             TreeIndexFactory<? extends ITreeIndex> buddyBtreeFactory) {
-        super(ioManager, file, null);
+        super(ioManager, file, null, false);
         this.buddyBtreeFactory = buddyBtreeFactory;
         this.btreeFactory = btreeFactory;
     }

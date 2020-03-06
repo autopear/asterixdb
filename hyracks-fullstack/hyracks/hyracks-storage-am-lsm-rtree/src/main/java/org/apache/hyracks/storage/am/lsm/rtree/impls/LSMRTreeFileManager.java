@@ -52,7 +52,7 @@ public class LSMRTreeFileManager extends AbstractLSMIndexFileManager {
 
     public LSMRTreeFileManager(IIOManager ioManager, FileReference file,
             TreeIndexFactory<? extends ITreeIndex> rtreeFactory, TreeIndexFactory<? extends ITreeIndex> btreeFactory) {
-        super(ioManager, file, null);
+        super(ioManager, file, null, false);
         this.rtreeFactory = rtreeFactory;
         this.btreeFactory = btreeFactory;
     }
