@@ -847,7 +847,7 @@ public class MetadataProvider implements IMetadataProvider<DataSourceId, String>
     public static ILinearizeComparatorFactory proposeLinearizer(ATypeTag keyType, int numKeyFields, boolean isLeveled)
             throws AlgebricksException {
         return LinearizeComparatorFactoryProvider.INSTANCE.getLinearizeComparatorFactory(keyType, true,
-                numKeyFields / 2, isLeveled);
+                numKeyFields / 2, true);
     }
 
     public Pair<IFileSplitProvider, AlgebricksPartitionConstraint> splitAndConstraints(DataverseName dataverseName) {
