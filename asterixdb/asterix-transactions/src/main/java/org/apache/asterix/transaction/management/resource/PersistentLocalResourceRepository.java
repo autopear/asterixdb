@@ -496,15 +496,24 @@ public class PersistentLocalResourceRepository implements ILocalResourceReposito
         if (indexComponentFiles == null) {
             throw new IOException(index + " doesn't exist or an IO error occurred");
         }
-        final long validComponentSequence = getIndexCheckpointManager(index).getValidComponentSequence();
+        boolean isLeveled = false;
         for (File componentFile : indexComponentFiles) {
-            // delete any file with start or end sequence > valid component sequence
-            final long fileStart = IndexComponentFileReference.of(componentFile.getName()).getSequenceStart();
-            final long fileEnd = IndexComponentFileReference.of(componentFile.getName()).getSequenceEnd();
-            if (fileStart > validComponentSequence || fileEnd > validComponentSequence) {
-                LOGGER.warn(() -> "Deleting invalid component file " + componentFile.getAbsolutePath()
-                        + " based on valid sequence " + validComponentSequence);
-                Files.delete(componentFile.toPath());
+            if (componentFile.getName().startsWith("0_")) {
+                isLeveled = true;
+                break;
+            }
+        }
+        if (!isLeveled) {
+            final long validComponentSequence = getIndexCheckpointManager(index).getValidComponentSequence();
+            for (File componentFile : indexComponentFiles) {
+                // delete any file with start or end sequence > valid component sequence
+                final long fileStart = IndexComponentFileReference.of(componentFile.getName()).getSequenceStart();
+                final long fileEnd = IndexComponentFileReference.of(componentFile.getName()).getSequenceEnd();
+                if (fileStart > validComponentSequence || fileEnd > validComponentSequence) {
+                    LOGGER.warn(() -> "Deleting invalid component file " + componentFile.getAbsolutePath()
+                            + " based on valid sequence " + validComponentSequence);
+                    Files.delete(componentFile.toPath());
+                }
             }
         }
     }
