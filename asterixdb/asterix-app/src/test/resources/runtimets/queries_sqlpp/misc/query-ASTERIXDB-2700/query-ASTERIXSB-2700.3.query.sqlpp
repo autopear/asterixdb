@@ -17,30 +17,14 @@
  * under the License.
  */
 
-package org.apache.hyracks.algebricks.runtime.base;
+USE bigfun;
 
-import org.apache.hyracks.api.application.IServiceContext;
-import org.apache.hyracks.api.context.IHyracksTaskContext;
-import org.apache.hyracks.api.exceptions.IWarningCollector;
+SET `compiler.sort.parallel` "false";
 
-/**
- * Context for runtime function evaluators
- */
-public interface IEvaluatorContext {
-    /**
-     * Returns service context. Available at compile time
-     * (CC context) and at run time (NC context).
-     */
-    IServiceContext getServiceContext();
-
-    /**
-     * Returns current task's context, or {@code null} if this evaluator
-     * is being executed by the constant folding rule at compile time.
-     */
-    IHyracksTaskContext getTaskContext();
-
-    /**
-     * Returns a warning collector, never {@code null}
-     */
-    IWarningCollector getWarningCollector();
-}
+FROM (SELECT VALUE u
+      FROM GleambookUsersComposite u
+      WHERE u.user_since >= '2008-07-22T00:00:00'
+      ORDER BY u.id) AS user, GleambookMessagesComposite AS msg
+WHERE msg.author_id /*+ indexnl */ = user.id
+SELECT user.name AS uname, msg.message AS message
+ORDER BY uname, message;;

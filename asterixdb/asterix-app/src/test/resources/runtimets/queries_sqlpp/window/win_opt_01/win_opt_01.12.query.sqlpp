@@ -16,31 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.hyracks.algebricks.runtime.base;
-
-import org.apache.hyracks.api.application.IServiceContext;
-import org.apache.hyracks.api.context.IHyracksTaskContext;
-import org.apache.hyracks.api.exceptions.IWarningCollector;
-
-/**
- * Context for runtime function evaluators
+/*
+ * Description  : Test listify removal for window functions over aggregates
+ * Expected Res : SUCCESS (no listify in the final plan)
  */
-public interface IEvaluatorContext {
-    /**
-     * Returns service context. Available at compile time
-     * (CC context) and at run time (NC context).
-     */
-    IServiceContext getServiceContext();
 
-    /**
-     * Returns current task's context, or {@code null} if this evaluator
-     * is being executed by the constant folding rule at compile time.
-     */
-    IHyracksTaskContext getTaskContext();
-
-    /**
-     * Returns a warning collector, never {@code null}
-     */
-    IWarningCollector getWarningCollector();
-}
+from (
+  from range(1, 10) r
+  select r % 2 as x, r % 4 as y, r as z
+) t
+group by x, y
+select x, y, count(z) as cnt,
+  rank() over(partition by x order by count(z)) as rnk
+order by x, cnt;

@@ -17,30 +17,10 @@
  * under the License.
  */
 
-package org.apache.hyracks.algebricks.runtime.base;
+package org.apache.asterix.om.functions;
 
-import org.apache.hyracks.api.application.IServiceContext;
-import org.apache.hyracks.api.context.IHyracksTaskContext;
-import org.apache.hyracks.api.exceptions.IWarningCollector;
-
-/**
- * Context for runtime function evaluators
- */
-public interface IEvaluatorContext {
-    /**
-     * Returns service context. Available at compile time
-     * (CC context) and at run time (NC context).
-     */
-    IServiceContext getServiceContext();
-
-    /**
-     * Returns current task's context, or {@code null} if this evaluator
-     * is being executed by the constant folding rule at compile time.
-     */
-    IHyracksTaskContext getTaskContext();
-
-    /**
-     * Returns a warning collector, never {@code null}
-     */
-    IWarningCollector getWarningCollector();
+// WARNING: These values are stored in function metadata. Do not rename.
+public enum ExternalFunctionLanguage {
+    JAVA,
+    PYTHON
 }

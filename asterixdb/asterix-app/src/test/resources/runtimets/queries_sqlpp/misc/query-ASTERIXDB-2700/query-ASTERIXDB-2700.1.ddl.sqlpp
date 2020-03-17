@@ -17,30 +17,19 @@
  * under the License.
  */
 
-package org.apache.hyracks.algebricks.runtime.base;
-
-import org.apache.hyracks.api.application.IServiceContext;
-import org.apache.hyracks.api.context.IHyracksTaskContext;
-import org.apache.hyracks.api.exceptions.IWarningCollector;
-
-/**
- * Context for runtime function evaluators
+/*
+ * Description: This test case is to verify the fix for ASTERIXDB-2700
  */
-public interface IEvaluatorContext {
-    /**
-     * Returns service context. Available at compile time
-     * (CC context) and at run time (NC context).
-     */
-    IServiceContext getServiceContext();
 
-    /**
-     * Returns current task's context, or {@code null} if this evaluator
-     * is being executed by the constant folding rule at compile time.
-     */
-    IHyracksTaskContext getTaskContext();
+DROP DATAVERSE bigfun IF EXISTS;
+CREATE DATAVERSE bigfun;
+USE bigfun;
 
-    /**
-     * Returns a warning collector, never {@code null}
-     */
-    IWarningCollector getWarningCollector();
-}
+CREATE TYPE GleambookUserType AS { gb: int32, id: string };
+CREATE TYPE GleambookMessageType AS { gb: int32, message_id: string };
+
+CREATE DATASET GleambookUsersComposite(GleambookUserType) PRIMARY KEY gb,id;
+CREATE DATASET GleambookMessagesComposite(GleambookMessageType) PRIMARY KEY gb,message_id;
+
+CREATE INDEX usrSinceIx ON GleambookUsersComposite(user_since: string);
+CREATE INDEX authorIdIx ON GleambookMessagesComposite(author_id: string);

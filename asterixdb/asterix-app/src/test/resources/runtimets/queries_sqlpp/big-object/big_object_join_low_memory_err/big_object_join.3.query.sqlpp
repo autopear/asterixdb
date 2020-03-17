@@ -16,31 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/*
+* Description  : Create an external dataset that contains long comments fields, 10% of the records have a 32K size comments.
+                 This will trigger into the VSizeFrame path
+* Expected Res : Success
+* Date         : Jun 16 2015
+*/
+SET `compiler.joinmemory` "160KB";
+use test;
 
-package org.apache.hyracks.algebricks.runtime.base;
 
-import org.apache.hyracks.api.application.IServiceContext;
-import org.apache.hyracks.api.context.IHyracksTaskContext;
-import org.apache.hyracks.api.exceptions.IWarningCollector;
-
-/**
- * Context for runtime function evaluators
- */
-public interface IEvaluatorContext {
-    /**
-     * Returns service context. Available at compile time
-     * (CC context) and at run time (NC context).
-     */
-    IServiceContext getServiceContext();
-
-    /**
-     * Returns current task's context, or {@code null} if this evaluator
-     * is being executed by the constant folding rule at compile time.
-     */
-    IHyracksTaskContext getTaskContext();
-
-    /**
-     * Returns a warning collector, never {@code null}
-     */
-    IWarningCollector getWarningCollector();
-}
+select element {'c_custkey':c.c_custkey,'o_orderkey':o.o_orderkey,'len_c_comment':test.`string-length`(c.c_comment),'len_o_comment':test.`string-length`(o.o_comment),'c_comment':c.c_comment}
+from  Customer as c,
+      `Order` as o
+where (c.c_custkey = o.o_custkey)
+order by o.o_orderkey, c.c_custkey
+;

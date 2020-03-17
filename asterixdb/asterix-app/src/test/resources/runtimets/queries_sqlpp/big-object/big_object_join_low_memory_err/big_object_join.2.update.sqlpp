@@ -1,4 +1,3 @@
-package org.apache.asterix.external.api;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,8 +16,9 @@ package org.apache.asterix.external.api;
  * specific language governing permissions and limitations
  * under the License.
  */
-
-public enum ExternalLanguage {
-    JAVA,
-    PYTHON
-}
+/*
+* Description  : Create an external dataset that contains long comments fields, 10% of the records have a 32K size comments.
+*                 This will trigger into the VSizeFrame path
+* Expected Res : Success
+* Date         : Jun 16 2015
+*/
