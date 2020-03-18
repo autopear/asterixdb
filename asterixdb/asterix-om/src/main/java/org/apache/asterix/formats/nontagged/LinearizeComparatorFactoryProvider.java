@@ -41,10 +41,10 @@ public class LinearizeComparatorFactoryProvider implements ILinearizeComparatorF
 
     @Override
     public ILinearizeComparatorFactory getLinearizeComparatorFactory(Object type, boolean ascending, int dimension,
-            boolean isLeveled) throws AlgebricksException {
+            boolean simpleComparator) throws AlgebricksException {
         ATypeTag typeTag = (ATypeTag) type;
 
-        if (isLeveled) {
+        if (simpleComparator) {
             if (typeTag == ATypeTag.DOUBLE) {
                 return addOffset(new SimpleDoubleComparatorFactory(dimension), ascending);
             } else if (typeTag == ATypeTag.TINYINT || typeTag == ATypeTag.SMALLINT || typeTag == ATypeTag.INTEGER

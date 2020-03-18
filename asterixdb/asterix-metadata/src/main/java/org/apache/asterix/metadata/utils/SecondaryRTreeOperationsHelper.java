@@ -56,7 +56,7 @@ import org.apache.hyracks.storage.am.common.api.IPrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IIndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.IndexDataflowHelperFactory;
 import org.apache.hyracks.storage.am.common.dataflow.TreeIndexBulkLoadOperatorDescriptor;
-import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 
 public class SecondaryRTreeOperationsHelper extends SecondaryTreeIndexOperationsHelper {
 
@@ -221,11 +221,14 @@ public class SecondaryRTreeOperationsHelper extends SecondaryTreeIndexOperations
                         secondaryRecDescConsideringPointMBR);
             }
 
+            boolean simpleComparator = mergePolicyProperties
+                    .getOrDefault(ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                            ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT)
+                    .compareToIgnoreCase(ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT) != 0;
             // Sort by secondary keys.
             ExternalSortOperatorDescriptor sortOp = createSortOp(spec,
-                    new IBinaryComparatorFactory[] {
-                            MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length,
-                                    mergePolicyFactory instanceof LevelMergePolicyFactory) },
+                    new IBinaryComparatorFactory[] { MetadataProvider.proposeLinearizer(keyType,
+                            secondaryComparatorFactories.length, simpleComparator) },
                     isPointMBR ? secondaryRecDescForPointMBR : secondaryRecDesc);
             // Create secondary RTree bulk load op.
             TreeIndexBulkLoadOperatorDescriptor secondaryBulkLoadOp = createTreeIndexBulkLoadOp(spec, fieldPermutation,
@@ -273,11 +276,14 @@ public class SecondaryRTreeOperationsHelper extends SecondaryTreeIndexOperations
                         secondaryRecDescConsideringPointMBR);
             }
 
+            boolean simpleComparator = mergePolicyProperties
+                    .getOrDefault(ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                            ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT)
+                    .compareToIgnoreCase(ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT) != 0;
             // Sort by secondary keys.
             ExternalSortOperatorDescriptor sortOp = createSortOp(spec,
-                    new IBinaryComparatorFactory[] {
-                            MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length,
-                                    mergePolicyFactory instanceof LevelMergePolicyFactory) },
+                    new IBinaryComparatorFactory[] { MetadataProvider.proposeLinearizer(keyType,
+                            secondaryComparatorFactories.length, simpleComparator) },
                     isPointMBR ? secondaryRecDescForPointMBR : secondaryRecDesc);
             // Create secondary RTree bulk load op.
             IOperatorDescriptor root;

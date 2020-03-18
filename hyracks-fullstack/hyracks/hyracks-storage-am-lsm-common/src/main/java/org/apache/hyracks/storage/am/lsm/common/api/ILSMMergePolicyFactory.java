@@ -30,6 +30,10 @@ public interface ILSMMergePolicyFactory extends Serializable, IJsonSerializable 
     String BTREE_INDEX = "btree-index";
     String INVERTED_INDEX = "inverted-index";
     String RTREE_INDEX = "rtree-index";
+    String RTREE_COMPARATOR = "rtree-comparator";
+
+    String RTREE_COMPARATOR_HILBERT = "hilbert";
+    String RTREE_COMPARATOR_SIMPLE = "simple";
 
     ILSMMergePolicy createMergePolicy(Map<String, String> configuration, INCServiceContext ctx);
 

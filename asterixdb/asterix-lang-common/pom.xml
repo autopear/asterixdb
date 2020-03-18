@@ -120,5 +120,9 @@
       <artifactId>asterix-external-data</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.hyracks</groupId>
+      <artifactId>hyracks-storage-am-lsm-rtree</artifactId>
+    </dependency>
   </dependencies>
 </project>

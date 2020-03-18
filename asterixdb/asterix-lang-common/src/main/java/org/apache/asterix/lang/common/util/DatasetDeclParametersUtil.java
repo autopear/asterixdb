@@ -29,6 +29,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.ExploringMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.rtree.impls.LevelRTreeMergePolicyFactory;
 
 public class DatasetDeclParametersUtil {
     /* ***********************************************
@@ -84,18 +85,21 @@ public class DatasetDeclParametersUtil {
     private static ARecordType getMergePolicyType() {
         //merge-policy.parameters
         final String[] parameterNames = { ILSMMergePolicyFactory.BTREE_INDEX, ILSMMergePolicyFactory.INVERTED_INDEX,
-                ILSMMergePolicyFactory.RTREE_INDEX, MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME,
-                MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME, MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME,
-                MERGE_POLICY_SIZE_RATIO_NAME, MERGE_POLICY_MAX_COMPONENT_COUNT_NAME,
-                MERGE_POLICY_MIN_MERGE_COMPONENT_COUNT_NAME, MERGE_POLICY_MAX_MERGE_COMPONENT_COUNT_NAME,
-                SizeTieredMergePolicyFactory.LOW_BUCKET, SizeTieredMergePolicyFactory.HIGH_BUCKET,
-                SizeTieredMergePolicyFactory.MIN_COMPONENTS, SizeTieredMergePolicyFactory.MAX_COMPONENTS,
-                SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE, LevelMergePolicyFactory.PICK,
-                LevelMergePolicyFactory.NUM_COMPONENTS_0, LevelMergePolicyFactory.NUM_COMPONENTS_1,
-                /*LevelMergePolicyFactory.OVERLAP_MODE,*/ ExploringMergePolicyFactory.LAMBDA };
+                ILSMMergePolicyFactory.RTREE_INDEX, ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                MERGE_POLICY_MERGABLE_SIZE_PARAMETER_NAME, MERGE_POLICY_TOLERANCE_COUNT_PARAMETER_NAME,
+                MERGE_POLICY_NUMBER_COMPONENTS_PARAMETER_NAME, MERGE_POLICY_SIZE_RATIO_NAME,
+                MERGE_POLICY_MAX_COMPONENT_COUNT_NAME, MERGE_POLICY_MIN_MERGE_COMPONENT_COUNT_NAME,
+                MERGE_POLICY_MAX_MERGE_COMPONENT_COUNT_NAME, SizeTieredMergePolicyFactory.LOW_BUCKET,
+                SizeTieredMergePolicyFactory.HIGH_BUCKET, SizeTieredMergePolicyFactory.MIN_COMPONENTS,
+                SizeTieredMergePolicyFactory.MAX_COMPONENTS, SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE,
+                LevelMergePolicyFactory.PICK, LevelMergePolicyFactory.NUM_COMPONENTS_0,
+                LevelMergePolicyFactory.NUM_COMPONENTS_1,
+                /*LevelMergePolicyFactory.OVERLAP_MODE,*/ ExploringMergePolicyFactory.LAMBDA,
+                LevelRTreeMergePolicyFactory.PARTITION };
         final IAType[] parametersTypes = { AUnionType.createUnknownableType(BuiltinType.ASTRING), // BTREE_INDEX
                 AUnionType.createUnknownableType(BuiltinType.ALL_TYPE), // INVERTED_INDEX
                 AUnionType.createUnknownableType(BuiltinType.ASTRING), // RTREE_INDEX
+                AUnionType.createUnknownableType(BuiltinType.ASTRING), // RTREE_COMPARATOR
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // MERGABLE_SIZE
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // TOLERANCE_COUNT
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // NUMBER_COMPONENTS
@@ -113,6 +117,7 @@ public class DatasetDeclParametersUtil {
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // NUM_COMPONENTS_1
                 // AUnionType.createUnknownableType(BuiltinType.ASTRING), // OVERLAP_MODE
                 AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // LAMBDA
+                AUnionType.createUnknownableType(BuiltinType.ASTRING), // PARTITION
         };
 
         final ARecordType parameters =

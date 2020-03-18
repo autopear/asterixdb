@@ -33,7 +33,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMDiskComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndexAccessor;
 
-public class TieringMergePolicy extends StackMergePolicy {
+public class TieredMergePolicy extends StackMergePolicy {
     private int numComponents;
     private double highBucket;
 
@@ -114,8 +114,8 @@ public class TieringMergePolicy extends StackMergePolicy {
         while (this.properties.contains("  ")) {
             this.properties = this.properties.replaceAll("  ", " ");
         }
-        numComponents = Integer.parseInt(properties.get(TieringMergePolicyFactory.NUM_COMPONENTS));
-        highBucket = Double.parseDouble(properties.get(TieringMergePolicyFactory.HIGH_BUCKET));
+        numComponents = Integer.parseInt(properties.get(TieredMergePolicyFactory.NUM_COMPONENTS));
+        highBucket = Double.parseDouble(properties.get(TieredMergePolicyFactory.HIGH_BUCKET));
     }
 
     @Override

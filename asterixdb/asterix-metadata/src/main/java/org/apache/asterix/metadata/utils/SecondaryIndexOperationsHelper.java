@@ -282,6 +282,9 @@ public abstract class SecondaryIndexOperationsHelper {
                                 case RTREE:
                                     mergePolicyProperties =
                                             new LinkedHashMap<>(mergePolicyFactory.getDefaultPropertiesForRTreeIndex());
+                                    mergePolicyProperties.put(ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                                            compactionInfo.second.getOrDefault(ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                                                    ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT));
                                     break;
                                 case SINGLE_PARTITION_WORD_INVIX:
                                 case LENGTH_PARTITIONED_WORD_INVIX:

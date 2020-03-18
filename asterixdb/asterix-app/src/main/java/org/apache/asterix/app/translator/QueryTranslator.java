@@ -665,6 +665,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_INDEX)) {
                     compactionPolicyProperties.put(ILSMMergePolicyFactory.RTREE_INDEX, "");
                 }
+                if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_COMPARATOR)) {
+                    compactionPolicyProperties.put(ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                            ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT);
+                }
             } else {
                 if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.BTREE_INDEX)) {
                     compactionPolicyProperties.put(ILSMMergePolicyFactory.BTREE_INDEX, "");
@@ -674,6 +678,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                 }
                 if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_INDEX)) {
                     compactionPolicyProperties.put(ILSMMergePolicyFactory.RTREE_INDEX, "");
+                }
+                if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_COMPARATOR)) {
+                    compactionPolicyProperties.put(ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                            ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT);
                 }
                 validateCompactionPolicy(compactionPolicy, compactionPolicyProperties, mdTxnCtx, false, sourceLoc);
             }
@@ -722,6 +730,10 @@ public class QueryTranslator extends AbstractLangTranslator implements IStatemen
                         }
                         if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_INDEX)) {
                             compactionPolicyProperties.put(ILSMMergePolicyFactory.RTREE_INDEX, "");
+                        }
+                        if (!compactionPolicyProperties.containsKey(ILSMMergePolicyFactory.RTREE_COMPARATOR)) {
+                            compactionPolicyProperties.put(ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                                    ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT);
                         }
                     }
                     datasetDetails = new InternalDatasetDetails(InternalDatasetDetails.FileStructure.BTREE,

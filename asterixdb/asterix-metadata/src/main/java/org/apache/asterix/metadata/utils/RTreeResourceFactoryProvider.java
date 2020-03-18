@@ -52,7 +52,6 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationSchedulerProv
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMOperationTrackerFactory;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMPageWriteCallbackFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.rtree.dataflow.ExternalRTreeLocalResourceFactory;
 import org.apache.hyracks.storage.am.lsm.rtree.dataflow.LSMRTreeWithAntiMatterLocalResourceFactory;
 import org.apache.hyracks.storage.am.rtree.frames.RTreePolicyType;
@@ -145,8 +144,13 @@ public class RTreeResourceFactoryProvider implements IResourceFactoryProvider {
                 storageComponentProvider.getMetadataPageManagerFactory();
         ILSMIOOperationSchedulerProvider ioSchedulerProvider =
                 storageComponentProvider.getIoOperationSchedulerProvider();
-        ILinearizeComparatorFactory linearizeCmpFactory = MetadataProvider.proposeLinearizer(keyType,
-                secondaryComparatorFactories.length, mergePolicyFactory instanceof LevelMergePolicyFactory);
+        boolean simpleComparator =
+                mergePolicyProperties
+                        .getOrDefault(ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                                ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT)
+                        .compareToIgnoreCase(ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT) != 0;
+        ILinearizeComparatorFactory linearizeCmpFactory =
+                MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length, simpleComparator);
         ITypeTraits[] typeTraits = getTypeTraits(mdProvider, dataset, index, recordType, metaType);
         IBinaryComparatorFactory[] rtreeCmpFactories = getCmpFactories(mdProvider, index, recordType, metaType);
         int[] secondaryFilterFields = (filterTypeTraits != null && filterTypeTraits.length > 0)

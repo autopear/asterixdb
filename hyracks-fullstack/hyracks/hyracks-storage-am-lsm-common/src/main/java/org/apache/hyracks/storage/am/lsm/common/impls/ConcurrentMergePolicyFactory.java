@@ -43,8 +43,9 @@ public class ConcurrentMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String MAX_MERGE_COMPONENT_COUNT = "max-merge-component-count";
     public static final String MAX_COMPONENT_COUNT = "max-component-count";
     public static final String SIZE_RATIO = "size-ratio";
-    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(new HashSet<>(
-            Arrays.asList(MIN_MERGE_COMPONENT_COUNT, MAX_MERGE_COMPONENT_COUNT, MAX_COMPONENT_COUNT, SIZE_RATIO)));
+    public static final Set<String> PROPERTIES_NAMES = Collections
+            .unmodifiableSet(new HashSet<>(Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX, RTREE_COMPARATOR,
+                    MIN_MERGE_COMPONENT_COUNT, MAX_MERGE_COMPONENT_COUNT, MAX_COMPONENT_COUNT, SIZE_RATIO)));
 
     public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
         {

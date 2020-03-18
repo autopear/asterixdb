@@ -40,8 +40,8 @@ public class BigtableMergePolicyFactory implements ILSMMergePolicyFactory {
     private static final long serialVersionUID = 1L;
     public static final String NAME = "bigtable";
     public static final String NUM_COMPONENTS = "num-components";
-    public static final Set<String> PROPERTIES_NAMES = Collections
-            .unmodifiableSet(new HashSet<>(Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX, NUM_COMPONENTS)));
+    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX, RTREE_COMPARATOR, NUM_COMPONENTS)));
 
     public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
         {

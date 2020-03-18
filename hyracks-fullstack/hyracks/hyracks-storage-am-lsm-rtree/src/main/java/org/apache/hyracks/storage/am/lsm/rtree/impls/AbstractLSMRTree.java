@@ -125,7 +125,11 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         this.isPointMBR = isPointMBR;
         this.valueProviders = ((RTreeNSMLeafFrameFactory) rtreeLeafFrameFactory).getKeyValueProviders();
         if (isLeveled) {
-            mergePolicyHelper = new LSMRTreeLevelMergePolicyHelper(this);
+            mergePolicyHelper =
+                    new LSMRTreeLevelMergePolicyHelper(this,
+                            mergePolicy instanceof LevelRTreeMergePolicy
+                                    ? ((LevelRTreeMergePolicy) mergePolicy).getPartition()
+                                    : LevelRTreeMergePolicyFactory.PARTITION_SIZE);
             levelMergePolicy.setHelper(mergePolicyHelper);
         } else {
             mergePolicyHelper = null;
@@ -160,7 +164,11 @@ public abstract class AbstractLSMRTree extends AbstractLSMIndex implements ITree
         this.isPointMBR = isPointMBR;
         this.valueProviders = ((RTreeNSMLeafFrameFactory) rtreeLeafFrameFactory).getKeyValueProviders();
         if (isLeveled) {
-            mergePolicyHelper = new LSMRTreeLevelMergePolicyHelper(this);
+            mergePolicyHelper =
+                    new LSMRTreeLevelMergePolicyHelper(this,
+                            mergePolicy instanceof LevelRTreeMergePolicy
+                                    ? ((LevelRTreeMergePolicy) mergePolicy).getPartition()
+                                    : LevelRTreeMergePolicyFactory.PARTITION_SIZE);
             levelMergePolicy.setHelper(mergePolicyHelper);
         } else {
             mergePolicyHelper = null;

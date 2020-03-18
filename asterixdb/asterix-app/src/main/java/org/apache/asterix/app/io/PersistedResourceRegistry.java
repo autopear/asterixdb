@@ -115,7 +115,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.NoMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.NoOpIOOperationCallbackFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.PrefixMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.common.impls.SizeTieredMergePolicyFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.TieringMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.TieredMergePolicyFactory;
 import org.apache.hyracks.storage.am.lsm.invertedindex.dataflow.LSMInvertedIndexLocalResource;
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.DelimitedUTF8StringBinaryTokenizerFactory;
 import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.HashedUTF8NGramTokenFactory;
@@ -126,6 +126,7 @@ import org.apache.hyracks.storage.am.lsm.invertedindex.tokenizers.UTF8WordTokenF
 import org.apache.hyracks.storage.am.lsm.rtree.dataflow.ExternalRTreeLocalResource;
 import org.apache.hyracks.storage.am.lsm.rtree.dataflow.LSMRTreeLocalResource;
 import org.apache.hyracks.storage.am.lsm.rtree.dataflow.LSMRTreeWithAntiMatterLocalResource;
+import org.apache.hyracks.storage.am.lsm.rtree.impls.LevelRTreeMergePolicyFactory;
 import org.apache.hyracks.storage.am.rtree.frames.RTreePolicyType;
 import org.apache.hyracks.storage.am.rtree.impls.DoublePrimitiveValueProviderFactory;
 import org.apache.hyracks.storage.am.rtree.impls.FloatPrimitiveValueProviderFactory;
@@ -174,13 +175,14 @@ public class PersistedResourceRegistry implements IPersistedResourceRegistry {
         registeredClasses.put("ConstantMergePolicyFactory", ConstantMergePolicyFactory.class);
         registeredClasses.put("CorrelatedPrefixMergePolicyFactory", CorrelatedPrefixMergePolicyFactory.class);
         registeredClasses.put("LevelMergePolicyFactory", LevelMergePolicyFactory.class);
+        registeredClasses.put("LevelRTreeMergePolicyFactory", LevelRTreeMergePolicyFactory.class);
         registeredClasses.put("SizeTieredMergePolicyFactory", SizeTieredMergePolicyFactory.class);
         registeredClasses.put("BinomialMergePolicyFactory", BinomialMergePolicyFactory.class);
         registeredClasses.put("MinLatencyMergePolicyFactory", MinLatencyMergePolicyFactory.class);
         registeredClasses.put("FixedMergePolicyFactory", FixedMergePolicyFactory.class);
         registeredClasses.put("BigtableMergePolicyFactory", BigtableMergePolicyFactory.class);
         registeredClasses.put("ExploringMergePolicyFactory", ExploringMergePolicyFactory.class);
-        registeredClasses.put("TieringMergePolicyFactory", TieringMergePolicyFactory.class);
+        registeredClasses.put("TieredMergePolicyFactory", TieredMergePolicyFactory.class);
 
         // ILSMIOOperationSchedulerProvider
         registeredClasses.put("RuntimeComponentsProvider", RuntimeComponentsProvider.class);

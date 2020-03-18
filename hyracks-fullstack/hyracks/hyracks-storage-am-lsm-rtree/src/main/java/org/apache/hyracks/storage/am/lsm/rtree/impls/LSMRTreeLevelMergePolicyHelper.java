@@ -49,10 +49,12 @@ import org.apache.hyracks.storage.common.buffercache.IPageWriteCallback;
 public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelper {
     protected final AbstractLSMRTree lsmRTree;
     private Map<Long, Long> lastCurveValue;
+    private final String partition;
 
-    public LSMRTreeLevelMergePolicyHelper(AbstractLSMIndex index) {
+    public LSMRTreeLevelMergePolicyHelper(AbstractLSMIndex index, String partition) {
         super(index);
         lsmRTree = (AbstractLSMRTree) index;
+        this.partition = partition;
         lastCurveValue = new HashMap<>();
     }
 
@@ -347,7 +349,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             ITupleReference minTuple = null;
             ITupleReference maxTuple = null;
             MultiComparator filterCmp = null;
-            // long start = lsmRTree.getNextLevelSequence(levelTo);
+            long numTuplesInPartition = lsmRTree.getMaxNumTuplesPerComponent();
             try {
                 ILSMDiskComponent newComponent = null;
                 ILSMDiskComponentBulkLoader componentBulkLoader = null;
@@ -408,7 +410,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     }
                     componentBulkLoader.add(frameTuple);
                     totalTuples++;
-                    if (newComponent.getComponentSize() >= lsmRTree.memTableSize) {
+                    if (totalTuples++ >= numTuplesInPartition) {
                         newComponent.setMinKey(AbstractLSMRTree.doublesToBytes(minMBR));
                         newComponent.setMaxKey(AbstractLSMRTree.doublesToBytes(maxMBR));
                         newComponent.setTupleCount(totalTuples);
@@ -521,7 +523,6 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         } else {
             List<ILSMDiskComponent> newComponents = new ArrayList<>();
             List<ILSMDiskComponentBulkLoader> componentBulkLoaders = new ArrayList<>();
-            // long start = lsmRTree.getNextLevelSequence(levelTo);
             List<FileReference> mergeFileTargets = new ArrayList<>();
             List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
             List<TupleWithMBR> allTuples = new ArrayList<>();
@@ -534,7 +535,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 }
                 List<List<TupleWithMBR>> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);
                 for (List<TupleWithMBR> partition : partitions) {
-                    /*partition.sort(new Comparator<TupleWithMBR>() {
+                    partition.sort(new Comparator<TupleWithMBR>() {
                         @Override
                         public int compare(TupleWithMBR t1, TupleWithMBR t2) {
                             try {
@@ -543,7 +544,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                 return -1;
                             }
                         }
-                    });*/
+                    });
                     int dim = partition.get(0).getDim();
                     LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo);
                     mergeFileTargets.add(refs.getInsertIndexFileReference());
@@ -616,7 +617,8 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
 
     @Override
     public List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException {
-        return doSTROrderMerge(operation);
+        return partition.compareTo(LevelRTreeMergePolicyFactory.PARTITION_STR) == 0 ? doSTROrderMerge(operation)
+                : doDefaultMerge(operation);
     }
 
     public void orderTuplesBySTR(List<TupleWithMBR> tuplesToPartition, List<List<TupleWithMBR>> partitions,

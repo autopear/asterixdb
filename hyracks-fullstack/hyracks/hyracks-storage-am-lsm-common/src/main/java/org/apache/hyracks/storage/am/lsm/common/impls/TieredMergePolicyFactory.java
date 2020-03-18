@@ -34,14 +34,14 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class TieringMergePolicyFactory implements ILSMMergePolicyFactory {
+public class TieredMergePolicyFactory implements ILSMMergePolicyFactory {
 
     private static final long serialVersionUID = 1L;
-    public static final String NAME = "tiering";
+    public static final String NAME = "tiered";
     public static final String NUM_COMPONENTS = "num-components";
     public static final String HIGH_BUCKET = "high-bucket";
-    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(
-            new HashSet<>(Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX, NUM_COMPONENTS, HIGH_BUCKET)));
+    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(new HashSet<>(
+            Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX, RTREE_COMPARATOR, NUM_COMPONENTS, HIGH_BUCKET)));
 
     public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
         {
@@ -82,7 +82,7 @@ public class TieringMergePolicyFactory implements ILSMMergePolicyFactory {
 
     @Override
     public ILSMMergePolicy createMergePolicy(Map<String, String> configuration, INCServiceContext ctx) {
-        ILSMMergePolicy policy = new TieringMergePolicy();
+        ILSMMergePolicy policy = new TieredMergePolicy();
         policy.configure(configuration);
         return policy;
     }
@@ -94,6 +94,6 @@ public class TieringMergePolicyFactory implements ILSMMergePolicyFactory {
 
     @SuppressWarnings("squid:S1172") // unused parameter
     public static IJsonSerializable fromJson(IPersistedResourceRegistry registry, JsonNode json) {
-        return new TieringMergePolicyFactory();
+        return new TieredMergePolicyFactory();
     }
 }

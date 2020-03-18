@@ -50,6 +50,7 @@ public class StorageConstants {
             put(ILSMMergePolicyFactory.BTREE_INDEX, "");
             put(ILSMMergePolicyFactory.INVERTED_INDEX, "");
             put(ILSMMergePolicyFactory.RTREE_INDEX, "");
+            put(ILSMMergePolicyFactory.RTREE_COMPARATOR, ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT);
             putAll(ConcurrentMergePolicyFactory.DEFAULT_PROPERTIES);
         }
     };

@@ -41,8 +41,9 @@ public class PrefixMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String NAME = "prefix";
     public static final String MAX_MERGABLE_SIZE = "max-mergable-component-size";
     public static final String MAX_TOLERANCE_COUNT = "max-tolerance-component-count";
-    public static final Set<String> PROPERTIES_NAMES = Collections.unmodifiableSet(new HashSet<>(
-            Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX, MAX_MERGABLE_SIZE, MAX_TOLERANCE_COUNT)));
+    public static final Set<String> PROPERTIES_NAMES =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX,
+                    RTREE_COMPARATOR, MAX_MERGABLE_SIZE, MAX_TOLERANCE_COUNT)));
 
     public static final Map<String, String> DEFAULT_PROPERTIES = new LinkedHashMap<String, String>() {
         {

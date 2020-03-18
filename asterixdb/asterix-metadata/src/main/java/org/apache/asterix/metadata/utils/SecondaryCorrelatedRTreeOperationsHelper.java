@@ -50,7 +50,7 @@ import org.apache.hyracks.api.job.JobSpecification;
 import org.apache.hyracks.dataflow.std.connectors.OneToOneConnectorDescriptor;
 import org.apache.hyracks.dataflow.std.sort.ExternalSortOperatorDescriptor;
 import org.apache.hyracks.storage.am.common.api.IPrimitiveValueProviderFactory;
-import org.apache.hyracks.storage.am.lsm.common.impls.LevelMergePolicyFactory;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMMergePolicyFactory;
 
 public class SecondaryCorrelatedRTreeOperationsHelper extends SecondaryCorrelatedTreeIndexOperationsHelper {
 
@@ -204,10 +204,14 @@ public class SecondaryCorrelatedRTreeOperationsHelper extends SecondaryCorrelate
         IOperatorDescriptor processorOp = createTupleProcessorOp(spec, secondaryRecDescConsideringPointMBR,
                 numNestedSecondaryKeFieldsConsideringPointMBR, numPrimaryKeys, false);
 
+        boolean simpleComparator =
+                mergePolicyProperties
+                        .getOrDefault(ILSMMergePolicyFactory.RTREE_COMPARATOR,
+                                ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT)
+                        .compareToIgnoreCase(ILSMMergePolicyFactory.RTREE_COMPARATOR_HILBERT) != 0;
         ExternalSortOperatorDescriptor sortOp = createSortOp(spec,
-                getTaggedSecondaryComparatorFactories(new IBinaryComparatorFactory[] {
-                        MetadataProvider.proposeLinearizer(keyType, secondaryComparatorFactories.length,
-                                mergePolicyFactory instanceof LevelMergePolicyFactory) }),
+                getTaggedSecondaryComparatorFactories(new IBinaryComparatorFactory[] { MetadataProvider
+                        .proposeLinearizer(keyType, secondaryComparatorFactories.length, simpleComparator) }),
                 secondaryRecDescConsideringPointMBR);
 
         // Create secondary RTree bulk load op.
