@@ -535,7 +535,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 }
                 List<List<TupleWithMBR>> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);
                 for (List<TupleWithMBR> partition : partitions) {
-                    partition.sort(new Comparator<TupleWithMBR>() {
+                    /*partition.sort(new Comparator<TupleWithMBR>() {
                         @Override
                         public int compare(TupleWithMBR t1, TupleWithMBR t2) {
                             try {
@@ -544,7 +544,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                 return -1;
                             }
                         }
-                    });
+                    });*/
                     int dim = partition.get(0).getDim();
                     LSMComponentFileReferences refs = lsmRTree.getNextMergeFileReferencesAtLevel(levelTo);
                     mergeFileTargets.add(refs.getInsertIndexFileReference());
