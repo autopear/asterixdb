@@ -44,6 +44,24 @@ public class LSMRTreeTupleReferenceForPointMBR extends RTreeTypeAwareTupleRefere
         this.antimatterAware = antimatterAware;
     }
 
+    private LSMRTreeTupleReferenceForPointMBR(ITypeTraits[] typeTraits, int inputKeyFieldCount,
+            int inputTotalFieldCount, int storedKeyFieldCount, boolean antimatterAware) {
+        super(typeTraits);
+        this.inputKeyFieldCount = inputKeyFieldCount;
+        this.inputTotalFieldCount = inputTotalFieldCount;
+        this.storedKeyFieldCount = storedKeyFieldCount;
+        this.nullFlagsBytes = getNullFlagsBytes();
+        this.decodedFieldSlots = new int[inputTotalFieldCount];
+        this.antimatterAware = antimatterAware;
+    }
+
+    public LSMRTreeTupleReferenceForPointMBR getCopy() {
+        LSMRTreeTupleReferenceForPointMBR t = new LSMRTreeTupleReferenceForPointMBR(typeTraits.clone(),
+                inputKeyFieldCount, inputTotalFieldCount, storedKeyFieldCount, antimatterAware);
+        t.resetByTupleOffset(buf.clone(), tupleStartOff);
+        return t;
+    }
+
     @Override
     public void resetByTupleOffset(byte[] buf, int tupleStartOff) {
         this.buf = buf;

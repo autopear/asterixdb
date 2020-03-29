@@ -40,6 +40,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLevelMergePolicyHelper;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMIndexSearchCursor;
+import org.apache.hyracks.storage.am.lsm.rtree.tuples.LSMRTreeTupleReferenceForPointMBR;
 import org.apache.hyracks.storage.am.rtree.impls.SearchPredicate;
 import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.ISearchPredicate;
@@ -530,7 +531,8 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             try {
                 while (cursor.hasNext()) {
                     cursor.next();
-                    ITupleReference frameTuple = cursor.getTuple();
+                    LSMRTreeTupleReferenceForPointMBR frameTuple =
+                            ((LSMRTreeTupleReferenceForPointMBR) cursor.getTuple()).getCopy();
                     allTuples.add(new TupleWithMBR(frameTuple, lsmRTree.getMBRFromTuple(frameTuple)));
                 }
                 List<List<TupleWithMBR>> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);

@@ -67,7 +67,7 @@ public class RTreeSearchCursor extends EnforcedIndexCursor implements ITreeIndex
     public RTreeSearchCursor(IRTreeInteriorFrame interiorFrame, IRTreeLeafFrame leafFrame, IIndexCursorStats stats) {
         this.interiorFrame = interiorFrame;
         this.leafFrame = leafFrame;
-        this.frameTuple = null;
+        this.frameTuple = leafFrame.createTupleReference();
         this.stats = stats;
     }
 
@@ -189,7 +189,6 @@ public class RTreeSearchCursor extends EnforcedIndexCursor implements ITreeIndex
             for (int i = tupleIndex; i < leafFrame.getTupleCount(); i++) {
                 if (searchKey != null) {
                     if (leafFrame.intersect(searchKey, i, cmp)) {
-                        frameTuple = leafFrame.createTupleReference();
                         frameTuple.resetByTupleIndex(leafFrame, i);
                         currentTupleIndex = i; // This is only needed for the
                                                // LSMRTree flush operation
@@ -197,7 +196,6 @@ public class RTreeSearchCursor extends EnforcedIndexCursor implements ITreeIndex
                         return true;
                     }
                 } else {
-                    frameTuple = leafFrame.createTupleReference();
                     frameTuple.resetByTupleIndex(leafFrame, i);
                     currentTupleIndex = i; // This is only needed for the
                                            // LSMRTree
