@@ -58,7 +58,13 @@ public class LSMRTreeTupleReferenceForPointMBR extends RTreeTypeAwareTupleRefere
     public LSMRTreeTupleReferenceForPointMBR getCopy() {
         LSMRTreeTupleReferenceForPointMBR t = new LSMRTreeTupleReferenceForPointMBR(typeTraits.clone(),
                 inputKeyFieldCount, inputTotalFieldCount, storedKeyFieldCount, antimatterAware);
-        t.resetByTupleOffset(buf.clone(), tupleStartOff);
+        int bufLen = 0;
+        for (int l : decodedFieldSlots) {
+            bufLen += l;
+        }
+        byte[] newBuf = new byte[bufLen];
+        System.arraycopy(buf, tupleStartOff, newBuf, 0, bufLen);
+        t.resetByTupleOffset(newBuf, 0);
         return t;
     }
 
