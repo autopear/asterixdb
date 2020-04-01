@@ -331,24 +331,50 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                     others.add(d);
                 }
             }
+            List<ILSMDiskComponent> checked = new ArrayList<>();
             for (int i = 0; i < newComponents.size() - 1; i++) {
                 ILSMDiskComponent c1 = newComponents.get(i);
                 double[] minMBR1 = bytesToDoubles(c1.getMinKey());
                 double[] maxMBR1 = bytesToDoubles(c1.getMaxKey());
-                for (int j = i + 1; j < newComponents.size(); j++) {
-                    ILSMDiskComponent c2 = newComponents.get(j);
-                    double[] minMBR2 = bytesToDoubles(c2.getMinKey());
-                    double[] maxMBR2 = bytesToDoubles(c2.getMaxKey());
-                    if (LSMRTreeLevelMergePolicyHelper.isOverlapping(minMBR1, maxMBR1, minMBR2, maxMBR2)) {
-                        writeLog("[OVERLAP-MERGE]\t" + c1.getBasename() + "\t" + c2.getBasename());
+                if (!checked.contains(c1)) {
+                    List<String> overlaps = new ArrayList<>();
+                    for (int j = i + 1; j < newComponents.size(); j++) {
+                        ILSMDiskComponent c2 = newComponents.get(j);
+                        if (checked.contains(c2)) {
+                            continue;
+                        }
+                        double[] minMBR2 = bytesToDoubles(c2.getMinKey());
+                        double[] maxMBR2 = bytesToDoubles(c2.getMaxKey());
+                        if (LSMRTreeLevelMergePolicyHelper.isOverlapping(minMBR1, maxMBR1, minMBR2, maxMBR2)) {
+                            if (overlaps.isEmpty()) {
+                                checked.add(c1);
+                            }
+                            overlaps.add(c2.getBasename());
+                            checked.add(c2);
+                        }
+                    }
+                    if (!overlaps.isEmpty()) {
+                        StringBuilder sb = new StringBuilder(c1.getBasename());
+                        for (String c : overlaps) {
+                            sb.append(";").append(c);
+                        }
+                        writeLog("[OVERLAP-MERGE]\t" + sb.toString());
                     }
                 }
+                List<String> overlaps = new ArrayList<>();
                 for (ILSMDiskComponent other : others) {
                     double[] minMBR2 = bytesToDoubles(other.getMinKey());
                     double[] maxMBR2 = bytesToDoubles(other.getMaxKey());
                     if (LSMRTreeLevelMergePolicyHelper.isOverlapping(minMBR1, maxMBR1, minMBR2, maxMBR2)) {
-                        writeLog("[OVERLAP-OTHER]\t" + c1.getBasename() + "\t" + other.getBasename());
+                        overlaps.add(other.getBasename());
                     }
+                }
+                if (!overlaps.isEmpty()) {
+                    StringBuilder sb = new StringBuilder(c1.getBasename());
+                    for (String c : overlaps) {
+                        sb.append(";").append(c);
+                    }
+                    writeLog("[OVERLAP-OTHER]\t" + sb.toString());
                 }
             }
             return newComponents;
