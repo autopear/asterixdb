@@ -93,9 +93,8 @@ public class DatasetDeclParametersUtil {
                 SizeTieredMergePolicyFactory.HIGH_BUCKET, SizeTieredMergePolicyFactory.MIN_COMPONENTS,
                 SizeTieredMergePolicyFactory.MAX_COMPONENTS, SizeTieredMergePolicyFactory.MIN_SSTABLE_SIZE,
                 LevelMergePolicyFactory.PICK, LevelMergePolicyFactory.NUM_COMPONENTS_0,
-                LevelMergePolicyFactory.NUM_COMPONENTS_1,
-                /*LevelMergePolicyFactory.OVERLAP_MODE,*/ ExploringMergePolicyFactory.LAMBDA,
-                LevelRTreeMergePolicyFactory.PARTITION };
+                LevelMergePolicyFactory.NUM_COMPONENTS_1, LevelMergePolicyFactory.OVERLAP_MODE,
+                ExploringMergePolicyFactory.LAMBDA, LevelRTreeMergePolicyFactory.PARTITION };
         final IAType[] parametersTypes = { AUnionType.createUnknownableType(BuiltinType.ASTRING), // BTREE_INDEX
                 AUnionType.createUnknownableType(BuiltinType.ALL_TYPE), // INVERTED_INDEX
                 AUnionType.createUnknownableType(BuiltinType.ASTRING), // RTREE_INDEX
@@ -115,7 +114,7 @@ public class DatasetDeclParametersUtil {
                 AUnionType.createUnknownableType(BuiltinType.ASTRING), // PICK
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // NUM_COMPONENTS_0
                 AUnionType.createUnknownableType(BuiltinType.AINT64), // NUM_COMPONENTS_1
-                // AUnionType.createUnknownableType(BuiltinType.ASTRING), // OVERLAP_MODE
+                AUnionType.createUnknownableType(BuiltinType.ASTRING), // OVERLAP_MODE
                 AUnionType.createUnknownableType(BuiltinType.ADOUBLE), // LAMBDA
                 AUnionType.createUnknownableType(BuiltinType.ASTRING), // PARTITION
         };

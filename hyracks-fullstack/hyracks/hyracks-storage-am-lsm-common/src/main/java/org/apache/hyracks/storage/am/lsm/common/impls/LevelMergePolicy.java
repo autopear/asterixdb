@@ -174,9 +174,8 @@ public class LevelMergePolicy implements ILSMMergePolicy {
         pickStrategy = properties.get(LevelMergePolicyFactory.PICK).toLowerCase();
         level0Components = Integer.parseInt(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_0));
         level1Components = Integer.parseInt(properties.get(LevelMergePolicyFactory.NUM_COMPONENTS_1));
-        absoluteOverlap = false;
-        // absoluteOverlap = properties.getOrDefault(LevelMergePolicyFactory.OVERLAP_MODE, "relative")
-        //        .compareTo(LevelMergePolicyFactory.MODE_ABSOLUTE) == 0;
+        absoluteOverlap = properties.getOrDefault(LevelMergePolicyFactory.OVERLAP_MODE, "relative")
+                .compareTo(LevelMergePolicyFactory.MODE_ABSOLUTE) == 0;
     }
 
     @Override

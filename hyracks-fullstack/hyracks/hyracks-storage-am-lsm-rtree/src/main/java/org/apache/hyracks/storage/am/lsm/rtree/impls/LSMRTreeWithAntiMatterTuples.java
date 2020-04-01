@@ -57,6 +57,7 @@ import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFilterManager;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMIndexSearchCursor;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMTreeIndexAccessor.ICursorFactory;
+import org.apache.hyracks.storage.am.lsm.common.impls.MergeOperation;
 import org.apache.hyracks.storage.am.rtree.frames.RTreeFrameFactory;
 import org.apache.hyracks.storage.am.rtree.impls.RTree.RTreeAccessor;
 import org.apache.hyracks.storage.am.rtree.impls.RTreeSearchCursor;
@@ -321,7 +322,35 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
     @Override
     public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
         if (isLeveled) {
-            return mergePolicyHelper.merge(operation);
+            List<ILSMDiskComponent> newComponents = mergePolicyHelper.merge(operation);
+            List<ILSMDiskComponent> others = new ArrayList<>(getDiskComponents());
+            List<ILSMComponent> mergedComponents = ((MergeOperation) operation).getMergingComponents();
+            for (ILSMComponent c : mergedComponents) {
+                if (c instanceof ILSMDiskComponent) {
+                    others.remove((ILSMDiskComponent) c);
+                }
+            }
+            for (int i = 0; i < newComponents.size() - 1; i++) {
+                ILSMDiskComponent c1 = newComponents.get(i);
+                double[] minMBR1 = bytesToDoubles(c1.getMinKey());
+                double[] maxMBR1 = bytesToDoubles(c1.getMaxKey());
+                for (int j = i + 1; j < newComponents.size(); j++) {
+                    ILSMDiskComponent c2 = newComponents.get(j);
+                    double[] minMBR2 = bytesToDoubles(c2.getMinKey());
+                    double[] maxMBR2 = bytesToDoubles(c2.getMaxKey());
+                    if (LSMRTreeLevelMergePolicyHelper.isOverlapping(minMBR1, maxMBR1, minMBR2, maxMBR2)) {
+                        writeLog("[OVERLAP-MERGE]\t" + c1.getBasename() + "\t" + c2.getBasename());
+                    }
+                }
+                for (ILSMDiskComponent other : others) {
+                    double[] minMBR2 = bytesToDoubles(other.getMinKey());
+                    double[] maxMBR2 = bytesToDoubles(other.getMaxKey());
+                    if (LSMRTreeLevelMergePolicyHelper.isOverlapping(minMBR1, maxMBR1, minMBR2, maxMBR2)) {
+                        writeLog("[OVERLAP-OTHER]\t" + c1.getBasename() + "\t" + other.getBasename());
+                    }
+                }
+            }
+            return newComponents;
         } else {
             return Collections.singletonList(stackedMerge((LSMRTreeMergeOperation) operation));
         }
