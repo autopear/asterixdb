@@ -323,11 +323,11 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
     public List<ILSMDiskComponent> doMerge(ILSMIOOperation operation) throws HyracksDataException {
         if (isLeveled) {
             List<ILSMDiskComponent> newComponents = mergePolicyHelper.merge(operation);
-            List<ILSMDiskComponent> others = new ArrayList<>(getDiskComponents());
+            List<ILSMDiskComponent> others = new ArrayList<>();
             List<ILSMComponent> mergedComponents = ((MergeOperation) operation).getMergingComponents();
-            for (ILSMComponent c : mergedComponents) {
-                if (c instanceof ILSMDiskComponent) {
-                    others.remove((ILSMDiskComponent) c);
+            for (ILSMDiskComponent d : getDiskComponents()) {
+                if (d.getMinId() > 0 && !mergedComponents.contains(d)) {
+                    others.add(d);
                 }
             }
             for (int i = 0; i < newComponents.size() - 1; i++) {
