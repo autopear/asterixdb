@@ -325,8 +325,9 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             List<ILSMDiskComponent> newComponents = mergePolicyHelper.merge(operation);
             List<ILSMDiskComponent> others = new ArrayList<>();
             List<ILSMComponent> mergedComponents = ((MergeOperation) operation).getMergingComponents();
+            long levelTo = newComponents.get(0).getMinId();
             for (ILSMDiskComponent d : getDiskComponents()) {
-                if (d.getMinId() > 0 && !mergedComponents.contains(d)) {
+                if (d.getMinId() == levelTo && !mergedComponents.contains(d)) {
                     others.add(d);
                 }
             }
