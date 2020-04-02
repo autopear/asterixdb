@@ -142,7 +142,7 @@ public class LevelMergePolicy implements ILSMMergePolicy {
                     if (pickStrategy.compareTo(LevelMergePolicyFactory.NEWEST) == 0) {
                         picked = helper.getNewestComponent(componentsAtLevel, level);
                     } else if (pickStrategy.compareTo(LevelMergePolicyFactory.BEST) == 0) {
-                        return helper.getBestComponents(componentsAtLevel, level, absoluteOverlap);
+                        return helper.getBestComponents(immutableComponents, level, absoluteOverlap);
                     } else if (dist.containsKey(pickStrategy)) {
                         picked = helper.getRandomComponent(componentsAtLevel, level, dist.get(pickStrategy));
                     } else if (pickStrategy.compareTo(LevelMergePolicyFactory.MIN_OVERLAP) == 0) {
