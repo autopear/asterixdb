@@ -91,6 +91,17 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                 durable, isPointMBR);
     }
 
+    private static String ds2str(double[] ds) {
+        if (ds == null || ds.length == 0) {
+            return "[]";
+        }
+        StringBuilder sb = new StringBuilder(Double.toString(ds[0]));
+        for (int i = 1; i < ds.length; i++) {
+            sb.append(",").append(ds[i]);
+        }
+        return sb.toString();
+    }
+
     @Override
     public ILSMDiskComponent doFlush(ILSMIOOperation operation) throws HyracksDataException {
         LSMRTreeFlushOperation flushOp = (LSMRTreeFlushOperation) operation;
@@ -187,11 +198,17 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                         }
                         if (maxMBR == null) {
                             maxMBR = LSMRTreeLevelMergePolicyHelper.clone(mbr, dim, dim);
+                            writeLog("MaxMBR: " + ds2str(maxMBR));
                         } else {
+                            boolean updated = false;
                             for (int i = 0; i < dim; i++) {
                                 if (Double.compare(mbr[dim + i], maxMBR[i]) > 0) {
                                     maxMBR[i] = mbr[dim + i];
+                                    updated = true;
                                 }
+                            }
+                            if (updated) {
+                                writeLog("MaxMBR: " + ds2str(maxMBR));
                             }
                         }
                     }
@@ -203,6 +220,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
             }
             component.setMinKey(doublesToBytes(minMBR));
             component.setMaxKey(doublesToBytes(maxMBR));
+            writeLog("ComponentMaxKey: " + ds2str(maxMBR) + ": " + doublesToBytes(maxMBR).toString());
             component.setTupleCount(totalTuples);
             if (component.getLSMComponentFilter() != null) {
                 List<ITupleReference> filterTuples = new ArrayList<>();
