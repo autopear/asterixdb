@@ -29,9 +29,11 @@ import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilter;
 import org.apache.hyracks.storage.am.btree.impls.BTree;
 import org.apache.hyracks.storage.am.btree.impls.BTree.BTreeAccessor;
-import org.apache.hyracks.storage.am.btree.impls.BTreeRangeSearchCursor;
+import org.apache.hyracks.storage.am.btree.impls.DiskBTreePointSearchCursor;
+import org.apache.hyracks.storage.am.btree.impls.DiskBTreeRangeSearchCursor;
 import org.apache.hyracks.storage.am.btree.impls.RangePredicate;
 import org.apache.hyracks.storage.am.common.api.ILSMIndexCursor;
+import org.apache.hyracks.storage.am.common.api.ITreeIndexCursor;
 import org.apache.hyracks.storage.am.common.impls.NoOpIndexAccessParameters;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMComponent.LSMComponentType;
@@ -48,23 +50,24 @@ import org.apache.hyracks.storage.common.ISearchPredicate;
 
 public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements ILSMIndexCursor {
 
-    private BTreeRangeSearchCursor[] btreeCursors;
-    private final ILSMIndexOperationContext opCtx;
-    private ISearchOperationCallback searchCallback;
-    private RangePredicate predicate;
-    private boolean includeMutableComponent;
-    private int numBTrees;
+    protected ITreeIndexCursor[] btreeCursors;
+    protected final ILSMIndexOperationContext opCtx;
+    protected ISearchOperationCallback searchCallback;
+    protected RangePredicate predicate;
+    protected boolean includeMutableComponent;
+    protected int numBTrees;
     private BTreeAccessor[] btreeAccessors;
-    private BloomFilter[] bloomFilters;
-    private ILSMHarness lsmHarness;
+    protected BloomFilter[] bloomFilters;
+    protected ILSMHarness lsmHarness;
     private boolean nextHasBeenCalled;
-    private boolean foundTuple;
-    private int foundIn = -1;
-    private ITupleReference frameTuple;
-    private List<ILSMComponent> operationalComponents;
-    private boolean resultOfSearchCallbackProceed = false;
+    protected boolean foundTuple;
+    protected int foundIn = -1;
+    protected ITupleReference frameTuple;
+    protected List<ILSMComponent> operationalComponents;
+    protected boolean resultOfSearchCallbackProceed = false;
 
-    private final long[] hashes = BloomFilter.createHashArray();
+    protected final long[] hashes = BloomFilter.createHashArray();
+    protected boolean hashComputed = false;
 
     private long startTime;
     private int numDiskComponents;
@@ -85,17 +88,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         } else if (foundTuple) {
             return true;
         }
+        hashComputed = false;
         boolean reconciled = false;
         for (int i = 0; i < numBTrees; ++i) {
             long stime = System.nanoTime();
-            if (bloomFilters[i] != null && !bloomFilters[i].contains(predicate.getLowKey(), hashes)) {
-                if (timeStr.isEmpty()) {
-                    timeStr = i + ":BF:" + (System.nanoTime() - stime) + ":" + btreeCursors[i].getNumTotalPages() + ":"
-                            + btreeCursors[i].getNumCachedPages() + ":" + btreeCursors[i].getNumUncachedPages();
-                } else {
-                    timeStr += ";" + i + ":BF:" + (System.nanoTime() - stime) + ":" + btreeCursors[i].getNumTotalPages()
-                            + ":" + btreeCursors[i].getNumCachedPages() + ":" + btreeCursors[i].getNumUncachedPages();
-                }
+            DiskBTreePointSearchCursor btreeCursor = ((DiskBTreePointSearchCursor) btreeCursors[i]);
+            if (!isSearchCandidate(i, stime)) {
                 continue;
             }
             btreeAccessors[i].search(btreeCursors[i], predicate);
@@ -114,13 +112,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                         }
                         btreeCursors[i].close();
                         if (timeStr.isEmpty()) {
-                            timeStr = i + ":RF:" + (System.nanoTime() - stime) + ":"
-                                    + btreeCursors[i].getNumTotalPages() + ":" + btreeCursors[i].getNumCachedPages()
-                                    + ":" + btreeCursors[i].getNumUncachedPages();
+                            timeStr = i + ":RF:" + (System.nanoTime() - stime) + ":" + btreeCursor.getNumTotalPages()
+                                    + ":" + btreeCursor.getNumCachedPages() + ":" + btreeCursor.getNumUncachedPages();
                         } else {
                             timeStr += ";" + i + ":RF:" + (System.nanoTime() - stime) + ":"
-                                    + btreeCursors[i].getNumTotalPages() + ":" + btreeCursors[i].getNumCachedPages()
-                                    + ":" + btreeCursors[i].getNumUncachedPages();
+                                    + btreeCursor.getNumTotalPages() + ":" + btreeCursor.getNumCachedPages() + ":"
+                                    + btreeCursor.getNumUncachedPages();
                         }
                         return false;
                     } else {
@@ -128,13 +125,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                         foundTuple = true;
                         foundIn = i;
                         if (timeStr.isEmpty()) {
-                            timeStr = i + ":RT:" + (System.nanoTime() - stime) + ":"
-                                    + btreeCursors[i].getNumTotalPages() + ":" + btreeCursors[i].getNumCachedPages()
-                                    + ":" + btreeCursors[i].getNumUncachedPages();
+                            timeStr = i + ":RT:" + (System.nanoTime() - stime) + ":" + btreeCursor.getNumTotalPages()
+                                    + ":" + btreeCursor.getNumCachedPages() + ":" + btreeCursor.getNumUncachedPages();
                         } else {
                             timeStr += ";" + i + ":RT:" + (System.nanoTime() - stime) + ":"
-                                    + btreeCursors[i].getNumTotalPages() + ":" + btreeCursors[i].getNumCachedPages()
-                                    + ":" + btreeCursors[i].getNumUncachedPages();
+                                    + btreeCursor.getNumTotalPages() + ":" + btreeCursor.getNumCachedPages() + ":"
+                                    + btreeCursor.getNumUncachedPages();
                         }
                         return true;
                     }
@@ -154,12 +150,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                             btreeCursors[i].close();
                             if (timeStr.isEmpty()) {
                                 timeStr = i + ":MF:" + (System.nanoTime() - stime) + ":"
-                                        + btreeCursors[i].getNumTotalPages() + ":" + btreeCursors[i].getNumCachedPages()
-                                        + ":" + btreeCursors[i].getNumUncachedPages();
+                                        + btreeCursor.getNumTotalPages() + ":" + btreeCursor.getNumCachedPages() + ":"
+                                        + btreeCursor.getNumUncachedPages();
                             } else {
                                 timeStr += ";" + i + ":MF:" + (System.nanoTime() - stime) + ":"
-                                        + btreeCursors[i].getNumTotalPages() + ":" + btreeCursors[i].getNumCachedPages()
-                                        + ":" + btreeCursors[i].getNumUncachedPages();
+                                        + btreeCursor.getNumTotalPages() + ":" + btreeCursor.getNumCachedPages() + ":"
+                                        + btreeCursor.getNumUncachedPages();
                             }
                             return false;
                         } else {
@@ -169,12 +165,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                             foundIn = i;
                             if (timeStr.isEmpty()) {
                                 timeStr = i + ":MT:" + (System.nanoTime() - stime) + ":"
-                                        + btreeCursors[i].getNumTotalPages() + ":" + btreeCursors[i].getNumCachedPages()
-                                        + ":" + btreeCursors[i].getNumUncachedPages();
+                                        + btreeCursor.getNumTotalPages() + ":" + btreeCursor.getNumCachedPages() + ":"
+                                        + btreeCursor.getNumUncachedPages();
                             } else {
                                 timeStr += ";" + i + ":MT:" + (System.nanoTime() - stime) + ":"
-                                        + btreeCursors[i].getNumTotalPages() + ":" + btreeCursors[i].getNumCachedPages()
-                                        + ":" + btreeCursors[i].getNumUncachedPages();
+                                        + btreeCursor.getNumTotalPages() + ":" + btreeCursor.getNumCachedPages() + ":"
+                                        + btreeCursor.getNumUncachedPages();
                             }
                             return true;
                         }
@@ -189,13 +185,11 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
                     foundTuple = true;
                     foundIn = i;
                     if (timeStr.isEmpty()) {
-                        timeStr = i + ":DT:" + (System.nanoTime() - stime) + ":" + btreeCursors[i].getNumTotalPages()
-                                + ":" + btreeCursors[i].getNumCachedPages() + ":"
-                                + btreeCursors[i].getNumUncachedPages();
+                        timeStr = i + ":DT:" + (System.nanoTime() - stime) + ":" + btreeCursor.getNumTotalPages() + ":"
+                                + btreeCursor.getNumCachedPages() + ":" + btreeCursor.getNumUncachedPages();
                     } else {
-                        timeStr += ";" + i + ":DT:" + (System.nanoTime() - stime) + ":"
-                                + btreeCursors[i].getNumTotalPages() + ":" + btreeCursors[i].getNumCachedPages() + ":"
-                                + btreeCursors[i].getNumUncachedPages();
+                        timeStr += ";" + i + ":DT:" + (System.nanoTime() - stime) + ":" + btreeCursor.getNumTotalPages()
+                                + ":" + btreeCursor.getNumCachedPages() + ":" + btreeCursor.getNumUncachedPages();
                     }
                     return true;
                 }
@@ -204,6 +198,32 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             }
         }
         return false;
+    }
+
+    protected boolean isSearchCandidate(int componentIndex, long stime) throws HyracksDataException {
+        if (bloomFilters[componentIndex] != null) {
+            if (!hashComputed) {
+                // all bloom filters share the same hash function
+                // only compute it once for better performance
+                bloomFilters[componentIndex].computeHashes(predicate.getLowKey(), hashes);
+                hashComputed = true;
+            }
+
+            if (!bloomFilters[componentIndex].contains(hashes)) {
+                DiskBTreeRangeSearchCursor btreeCursor = ((DiskBTreeRangeSearchCursor) btreeCursors[componentIndex]);
+                if (timeStr.isEmpty()) {
+                    timeStr =
+                            componentIndex + ":BF:" + (System.nanoTime() - stime) + ":" + btreeCursor.getNumTotalPages()
+                                    + ":" + btreeCursor.getNumCachedPages() + ":" + btreeCursor.getNumUncachedPages();
+                } else {
+                    timeStr += ";" + componentIndex + ":BF:" + (System.nanoTime() - stime) + ":"
+                            + btreeCursor.getNumTotalPages() + ":" + btreeCursor.getNumCachedPages() + ":"
+                            + btreeCursor.getNumUncachedPages();
+                }
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -219,6 +239,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             closeCursors();
             nextHasBeenCalled = false;
             foundTuple = false;
+            hashComputed = false;
         } finally {
             if (lsmHarness != null) {
                 lsmHarness.endSearch(opCtx);
@@ -280,7 +301,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         }
         if (btreeCursors == null) {
             // object creation: should be relatively low
-            btreeCursors = new BTreeRangeSearchCursor[numBTrees];
+            btreeCursors = new ITreeIndexCursor[numBTrees];
             btreeAccessors = new BTreeAccessor[numBTrees];
             bloomFilters = new BloomFilter[numBTrees];
         }
@@ -303,17 +324,18 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
 
             if (btreeAccessors[i] == null) {
                 btreeAccessors[i] = btree.createAccessor(NoOpIndexAccessParameters.INSTANCE);
-                btreeCursors[i] = btreeAccessors[i].createPointCursor(false);
-                btreeCursors[i].resetNumCachedUncachedPages();
+                btreeCursors[i] = btreeAccessors[i].createPointCursor(false, false);
+                ((DiskBTreePointSearchCursor) btreeCursors[i]).resetNumCachedUncachedPages();
             } else {
                 // re-use
                 btreeAccessors[i].reset(btree, NoOpIndexAccessParameters.INSTANCE);
                 btreeCursors[i].close();
-                btreeCursors[i].resetNumCachedUncachedPages();
+                ((DiskBTreePointSearchCursor) btreeCursors[i]).resetNumCachedUncachedPages();
             }
         }
         nextHasBeenCalled = false;
         foundTuple = false;
+        hashComputed = false;
     }
 
     private void destroyAndNullifyCursorAtIndex(int i) throws HyracksDataException {
@@ -368,7 +390,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         return null;
     }
 
-    private void closeCursors() throws HyracksDataException {
+    protected void closeCursors() throws HyracksDataException {
         if (btreeCursors != null) {
             for (int i = 0; i < numBTrees; ++i) {
                 if (btreeCursors[i] != null) {

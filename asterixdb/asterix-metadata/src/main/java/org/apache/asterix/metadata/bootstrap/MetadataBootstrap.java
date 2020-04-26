@@ -375,6 +375,9 @@ public class MetadataBootstrap {
         } else {
             resource = localResourceRepository.get(file.getRelativePath());
             createMetadataDataset = resource == null;
+            if (createMetadataDataset) {
+                ensureCatalogUpgradability(index);
+            }
         }
         if (createMetadataDataset) {
             final double bloomFilterFalsePositiveRate =
@@ -503,4 +506,10 @@ public class MetadataBootstrap {
         MetadataBootstrap.isNewUniverse = isNewUniverse;
     }
 
+    private static void ensureCatalogUpgradability(IMetadataIndex index) {
+        if (index != MetadataPrimaryIndexes.SYNONYM_DATASET) {
+            throw new IllegalStateException(
+                    "attempt to create metadata index " + index.getIndexName() + ". Index should already exist");
+        }
+    }
 }
