@@ -29,8 +29,7 @@ import org.apache.hyracks.dataflow.common.data.accessors.ITupleReference;
 import org.apache.hyracks.storage.am.bloomfilter.impls.BloomFilter;
 import org.apache.hyracks.storage.am.btree.impls.BTree;
 import org.apache.hyracks.storage.am.btree.impls.BTree.BTreeAccessor;
-import org.apache.hyracks.storage.am.btree.impls.DiskBTreePointSearchCursor;
-import org.apache.hyracks.storage.am.btree.impls.DiskBTreeRangeSearchCursor;
+import org.apache.hyracks.storage.am.btree.impls.BTreeRangeSearchCursor;
 import org.apache.hyracks.storage.am.btree.impls.RangePredicate;
 import org.apache.hyracks.storage.am.common.api.ILSMIndexCursor;
 import org.apache.hyracks.storage.am.common.api.ITreeIndexCursor;
@@ -92,7 +91,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
         boolean reconciled = false;
         for (int i = 0; i < numBTrees; ++i) {
             long stime = System.nanoTime();
-            DiskBTreePointSearchCursor btreeCursor = ((DiskBTreePointSearchCursor) btreeCursors[i]);
+            BTreeRangeSearchCursor btreeCursor = ((BTreeRangeSearchCursor) btreeCursors[i]);
             if (!isSearchCandidate(i, stime)) {
                 continue;
             }
@@ -210,7 +209,7 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             }
 
             if (!bloomFilters[componentIndex].contains(hashes)) {
-                DiskBTreeRangeSearchCursor btreeCursor = ((DiskBTreeRangeSearchCursor) btreeCursors[componentIndex]);
+                BTreeRangeSearchCursor btreeCursor = ((BTreeRangeSearchCursor) btreeCursors[componentIndex]);
                 if (timeStr.isEmpty()) {
                     timeStr =
                             componentIndex + ":BF:" + (System.nanoTime() - stime) + ":" + btreeCursor.getNumTotalPages()
@@ -325,12 +324,12 @@ public class LSMBTreePointSearchCursor extends EnforcedIndexCursor implements IL
             if (btreeAccessors[i] == null) {
                 btreeAccessors[i] = btree.createAccessor(NoOpIndexAccessParameters.INSTANCE);
                 btreeCursors[i] = btreeAccessors[i].createPointCursor(false, false);
-                ((DiskBTreePointSearchCursor) btreeCursors[i]).resetNumCachedUncachedPages();
+                ((BTreeRangeSearchCursor) btreeCursors[i]).resetNumCachedUncachedPages();
             } else {
                 // re-use
                 btreeAccessors[i].reset(btree, NoOpIndexAccessParameters.INSTANCE);
                 btreeCursors[i].close();
-                ((DiskBTreePointSearchCursor) btreeCursors[i]).resetNumCachedUncachedPages();
+                ((BTreeRangeSearchCursor) btreeCursors[i]).resetNumCachedUncachedPages();
             }
         }
         nextHasBeenCalled = false;
