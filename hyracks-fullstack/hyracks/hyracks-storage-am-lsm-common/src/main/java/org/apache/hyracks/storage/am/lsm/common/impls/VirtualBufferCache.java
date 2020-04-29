@@ -31,6 +31,7 @@ import org.apache.hyracks.api.exceptions.ErrorCode;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.replication.IIOReplicationManager;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMMemoryComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.common.buffercache.ICacheMemoryAllocator;
 import org.apache.hyracks.storage.common.buffercache.ICachedPage;
@@ -47,8 +48,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class VirtualBufferCache implements IVirtualBufferCache {
+    /**
+     * Based on {@code HashMap}
+     * Note that when a memory component is flushed, it scans vbc to clean up its pages while synchronized on
+     * the op tracker. Thus, it may not be a good idea to set the map factor too large because otherwise it
+     * would increase the blocking time.
+     */
+    private static final float MAP_FACTOR = 0.75f;
     private static final Logger LOGGER = LogManager.getLogger();
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private final ICacheMemoryAllocator allocator;
     private final IFileMapManager fileMapManager;
     private final int pageSize;
@@ -67,7 +75,7 @@ public class VirtualBufferCache implements IVirtualBufferCache {
             throw new IllegalArgumentException("Page Budget Cannot be 0");
         }
         this.pageBudget = pageBudget;
-        buckets = new CacheBucket[this.pageBudget];
+        buckets = new CacheBucket[(int) (this.pageBudget / MAP_FACTOR)];
         freePages = new ArrayBlockingQueue<>(this.pageBudget);
         largePages = new AtomicInteger(0);
         used = new AtomicInteger(0);
@@ -88,6 +96,7 @@ public class VirtualBufferCache implements IVirtualBufferCache {
         return largePages.get();
     }
 
+    @Override
     public int getUsage() {
         return used.get();
     }
@@ -104,6 +113,12 @@ public class VirtualBufferCache implements IVirtualBufferCache {
     @Override
     public boolean isFull() {
         return used.get() >= pageBudget;
+    }
+
+    @Override
+    public boolean isFull(ILSMMemoryComponent memoryComponent) {
+        // the memory component needs to be flushed when the vbc is full
+        return isFull();
     }
 
     @Override
@@ -332,7 +347,7 @@ public class VirtualBufferCache implements IVirtualBufferCache {
             throw HyracksDataException.create(ErrorCode.VBC_ALREADY_OPEN);
         }
         allocator.reserveAllocation(pageSize, pageBudget);
-        for (int i = 0; i < pageBudget; i++) {
+        for (int i = 0; i < buckets.length; i++) {
             buckets[i] = new CacheBucket();
         }
         largePages.set(0);
@@ -341,36 +356,12 @@ public class VirtualBufferCache implements IVirtualBufferCache {
     }
 
     @Override
-    public void reset() {
-        recycleAllPages();
-        used.set(0);
-        largePages.set(0);
-    }
-
-    private void recycleAllPages() {
-        for (int i = 0; i < buckets.length; i++) {
-            final CacheBucket bucket = buckets[i];
-            bucket.bucketLock.lock();
-            try {
-                VirtualPage curr = bucket.cachedPage;
-                while (curr != null) {
-                    bucket.cachedPage = curr.next();
-                    recycle(curr);
-                    curr = bucket.cachedPage;
-                }
-            } finally {
-                bucket.bucketLock.unlock();
-            }
-        }
-    }
-
-    @Override
     public void close() throws HyracksDataException {
         if (!open) {
             throw HyracksDataException.create(ErrorCode.VBC_ALREADY_CLOSED);
         }
         freePages.clear();
-        for (int i = 0; i < pageBudget; i++) {
+        for (int i = 0; i < buckets.length; i++) {
             buckets[i].cachedPage = null;
         }
         open = false;
@@ -474,6 +465,21 @@ public class VirtualBufferCache implements IVirtualBufferCache {
     @Override
     public void closeFileIfOpen(FileReference fileRef) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void register(ILSMMemoryComponent memoryComponent) {
+        // no op
+    }
+
+    @Override
+    public void unregister(ILSMMemoryComponent memoryComponent) {
+        // no op
+    }
+
+    @Override
+    public void flushed(ILSMMemoryComponent memoryComponent) throws HyracksDataException {
+        // no op
     }
 
 }

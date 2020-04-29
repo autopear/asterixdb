@@ -25,6 +25,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
 import org.apache.hyracks.api.replication.IIOReplicationManager;
+import org.apache.hyracks.storage.am.lsm.common.api.ILSMMemoryComponent;
 import org.apache.hyracks.storage.am.lsm.common.api.IVirtualBufferCache;
 import org.apache.hyracks.storage.common.buffercache.ICachedPage;
 import org.apache.hyracks.storage.common.buffercache.IExtraPageBlockHelper;
@@ -134,11 +135,6 @@ public class MultitenantVirtualBufferCache implements IVirtualBufferCache {
     }
 
     @Override
-    public void reset() {
-        vbc.reset();
-    }
-
-    @Override
     public IFileMapManager getFileMapProvider() {
         return vbc.getFileMapProvider();
     }
@@ -226,5 +222,30 @@ public class MultitenantVirtualBufferCache implements IVirtualBufferCache {
     @Override
     public void closeFileIfOpen(FileReference fileRef) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean isFull(ILSMMemoryComponent memoryComponent) {
+        return vbc.isFull(memoryComponent);
+    }
+
+    @Override
+    public int getUsage() {
+        return vbc.getUsage();
+    }
+
+    @Override
+    public void register(ILSMMemoryComponent memoryComponent) {
+        vbc.register(memoryComponent);
+    }
+
+    @Override
+    public void unregister(ILSMMemoryComponent memoryComponent) {
+        vbc.unregister(memoryComponent);
+    }
+
+    @Override
+    public void flushed(ILSMMemoryComponent memoryComponent) throws HyracksDataException {
+        vbc.flushed(memoryComponent);
     }
 }
