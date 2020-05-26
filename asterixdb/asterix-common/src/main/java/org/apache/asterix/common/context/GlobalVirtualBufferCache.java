@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.asterix.common.config.StorageProperties;
+import org.apache.asterix.common.metadata.MetadataIndexImmutableProperties;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.hyracks.api.exceptions.HyracksDataException;
 import org.apache.hyracks.api.io.FileReference;
@@ -103,6 +104,10 @@ public class GlobalVirtualBufferCache implements IVirtualBufferCache, ILifeCycle
             if (!primaryIndexes.contains(index)) {
                 // make sure only add index once
                 primaryIndexes.add(index);
+                if (LOGGER.isInfoEnabled()) {
+                    LOGGER.info("Registered {} index {} to the global VBC",
+                            isMetadataIndex(index) ? "metadata" : "primary", index.toString());
+                }
             }
             if (index.getNumOfFilterFields() > 0) {
                 // handle filtered primary index
@@ -124,7 +129,13 @@ public class GlobalVirtualBufferCache implements IVirtualBufferCache, ILifeCycle
             int pos = primaryIndexes.indexOf(index);
             if (pos >= 0) {
                 primaryIndexes.remove(index);
-                if (flushPtr > pos) {
+                if (LOGGER.isInfoEnabled()) {
+                    LOGGER.info("Unregistered {} index {} to the global VBC",
+                            isMetadataIndex(index) ? "metadata" : "primary", index.toString());
+                }
+                if (primaryIndexes.isEmpty()) {
+                    flushPtr = 0;
+                } else if (flushPtr > pos) {
                     // If the removed index is before flushPtr, we should decrement flushPtr by 1 so that
                     // it still points to the same index.
                     flushPtr = (flushPtr - 1) % primaryIndexes.size();
@@ -158,6 +169,11 @@ public class GlobalVirtualBufferCache implements IVirtualBufferCache, ILifeCycle
                         synchronized (opTracker) {
                             opTracker.notifyAll();
                         }
+                    }
+
+                    if (LOGGER.isInfoEnabled()) {
+                        LOGGER.info("Completed flushing {}. Resetting flushIndex back to null.",
+                                memoryComponent.getIndex().toString());
                     }
                 }
             }
@@ -424,6 +440,11 @@ public class GlobalVirtualBufferCache implements IVirtualBufferCache, ILifeCycle
         return vbc.getUsage();
     }
 
+    private boolean isMetadataIndex(ILSMIndex index) {
+        BaseOperationTracker opTracker = (BaseOperationTracker) index.getOperationTracker();
+        return MetadataIndexImmutableProperties.isMetadataDataset(opTracker.getDatasetInfo().getDatasetID());
+    }
+
     /**
      * We use a dedicated thread to schedule flushes to avoid deadlock. We cannot schedule flushes directly during
      * page pins because page pins can be called while synchronized on op trackers (e.g., when resetting a
@@ -455,33 +476,44 @@ public class GlobalVirtualBufferCache implements IVirtualBufferCache, ILifeCycle
 
         private void scheduleFlush() throws HyracksDataException {
             synchronized (GlobalVirtualBufferCache.this) {
-                if (vbc.getUsage() < flushPageBudget || flushingIndex != null) {
-                    return;
-                }
                 int cycles = 0;
-                // find the first modified memory component while avoiding infinite loops
-                while (cycles <= primaryIndexes.size()
-                        && !primaryIndexes.get(flushPtr).getCurrentMemoryComponent().isModified()) {
-                    flushPtr = (flushPtr + 1) % primaryIndexes.size();
-                    cycles++;
-                }
-                if (primaryIndexes.get(flushPtr).getCurrentMemoryComponent().isModified()) {
-                    // flush the current memory component
-                    flushingIndex = primaryIndexes.get(flushPtr);
+                while (vbc.getUsage() >= flushPageBudget && flushingIndex == null && cycles <= primaryIndexes.size()) {
+                    // find the first modified memory component while avoiding infinite loops
+                    while (cycles <= primaryIndexes.size()
+                            && primaryIndexes.get(flushPtr).isCurrentMutableComponentEmpty()) {
+                        flushPtr = (flushPtr + 1) % primaryIndexes.size();
+                        cycles++;
+                    }
+
+                    ILSMIndex primaryIndex = primaryIndexes.get(flushPtr);
                     flushPtr = (flushPtr + 1) % primaryIndexes.size();
                     // we need to manually flush this memory component because it may be idle at this point
                     // note that this is different from flushing a filtered memory component
                     PrimaryIndexOperationTracker opTracker =
-                            (PrimaryIndexOperationTracker) flushingIndex.getOperationTracker();
+                            (PrimaryIndexOperationTracker) primaryIndex.getOperationTracker();
                     synchronized (opTracker) {
-                        opTracker.setFlushOnExit(true);
-                        opTracker.flushIfNeeded();
-                        // If the flush cannot be scheduled at this time, then there must be active writers.
-                        // The flush will be eventually scheduled when writers exit
+                        boolean flushable = !primaryIndex.isCurrentMutableComponentEmpty();
+                        if (flushable && !opTracker.isFlushLogCreated()) {
+                            // if the flush log has already been created, then we can simply wait for
+                            // that flush to complete
+                            opTracker.setFlushOnExit(true);
+                            opTracker.flushIfNeeded();
+                            // If the flush cannot be scheduled at this time, then there must be active writers.
+                            // The flush will be eventually scheduled when writers exit
+                            if (LOGGER.isInfoEnabled()) {
+                                LOGGER.info("Requested {} flushing primary index {}",
+                                        isMetadataIndex(primaryIndex) ? "metadata" : "primary",
+                                        primaryIndex.toString());
+                            }
+                        }
+                        if ((flushable || opTracker.isFlushLogCreated()) && !isMetadataIndex(primaryIndex)) {
+                            // global vbc cannot wait on metadata indexes because metadata indexes support full
+                            // ACID transactions. Waiting on metadata indexes can introduce deadlocks.
+                            flushingIndex = primaryIndex;
+                            LOGGER.debug("Waiting for flushing primary index {} to complete...", primaryIndex);
+                            break;
+                        }
                     }
-                } else {
-                    throw new IllegalStateException(
-                            "Cannot find modified memory component after checking all primary indexes");
                 }
             }
         }
