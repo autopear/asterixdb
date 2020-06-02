@@ -529,22 +529,12 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             List<TupleWithMBR> allTuples = new ArrayList<>();
             long numTuplesInPartition = lsmRTree.getMaxNumTuplesPerComponent();
             try {
-                int minLen = Integer.MAX_VALUE;
-                int maxLen = 0;
                 while (cursor.hasNext()) {
                     cursor.next();
                     LSMRTreeTupleReferenceForPointMBR srcTuple = (LSMRTreeTupleReferenceForPointMBR) cursor.getTuple();
                     LSMRTreeTupleReferenceForPointMBR dstTuple = srcTuple.getCopy();
-                    int l = dstTuple.getBufLen();
-                    if (l < minLen) {
-                        minLen = l;
-                    }
-                    if (l > maxLen) {
-                        maxLen = l;
-                    }
                     allTuples.add(new TupleWithMBR(dstTuple, lsmRTree.getMBRFromTuple(dstTuple)));
                 }
-                lsmRTree.writeLog("[TupleLen]\t" + minLen + "\t" + maxLen);
                 List<List<TupleWithMBR>> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);
                 for (List<TupleWithMBR> partition : partitions) {
                     partition.sort(new Comparator<TupleWithMBR>() {

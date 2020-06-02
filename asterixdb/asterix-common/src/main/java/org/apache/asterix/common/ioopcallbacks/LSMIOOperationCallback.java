@@ -24,6 +24,7 @@ import static org.apache.asterix.common.storage.ResourceReference.getComponentSe
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
@@ -90,13 +91,26 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
     @Override
     public void beforeOperation(ILSMIOOperation operation) throws HyracksDataException {
         if (isMerge(operation)) {
-            FileReference operationMaskFilePath = getOperationMaskFilePath(operation);
+            FileReference[] operationMaskFilesPath = getOperationMaskFilesPath(operation);
             // if a merge operation is attempted after a failure, its mask file may already exists
-            if (!operationMaskFilePath.getFile().exists()) {
-                IoUtil.create(operationMaskFilePath);
-            } else {
-                LOGGER.warn("merge operation mask file {} already exists", operationMaskFilePath);
+            List<String> refFiles = new ArrayList<>();
+            List<String> errFiles = new ArrayList<>();
+            for (FileReference ref : operationMaskFilesPath) {
+                refFiles.add(ref.getFile().getName());
+                if (!ref.getFile().exists()) {
+                    IoUtil.create(ref);
+                } else {
+                    errFiles.add(ref.getFile().getName());
+                }
             }
+            if (!errFiles.isEmpty()) {
+                if (errFiles.size() == 1) {
+                    LOGGER.warn("merge operation mask file " + errFiles.get(0) + " already exists");
+                } else {
+                    LOGGER.warn("merge operation mask files [" + String.join(", ", errFiles) + "] already exist");
+                }
+            }
+            lsmIndex.writeLog("[beforeOperation]\t" + String.join(", ", refFiles));
         }
     }
 
@@ -138,7 +152,13 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
                 || operation.getIOOpertionType() == LSMIOOperationType.LOAD) {
             addComponentToCheckpoint(operation);
         } else if (isMerge(operation)) {
-            IoUtil.delete(getOperationMaskFilePath(operation));
+            FileReference[] operationMaskFilesPath = getOperationMaskFilesPath(operation);
+            List<String> refFiles = new ArrayList<>();
+            for (FileReference ref : operationMaskFilesPath) {
+                refFiles.add(ref.getFile().getName());
+                IoUtil.delete(ref);
+            }
+            lsmIndex.writeLog("[afterFinalize]\t" + String.join(", ", refFiles));
         }
     }
 
@@ -146,7 +166,7 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
         // will always update the checkpoint file even if no new component was created
         FileReference target = operation.getTarget();
         Map<String, Object> map = operation.getParameters();
-        final Long lsn =
+        final long lsn =
                 operation.getIOOpertionType() == LSMIOOperationType.FLUSH ? (Long) map.get(KEY_FLUSH_LOG_LSN) : 0L;
         final LSMComponentId id = (LSMComponentId) map.get(KEY_FLUSHED_COMPONENT_ID);
         final ResourceReference ref = ResourceReference.of(target.getAbsolutePath());
@@ -322,17 +342,17 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
                 && operation.getAccessor().getOpContext().getOperation() != IndexOperation.DELETE_COMPONENTS;
     }
 
-    private static FileReference getOperationMaskFilePath(ILSMIOOperation operation) {
-        String[] targets = new String[operation.getTargets().size()];
-        for (int i = 0; i < targets.length; i++) {
-            targets[i] = getComponentSequence(operation.getTargets().get(i).getFile().getAbsolutePath());
+    private static FileReference[] getOperationMaskFilesPath(ILSMIOOperation operation) {
+        List<FileReference> targets = operation.getTargets();
+        FileReference[] refs = new FileReference[targets.size()];
+        for (int i = 0; i < refs.length; i++) {
+            FileReference target = targets.get(i);
+            String componentSequence = getComponentSequence(target.getFile().getAbsolutePath());
+            Path idxRelPath = Paths.get(target.getRelativePath()).getParent();
+            Path maskFileRelPath =
+                    Paths.get(idxRelPath.toString(), StorageConstants.COMPONENT_MASK_FILE_PREFIX + componentSequence);
+            refs[i] = new FileReference(target.getDeviceHandle(), maskFileRelPath.toString());
         }
-        operation.getAccessor().getOpContext().getIndex().writeLog("[Targets]\t" + String.join(", ", targets));
-        FileReference target = operation.getTarget();
-        final String componentSequence = getComponentSequence(target.getFile().getAbsolutePath());
-        Path idxRelPath = Paths.get(target.getRelativePath()).getParent();
-        Path maskFileRelPath =
-                Paths.get(idxRelPath.toString(), StorageConstants.COMPONENT_MASK_FILE_PREFIX + componentSequence);
-        return new FileReference(target.getDeviceHandle(), maskFileRelPath.toString());
+        return refs;
     }
 }
