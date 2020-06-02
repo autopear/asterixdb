@@ -51,6 +51,7 @@ import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperation.LSMIOOperati
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIOOperationCallback;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.api.ILSMMemoryComponent;
+import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLSMIndex;
 import org.apache.hyracks.storage.am.lsm.common.impls.DiskComponentMetadata;
 import org.apache.hyracks.storage.am.lsm.common.impls.FlushOperation;
 import org.apache.hyracks.storage.am.lsm.common.impls.IndexComponentFileReference;
@@ -90,7 +91,7 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
 
     @Override
     public void beforeOperation(ILSMIOOperation operation) throws HyracksDataException {
-        if (isMerge(operation)) {
+        if (isMerge(operation) && !((AbstractLSMIndex) lsmIndex).isLeveledLSM()) {
             FileReference[] operationMaskFilesPath = getOperationMaskFilesPath(operation);
             // if a merge operation is attempted after a failure, its mask file may already exists
             List<String> refFiles = new ArrayList<>();
@@ -110,7 +111,7 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
                     LOGGER.warn("merge operation mask files [" + String.join(", ", errFiles) + "] already exist");
                 }
             }
-            lsmIndex.writeLog("[beforeOperation]\t" + String.join(", ", refFiles));
+            // lsmIndex.writeLog("[beforeOperation]\t" + String.join(", ", refFiles));
         }
     }
 
@@ -151,14 +152,14 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
         } else if (operation.getIOOpertionType() == LSMIOOperationType.FLUSH
                 || operation.getIOOpertionType() == LSMIOOperationType.LOAD) {
             addComponentToCheckpoint(operation);
-        } else if (isMerge(operation)) {
+        } else if (isMerge(operation) && !((AbstractLSMIndex) lsmIndex).isLeveledLSM()) {
             FileReference[] operationMaskFilesPath = getOperationMaskFilesPath(operation);
             List<String> refFiles = new ArrayList<>();
             for (FileReference ref : operationMaskFilesPath) {
                 refFiles.add(ref.getFile().getName());
                 IoUtil.delete(ref);
             }
-            lsmIndex.writeLog("[afterFinalize]\t" + String.join(", ", refFiles));
+            // lsmIndex.writeLog("[afterFinalize]\t" + String.join(", ", refFiles));
         }
     }
 

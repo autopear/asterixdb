@@ -209,9 +209,9 @@ public abstract class AbstractCheckpointManager implements ICheckpointManager {
         List<Checkpoint> checkpointObjectList = new ArrayList<>();
         for (File file : checkpoints) {
             try {
-                if (LOGGER.isWarnEnabled()) {
-                    LOGGER.log(Level.WARN, "Reading checkpoint file: " + file.getAbsolutePath());
-                }
+                // if (LOGGER.isWarnEnabled()) {
+                //     LOGGER.log(Level.WARN, "Reading checkpoint file: " + file.getAbsolutePath());
+                // }
                 Checkpoint cp = readCheckpoint(Paths.get(file.getAbsolutePath()));
                 checkpointObjectList.add(cp);
             } catch (ClosedByInterruptException e) {
@@ -241,7 +241,7 @@ public abstract class AbstractCheckpointManager implements ICheckpointManager {
         for (int i = 0; i < deleteCount; i++) {
             final Checkpoint checkpoint = orderedCheckpoints.get(i);
             final Path checkpointPath = getCheckpointPath(checkpoint.getId());
-            LOGGER.warn("Deleting checkpoint file at: {}", checkpointPath);
+            // LOGGER.warn("Deleting checkpoint file at: {}", checkpointPath);
             if (!checkpointPath.toFile().delete()) {
                 LOGGER.warn("Could not delete checkpoint file at: {}", checkpointPath);
             }
