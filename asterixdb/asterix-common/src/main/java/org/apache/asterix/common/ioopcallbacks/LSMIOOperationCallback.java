@@ -323,6 +323,11 @@ public class LSMIOOperationCallback implements ILSMIOOperationCallback {
     }
 
     private static FileReference getOperationMaskFilePath(ILSMIOOperation operation) {
+        String[] targets = new String[operation.getTargets().size()];
+        for (int i = 0; i < targets.length; i++) {
+            targets[i] = getComponentSequence(operation.getTargets().get(i).getFile().getAbsolutePath());
+        }
+        operation.getAccessor().getOpContext().getIndex().writeLog("[Targets]\t" + String.join(", ", targets));
         FileReference target = operation.getTarget();
         final String componentSequence = getComponentSequence(target.getFile().getAbsolutePath());
         Path idxRelPath = Paths.get(target.getRelativePath()).getParent();
