@@ -68,6 +68,10 @@ public class LSMRTreeTupleReferenceForPointMBR extends RTreeTypeAwareTupleRefere
         return t;
     }
 
+    public int getBufLen() {
+        return buf == null ? 0 : buf.length;
+    }
+
     @Override
     public void resetByTupleOffset(byte[] buf, int tupleStartOff) {
         this.buf = buf;
