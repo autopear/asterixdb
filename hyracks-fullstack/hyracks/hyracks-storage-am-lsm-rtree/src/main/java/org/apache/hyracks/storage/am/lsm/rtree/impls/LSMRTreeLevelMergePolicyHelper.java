@@ -532,7 +532,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 while (cursor.hasNext()) {
                     cursor.next();
                     LSMRTreeTupleReferenceForPointMBR srcTuple = (LSMRTreeTupleReferenceForPointMBR) cursor.getTuple();
-                    LSMRTreeTupleReferenceForPointMBR dstTuple = srcTuple.getCopy();
+                    LSMRTreeTupleReferenceForPointMBR dstTuple = LSMRTreeTupleReferenceForPointMBR.getCopy(srcTuple);
                     allTuples.add(new TupleWithMBR(dstTuple, lsmRTree.getMBRFromTuple(dstTuple)));
                 }
                 List<List<TupleWithMBR>> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);
