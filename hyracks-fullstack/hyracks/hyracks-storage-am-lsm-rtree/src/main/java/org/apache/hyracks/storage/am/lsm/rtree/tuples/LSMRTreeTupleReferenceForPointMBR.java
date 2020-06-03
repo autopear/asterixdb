@@ -68,8 +68,23 @@ public class LSMRTreeTupleReferenceForPointMBR extends RTreeTypeAwareTupleRefere
         return t;
     }
 
+    public LSMRTreeTupleReferenceForPointMBR emptyCopy() {
+        return new LSMRTreeTupleReferenceForPointMBR(typeTraits.clone(), inputKeyFieldCount, inputTotalFieldCount,
+                storedKeyFieldCount, antimatterAware);
+    }
+
+    public void copyBuf(byte[] dst) {
+        if (dst != null) {
+            System.arraycopy(buf, tupleStartOff, dst, 0, dst.length);
+        }
+    }
+
     public int getBufLen() {
-        return buf == null ? 0 : buf.length;
+        int bufLen = 0;
+        for (int l : decodedFieldSlots) {
+            bufLen += l;
+        }
+        return bufLen;
     }
 
     @Override
