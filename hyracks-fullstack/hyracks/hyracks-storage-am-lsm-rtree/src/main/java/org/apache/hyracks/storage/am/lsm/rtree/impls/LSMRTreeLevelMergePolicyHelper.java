@@ -538,9 +538,15 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         emptyTuple1 = srcTuple.emptyCopy();
                         emptyTuple2 = srcTuple.emptyCopy();
                     }
-                    byte[] newBuf = new byte[srcTuple.getBufLen()];
-                    srcTuple.copyBuf(newBuf);
-                    allData.add(new TupleDataWithMBR(newBuf, lsmRTree.getMBRFromTuple(srcTuple)));
+                    try {
+                        byte[] newBuf = new byte[srcTuple.getBufLen()];
+                        srcTuple.copyBuf(newBuf);
+                        allData.add(new TupleDataWithMBR(newBuf, lsmRTree.getMBRFromTuple(srcTuple)));
+                    } catch (OutOfMemoryError ex) {
+                        lsmRTree.writeLog(
+                                "BufLen = " + srcTuple.getBufLen() + ", tupleSize = " + srcTuple.getTupleSize());
+                        throw ex;
+                    }
                 }
                 List<List<TupleDataWithMBR>> partitions = partitionTuplesBySTR(allData, numTuplesInPartition);
                 for (List<TupleDataWithMBR> partition : partitions) {

@@ -80,11 +80,12 @@ public class LSMRTreeTupleReferenceForPointMBR extends RTreeTypeAwareTupleRefere
     }
 
     public int getBufLen() {
-        int bufLen = 0;
+        return decodedFieldSlots[decodedFieldSlots.length - 1];
+        /*int bufLen = 0;
         for (int l : decodedFieldSlots) {
             bufLen += l;
         }
-        return bufLen;
+        return bufLen;*/
     }
 
     @Override
