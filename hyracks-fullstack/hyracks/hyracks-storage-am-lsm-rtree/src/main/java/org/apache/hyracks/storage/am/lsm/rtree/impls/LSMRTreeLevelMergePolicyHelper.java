@@ -51,8 +51,6 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
     protected final AbstractLSMRTree lsmRTree;
     private Map<Long, Long> lastCurveValue;
     private final String partition;
-    private LSMRTreeTupleReferenceForPointMBR emptyTuple1;
-    private LSMRTreeTupleReferenceForPointMBR emptyTuple2;
 
     public LSMRTreeLevelMergePolicyHelper(AbstractLSMIndex index, String partition) {
         super(index);
@@ -528,38 +526,22 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             List<ILSMDiskComponentBulkLoader> componentBulkLoaders = new ArrayList<>();
             List<FileReference> mergeFileTargets = new ArrayList<>();
             List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
-            List<TupleDataWithMBR> allData = new ArrayList<>();
             long numTuplesInPartition = lsmRTree.getMaxNumTuplesPerComponent();
-            long numTuples = 0;
+            List<TupleWithMBR> allTuples = new ArrayList<>();
             try {
                 while (cursor.hasNext()) {
                     cursor.next();
                     LSMRTreeTupleReferenceForPointMBR srcTuple = (LSMRTreeTupleReferenceForPointMBR) cursor.getTuple();
-                    numTuples++;
-                    lsmRTree.writeLog("tuples=" + numTuples + ", " + srcTuple.printInfo());
-                    if (emptyTuple1 == null) {
-                        emptyTuple1 = srcTuple.emptyCopy();
-                        emptyTuple2 = srcTuple.emptyCopy();
-                    }
-                    try {
-                        byte[] newBuf = new byte[srcTuple.getBufLen()];
-                        srcTuple.copyBuf(newBuf);
-                        allData.add(new TupleDataWithMBR(newBuf, lsmRTree.getMBRFromTuple(srcTuple)));
-                    } catch (OutOfMemoryError ex) {
-                        lsmRTree.writeLog(
-                                "BufLen = " + srcTuple.getBufLen() + ", tupleSize = " + srcTuple.getTupleSize());
-                        throw ex;
-                    }
+                    LSMRTreeTupleReferenceForPointMBR dstTuple = srcTuple.getCopy();
+                    allTuples.add(new TupleWithMBR(dstTuple, lsmRTree.getMBRFromTuple(dstTuple)));
                 }
-                List<List<TupleDataWithMBR>> partitions = partitionTuplesBySTR(allData, numTuplesInPartition);
-                for (List<TupleDataWithMBR> partition : partitions) {
-                    partition.sort(new Comparator<TupleDataWithMBR>() {
+                List<List<TupleWithMBR>> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);
+                for (List<TupleWithMBR> partition : partitions) {
+                    partition.sort(new Comparator<TupleWithMBR>() {
                         @Override
-                        public int compare(TupleDataWithMBR t1, TupleDataWithMBR t2) {
+                        public int compare(TupleWithMBR t1, TupleWithMBR t2) {
                             try {
-                                emptyTuple1.resetByTupleOffset(t1.getData(), 0);
-                                emptyTuple2.resetByTupleOffset(t1.getData(), 0);
-                                return cursor.compare(emptyTuple1, emptyTuple2);
+                                return cursor.compare(t1.getTuple(), t2.getTuple());
                             } catch (HyracksDataException ex) {
                                 return -1;
                             }
@@ -579,30 +561,21 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                     componentBulkLoaders.add(componentBulkLoader);
                     MultiComparator filterCmp = newComponent.getLSMComponentFilter() == null ? null
                             : MultiComparator.create(newComponent.getLSMComponentFilter().getFilterCmpFactories());
-                    LSMRTreeTupleReferenceForPointMBR minTuple = null;
-                    LSMRTreeTupleReferenceForPointMBR maxTuple = null;
+                    ITupleReference minTuple = null;
+                    ITupleReference maxTuple = null;
                     double[] minMBR = null;
                     double[] maxMBR = null;
-                    for (TupleDataWithMBR tupleDataWithMBR : partition) {
-                        LSMRTreeTupleReferenceForPointMBR tuple = emptyTuple1;
-                        tuple.resetByTupleOffset(tupleDataWithMBR.getData(), 0);
+                    for (TupleWithMBR TupleWithMBR : partition) {
+                        ITupleReference tuple = TupleWithMBR.getTuple();
                         boolean filterUpdated = false;
                         if (minTuple == null || (filterCmp != null && filterCmp.compare(tuple, minTuple) < 0)) {
-                            if (minTuple != null) {
-                                minTuple.resetByTupleOffset(null, 0);
-                            }
                             minTuple = tuple;
-                            filterUpdated = true;
                         }
                         if (maxTuple == null || (filterCmp != null && filterCmp.compare(tuple, maxTuple) > 0)) {
-                            if (maxTuple != null) {
-                                maxTuple.resetByTupleOffset(null, 0);
-                            }
                             maxTuple = tuple;
-                            filterUpdated = true;
                         }
                         componentBulkLoader.add(tuple);
-                        double[] mbr = tupleDataWithMBR.getMBR();
+                        double[] mbr = TupleWithMBR.getMBR();
                         if (minMBR == null) {
                             minMBR = clone(mbr, 0, dim);
                         } else {
@@ -621,9 +594,6 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                                 }
                             }
                         }
-                        if (!filterUpdated) {
-                            tuple.resetByTupleOffset(null, 0);
-                        }
                     }
                     newComponent.setMinKey(AbstractLSMRTree.doublesToBytes(minMBR));
                     newComponent.setMaxKey(AbstractLSMRTree.doublesToBytes(maxMBR));
@@ -638,7 +608,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 }
                 partitions.clear();
             } finally {
-                allData.clear();
+                allTuples.clear();
                 cursor.close();
             }
             for (ILSMDiskComponentBulkLoader componentBulkLoader : componentBulkLoaders) {
@@ -656,7 +626,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 : doDefaultMerge(operation);
     }
 
-    public void orderTuplesBySTR(List<TupleDataWithMBR> tuplesToPartition, List<List<TupleDataWithMBR>> partitions,
+    public void orderTuplesBySTR(List<TupleWithMBR> tuplesToPartition, List<List<TupleWithMBR>> partitions,
             long numTuplesInPartition, int startDim) {
         if (tuplesToPartition == null || tuplesToPartition.isEmpty()) {
             return;
@@ -666,7 +636,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         // Handle the last dimension, place tuples into partitions
         if (dim < 2 || startDim >= dim) {
             for (int i = 0; i < numPartitions; i++) {
-                List<TupleDataWithMBR> p = partitions.get(i);
+                List<TupleWithMBR> p = partitions.get(i);
                 long empties = numTuplesInPartition - p.size(); // Number of available space in the partition
                 if (empties > 0) {
                     if (empties >= tuplesToPartition.size()) {
@@ -692,17 +662,17 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                 (int) numTuplesInPartition * (int) Math.ceil(Math.pow(numPartitions, (double) (thisDim - 1) / thisDim));
         for (int i = 0; i < numSlices; i++) {
             // Place tuples sorted by startDim-1 into slices
-            List<TupleDataWithMBR> slice = new ArrayList<>();
+            List<TupleWithMBR> slice = new ArrayList<>();
             int bound = (i + 1) * sliceCapacity <= tuplesToPartition.size() ? sliceCapacity
                     : tuplesToPartition.size() - i * sliceCapacity;
             for (int j = 0; j < bound; j++) {
-                TupleDataWithMBR t = tuplesToPartition.get(i * sliceCapacity + j);
+                TupleWithMBR t = tuplesToPartition.get(i * sliceCapacity + j);
                 slice.add(t);
             }
             // Sort tuples in the slice by startDim
-            slice.sort(new Comparator<TupleDataWithMBR>() {
+            slice.sort(new Comparator<TupleWithMBR>() {
                 @Override
-                public int compare(TupleDataWithMBR t1, TupleDataWithMBR t2) {
+                public int compare(TupleWithMBR t1, TupleWithMBR t2) {
                     double[] c1 = t1.getCenter();
                     double[] c2 = t2.getCenter();
                     return Double.compare(c1[startDim], c2[startDim]);
@@ -713,7 +683,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         }
     }
 
-    public List<List<TupleDataWithMBR>> partitionTuplesBySTR(List<TupleDataWithMBR> tuplesToPartition,
+    public List<List<TupleWithMBR>> partitionTuplesBySTR(List<TupleWithMBR> tuplesToPartition,
             long numTuplesInPartition) {
         if (tuplesToPartition == null || tuplesToPartition.isEmpty()) {
             return null;
@@ -723,54 +693,21 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             return Collections.singletonList(tuplesToPartition);
         }
 
-        tuplesToPartition.sort(new Comparator<TupleDataWithMBR>() {
+        tuplesToPartition.sort(new Comparator<TupleWithMBR>() {
             @Override
-            public int compare(TupleDataWithMBR t1, TupleDataWithMBR t2) {
+            public int compare(TupleWithMBR t1, TupleWithMBR t2) {
                 double[] c1 = t1.getCenter();
                 double[] c2 = t2.getCenter();
                 return Double.compare(c1[0], c2[0]);
             }
         });
 
-        List<List<TupleDataWithMBR>> partitions = new ArrayList<>();
+        List<List<TupleWithMBR>> partitions = new ArrayList<>();
         for (int i = 0; i < numPartitions; i++) {
             partitions.add(new ArrayList<>());
         }
         orderTuplesBySTR(tuplesToPartition, partitions, numTuplesInPartition, 0);
         return partitions;
-    }
-
-    private static class TupleDataWithMBR {
-        private final byte[] buf;
-        private final double[] mbr;
-        private final int dim;
-        private final double[] center;
-
-        public TupleDataWithMBR(byte[] buf, double[] mbr) {
-            this.buf = buf;
-            this.mbr = mbr;
-            dim = mbr.length / 2;
-            center = new double[dim];
-            for (int i = 0; i < dim; i++) {
-                center[i] = (mbr[i] + mbr[i + dim]) / 2;
-            }
-        }
-
-        public byte[] getData() {
-            return this.buf;
-        }
-
-        public double[] getMBR() {
-            return this.mbr;
-        }
-
-        public int getDim() {
-            return this.dim;
-        }
-
-        public double[] getCenter() {
-            return this.center;
-        }
     }
 
     private static class TupleWithMBR {

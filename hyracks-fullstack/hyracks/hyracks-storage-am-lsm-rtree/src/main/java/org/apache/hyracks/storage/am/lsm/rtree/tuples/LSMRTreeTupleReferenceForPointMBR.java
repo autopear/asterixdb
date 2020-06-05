@@ -19,6 +19,8 @@
 
 package org.apache.hyracks.storage.am.lsm.rtree.tuples;
 
+import java.util.Arrays;
+
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.storage.am.common.api.ITreeIndexFrame;
 import org.apache.hyracks.storage.am.common.util.BitOperationUtils;
@@ -55,50 +57,12 @@ public class LSMRTreeTupleReferenceForPointMBR extends RTreeTypeAwareTupleRefere
         this.antimatterAware = antimatterAware;
     }
 
-    public static LSMRTreeTupleReferenceForPointMBR getCopy(LSMRTreeTupleReferenceForPointMBR tuple) {
-        LSMRTreeTupleReferenceForPointMBR t = new LSMRTreeTupleReferenceForPointMBR(tuple.typeTraits.clone(),
-                tuple.inputKeyFieldCount, tuple.inputTotalFieldCount, tuple.storedKeyFieldCount, tuple.antimatterAware);
-        int bufLen = 0;
-        for (int l : tuple.decodedFieldSlots) {
-            bufLen += l;
-        }
-        byte[] newBuf = new byte[bufLen];
-        System.arraycopy(tuple.buf, tuple.tupleStartOff, newBuf, 0, bufLen);
+    public LSMRTreeTupleReferenceForPointMBR getCopy() {
+        LSMRTreeTupleReferenceForPointMBR t = new LSMRTreeTupleReferenceForPointMBR(typeTraits, inputKeyFieldCount,
+                inputTotalFieldCount, storedKeyFieldCount, antimatterAware);
+        byte[] newBuf = Arrays.copyOfRange(buf, tupleStartOff, tupleStartOff + getTupleSize());
         t.resetByTupleOffset(newBuf, 0);
         return t;
-    }
-
-    public LSMRTreeTupleReferenceForPointMBR emptyCopy() {
-        return new LSMRTreeTupleReferenceForPointMBR(typeTraits.clone(), inputKeyFieldCount, inputTotalFieldCount,
-                storedKeyFieldCount, antimatterAware);
-    }
-
-    public void copyBuf(byte[] dst) {
-        if (dst != null) {
-            System.arraycopy(buf, tupleStartOff, dst, 0, dst.length);
-        }
-    }
-
-    public int getBufLen() {
-        return decodedFieldSlots[decodedFieldSlots.length - 1];
-        /*int bufLen = 0;
-        for (int l : decodedFieldSlots) {
-            bufLen += l;
-        }
-        return bufLen;*/
-    }
-
-    public String printInfo() {
-        int maxLen = 0;
-        int totalLen = 0;
-        for (int l : decodedFieldSlots) {
-            if (l > maxLen) {
-                maxLen = l;
-            }
-            totalLen += l;
-        }
-        return "max=" + maxLen + ", total=" + totalLen + ", buf=" + buf.length + ", start=" + tupleStartOff + ", data="
-                + dataStartOff;
     }
 
     @Override
