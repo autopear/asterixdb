@@ -530,10 +530,13 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             List<FileReference> mergeBloomFilterTargets = new ArrayList<>();
             List<TupleDataWithMBR> allData = new ArrayList<>();
             long numTuplesInPartition = lsmRTree.getMaxNumTuplesPerComponent();
+            long numTuples = 0;
             try {
                 while (cursor.hasNext()) {
                     cursor.next();
                     LSMRTreeTupleReferenceForPointMBR srcTuple = (LSMRTreeTupleReferenceForPointMBR) cursor.getTuple();
+                    numTuples++;
+                    lsmRTree.writeLog("tuples=" + numTuples + ", " + srcTuple.printInfo());
                     if (emptyTuple1 == null) {
                         emptyTuple1 = srcTuple.emptyCopy();
                         emptyTuple2 = srcTuple.emptyCopy();

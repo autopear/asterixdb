@@ -88,6 +88,19 @@ public class LSMRTreeTupleReferenceForPointMBR extends RTreeTypeAwareTupleRefere
         return bufLen;*/
     }
 
+    public String printInfo() {
+        int maxLen = 0;
+        int totalLen = 0;
+        for (int l : decodedFieldSlots) {
+            if (l > maxLen) {
+                maxLen = l;
+            }
+            totalLen += l;
+        }
+        return "max=" + maxLen + ", total=" + totalLen + ", buf=" + buf.length + ", start=" + tupleStartOff + ", data="
+                + dataStartOff;
+    }
+
     @Override
     public void resetByTupleOffset(byte[] buf, int tupleStartOff) {
         this.buf = buf;
