@@ -19,6 +19,8 @@
 
 package org.apache.hyracks.storage.am.lsm.rtree.tuples;
 
+import java.util.Arrays;
+
 import org.apache.hyracks.api.dataflow.value.ITypeTraits;
 import org.apache.hyracks.storage.am.common.api.ITreeIndexFrame;
 import org.apache.hyracks.storage.am.common.util.BitOperationUtils;
@@ -58,12 +60,7 @@ public class LSMRTreeTupleReferenceForPointMBR extends RTreeTypeAwareTupleRefere
     public LSMRTreeTupleReferenceForPointMBR getCopy() {
         LSMRTreeTupleReferenceForPointMBR t = new LSMRTreeTupleReferenceForPointMBR(typeTraits.clone(),
                 inputKeyFieldCount, inputTotalFieldCount, storedKeyFieldCount, antimatterAware);
-        int bufLen = 0;
-        for (int l : decodedFieldSlots) {
-            bufLen += l;
-        }
-        byte[] newBuf = new byte[bufLen];
-        System.arraycopy(buf, tupleStartOff, newBuf, 0, bufLen);
+        byte[] newBuf = Arrays.copyOfRange(buf, tupleStartOff, tupleStartOff + getTupleSize());
         t.resetByTupleOffset(newBuf, 0);
         return t;
     }

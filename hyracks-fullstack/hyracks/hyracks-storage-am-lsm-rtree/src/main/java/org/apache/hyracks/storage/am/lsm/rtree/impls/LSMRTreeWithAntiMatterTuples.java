@@ -90,7 +90,7 @@ public class LSMRTreeWithAntiMatterTuples extends AbstractLSMRTree {
                 pageWriteCallbackFactory, filterHelper, filterFrameFactory, filterManager, rtreeFields, filterFields,
                 durable, isPointMBR);
     }
-    
+
     @Override
     public ILSMDiskComponent doFlush(ILSMIOOperation operation) throws HyracksDataException {
         LSMRTreeFlushOperation flushOp = (LSMRTreeFlushOperation) operation;
