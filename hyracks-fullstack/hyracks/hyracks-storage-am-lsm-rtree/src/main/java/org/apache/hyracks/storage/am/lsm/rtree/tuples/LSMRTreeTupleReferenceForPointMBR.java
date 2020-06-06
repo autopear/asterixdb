@@ -57,11 +57,24 @@ public class LSMRTreeTupleReferenceForPointMBR extends RTreeTypeAwareTupleRefere
         this.antimatterAware = antimatterAware;
     }
 
-    public LSMRTreeTupleReferenceForPointMBR getCopy() {
+    public LSMRTreeTupleReferenceForPointMBR getCopy(int ver) {
         LSMRTreeTupleReferenceForPointMBR t = new LSMRTreeTupleReferenceForPointMBR(typeTraits.clone(),
                 inputKeyFieldCount, inputTotalFieldCount, storedKeyFieldCount, antimatterAware);
-        byte[] newBuf = Arrays.copyOfRange(buf, tupleStartOff, tupleStartOff + getTupleSize());
-        t.resetByTupleOffset(newBuf, 0);
+        if (ver == 0) {
+            byte[] newBuf = Arrays.copyOfRange(buf, tupleStartOff, tupleStartOff + getTupleSize());
+            t.resetByTupleOffset(newBuf, 0);
+        } else if (ver == 1) {
+            byte[] newBuf = Arrays.copyOfRange(buf, tupleStartOff,
+                    tupleStartOff + decodedFieldSlots[decodedFieldSlots.length - 1]);
+            t.resetByTupleOffset(newBuf, 0);
+        } else {
+            int tl = 0;
+            for (int l : decodedFieldSlots) {
+                tl += l;
+            }
+            byte[] newBuf = Arrays.copyOfRange(buf, tupleStartOff, tupleStartOff + tl);
+            t.resetByTupleOffset(newBuf, 0);
+        }
         return t;
     }
 
