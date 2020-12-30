@@ -457,8 +457,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         }
     }
 
-    private List<ILSMDiskComponent> doPartitionedMerge(ILSMIOOperation operation, boolean str)
-            throws HyracksDataException {
+    private List<ILSMDiskComponent> doPartitionedMerge(ILSMIOOperation operation, int opt) throws HyracksDataException {
         LSMRTreeMergeOperation mergeOp = (LSMRTreeMergeOperation) operation;
         LSMRTreeWithAntiMatterTuplesSearchCursor cursor =
                 (LSMRTreeWithAntiMatterTuplesSearchCursor) (mergeOp.getCursor());
@@ -562,8 +561,10 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         }
                     }
                 }
-                List<List<TupleWithMBR>> partitions = str ? partitionTuplesBySTR(allTuples, numTuplesInPartition)
-                        : partitionTuplesByRSGrove(allTuples, numTuplesInPartition);
+                List<List<TupleWithMBR>> partitions = opt == 0 ? partitionTuplesBySTR(allTuples, numTuplesInPartition)
+                        : partitionTuplesByRSGrove(allTuples, numTuplesInPartition,
+                                opt == 1 ? RStarGrovePartitioner.MinimizationFunction.AREA
+                                        : RStarGrovePartitioner.MinimizationFunction.PERIMETER);
                 for (List<TupleWithMBR> partition : partitions) {
                     partition.sort(new Comparator<TupleWithMBR>() {
                         @Override
@@ -649,9 +650,11 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
     public List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException {
         switch (partition) {
             case LevelRTreeMergePolicyFactory.PARTITION_STR:
-                return doPartitionedMerge(operation, true);
-            case LevelRTreeMergePolicyFactory.PARTITION_RSGROVE:
-                return doPartitionedMerge(operation, false);
+                return doPartitionedMerge(operation, 0);
+            case LevelRTreeMergePolicyFactory.PARTITION_RSGROVE_AREA:
+                return doPartitionedMerge(operation, 1);
+            case LevelRTreeMergePolicyFactory.PARTITION_RSGROVE_PERIMETER:
+                return doPartitionedMerge(operation, 2);
             default:
                 return doDefaultMerge(operation);
         }
@@ -742,7 +745,7 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
     }
 
     public List<List<TupleWithMBR>> partitionTuplesByRSGrove(List<TupleWithMBR> tuplesToPartition,
-            long numTuplesInPartition) {
+            long numTuplesInPartition, RStarGrovePartitioner.MinimizationFunction mf) {
         if (tuplesToPartition == null || tuplesToPartition.isEmpty()) {
             return null;
         }
@@ -753,18 +756,15 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         int dim = tuplesToPartition.get(0).getDim();
         int num = tuplesToPartition.size();
 
-        Map<List<Double>, Integer> pTuples = new HashMap<>();
         double[][] pts = new double[dim][num];
         for (int i = 0; i < num; i++) {
             TupleWithMBR t = tuplesToPartition.get(i);
-            pTuples.put(doubleArrayToList(t.getCenter()), i);
             for (int d = 0; d < dim; d++) {
                 pts[d][i] = t.getCenter()[d];
             }
         }
 
-        EnvelopeNDLite[] results = RStarGrovePartitioner.partitionPoints(pts, (int) numTuplesInPartition,
-                (int) numTuplesInPartition, true, 0);
+        EnvelopeNDLite[] results = RStarGrovePartitioner.partitionPoints(pts, (int) numTuplesInPartition, 0, mf);
 
         List<List<TupleWithMBR>> partitions = new ArrayList<>();
         for (int i = 0; i < results.length; i++) {
@@ -780,14 +780,6 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
             }
         }
         return partitions;
-    }
-
-    private static List<Double> doubleArrayToList(double[] point) {
-        List<Double> ret = new ArrayList<>();
-        for (double v : point) {
-            ret.add(v);
-        }
-        return ret;
     }
 
     private static class TupleWithMBR {

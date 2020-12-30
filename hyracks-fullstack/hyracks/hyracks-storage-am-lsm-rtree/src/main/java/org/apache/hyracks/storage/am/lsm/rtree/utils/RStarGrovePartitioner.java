@@ -27,6 +27,10 @@ import org.apache.hadoop.util.IndexedSortable;
 import org.apache.hadoop.util.QuickSort;
 
 public class RStarGrovePartitioner {
+    public enum MinimizationFunction {
+        PERIMETER,
+        AREA
+    }
 
     static void computeMargins(double[][] coords, int start, int end, double[][] marginsLeft, double[][] marginsRight) {
         final int numDimensions = coords.length;
@@ -80,14 +84,14 @@ public class RStarGrovePartitioner {
         }
     }
 
-    protected static boolean isValid(long size, long minPartitionSize, long maxPartitionSize) {
-        int lowerBound = (int) Math.ceil((double) size / maxPartitionSize);
-        int upperBound = (int) Math.floor((double) size / minPartitionSize);
+    protected static boolean isValid(long size, long partitionSize) {
+        int lowerBound = (int) Math.ceil((double) size / partitionSize);
+        int upperBound = (int) Math.floor((double) size / partitionSize);
         return lowerBound <= upperBound;
     }
 
-    public static EnvelopeNDLite[] partitionPoints(final double[][] coords, final int minPartitionSize,
-                                                   final int maxPartitionSize, final boolean expandToInf, final double fractionMinSplitSize) {
+    public static EnvelopeNDLite[] partitionPoints(final double[][] coords, final int partitionSize,
+            final double fractionMinSplitSize, final MinimizationFunction f) {
         final int numDimensions = coords.length;
         final int numPoints = coords[0].length;
         class SorterDim implements IndexedSortable {
@@ -126,23 +130,16 @@ public class RStarGrovePartitioner {
         while (!rangesToSplit.isEmpty()) {
             SplitTask range = rangesToSplit.pop();
 
-            if (range.end - range.start <= maxPartitionSize) {
+            if (range.end - range.start <= partitionSize) {
                 // No further splitting needed. Create a final partition
                 EnvelopeNDLite partitionMBR = new EnvelopeNDLite(numDimensions);
                 partitionMBR.setEmpty();
-                if (expandToInf) {
+                double[] point = new double[numDimensions];
+                for (int i = range.start; i < range.end; i++) {
                     for (int d = 0; d < numDimensions; d++) {
-                        partitionMBR.merge(range.min);
-                        partitionMBR.merge(range.max);
+                        point[d] = coords[d][i];
                     }
-                } else {
-                    double[] point = new double[numDimensions];
-                    for (int i = range.start; i < range.end; i++) {
-                        for (int d = 0; d < numDimensions; d++) {
-                            point[d] = coords[d][i];
-                        }
-                        partitionMBR.merge(point);
-                    }
+                    partitionMBR.merge(point);
                 }
                 // Mark the range as a leaf partition by setting the separator to
                 // a negative number x. The partition ID is -x-1
@@ -153,8 +150,7 @@ public class RStarGrovePartitioner {
 
             // ChooseSplitAxis
             // Sort the entries by each dimension and compute S, the sum of all margin-values of the different distributions
-            final int minSplitSize =
-                    Math.max(minPartitionSize, (int) ((range.end - range.start) * fractionMinSplitSize));
+            final int minSplitSize = Math.max(partitionSize, (int) ((range.end - range.start) * fractionMinSplitSize));
             final int numPossibleSplits = (range.end - range.start) - 2 * minSplitSize + 1;
 
             QuickSort quickSort = new QuickSort();
@@ -198,21 +194,34 @@ public class RStarGrovePartitioner {
             for (int k = 1; k <= numPossibleSplits; k++) {
                 // Skip if k is invalid (either side induce an invalid size)
                 int size1 = minSplitSize + k - 1;
-                if (!isValid(size1, minPartitionSize, maxPartitionSize)) {
+                if (!isValid(size1, partitionSize)) {
                     continue;
                 }
 
                 int size2 = range.end - range.start - size1;
-                if (!isValid(size2, minPartitionSize, maxPartitionSize)) {
+                if (!isValid(size2, partitionSize)) {
                     continue;
                 }
 
-                double vol1 = 1.0, vol2 = 1.0;
-                for (int d = 0; d < numDimensions; d++) {
-                    vol1 *= marginsLeft[d][minSplitSize + k - 1 - 1];
-                    vol2 *= marginsRight[d][minSplitSize + k - 1 - 1];
+                double splitValue = 0.0;
+                switch (f) {
+                    case AREA:
+                        double vol1 = 1.0, vol2 = 1.0;
+                        for (int d = 0; d < numDimensions; d++) {
+                            vol1 *= marginsLeft[d][minSplitSize + k - 1 - 1];
+                            vol2 *= marginsRight[d][minSplitSize + k - 1 - 1];
+                        }
+                        splitValue = vol1 + vol2;
+                        break;
+                    case PERIMETER:
+                        for (int d = 0; d < numDimensions; d++) {
+                            splitValue += marginsLeft[d][minSplitSize + k - 1 - 1];
+                            splitValue += marginsRight[d][minSplitSize + k - 1 - 1];
+                        }
+                        break;
+                    default:
+                        throw new RuntimeException("Unsupported function " + f);
                 }
-                double splitValue = vol1 + vol2;
                 if (splitValue < minValue) {
                     chosenK = k;
                     minValue = splitValue;

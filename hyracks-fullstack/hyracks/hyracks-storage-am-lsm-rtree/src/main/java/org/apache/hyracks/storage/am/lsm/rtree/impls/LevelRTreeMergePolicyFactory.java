@@ -43,7 +43,8 @@ public class LevelRTreeMergePolicyFactory implements ILSMMergePolicyFactory {
     public static final String PARTITION = "partition";
     public static final String PARTITION_SIZE = "size";
     public static final String PARTITION_STR = "str";
-    public static final String PARTITION_RSGROVE = "rs-grove";
+    public static final String PARTITION_RSGROVE_AREA = "rsgrove-area";
+    public static final String PARTITION_RSGROVE_PERIMETER = "rsgrove-perimeter";
     public static final Set<String> PROPERTIES_NAMES =
             Collections.unmodifiableSet(new HashSet<>(Arrays.asList(BTREE_INDEX, INVERTED_INDEX, RTREE_INDEX,
                     RTREE_COMPARATOR, LevelMergePolicyFactory.PICK, LevelMergePolicyFactory.NUM_COMPONENTS_0,
