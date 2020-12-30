@@ -41,6 +41,8 @@ import org.apache.hyracks.storage.am.lsm.common.impls.AbstractLevelMergePolicyHe
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMComponentFileReferences;
 import org.apache.hyracks.storage.am.lsm.common.impls.LSMIndexSearchCursor;
 import org.apache.hyracks.storage.am.lsm.rtree.tuples.LSMRTreeTupleReferenceForPointMBR;
+import org.apache.hyracks.storage.am.lsm.rtree.utils.EnvelopeNDLite;
+import org.apache.hyracks.storage.am.lsm.rtree.utils.RStarGrovePartitioner;
 import org.apache.hyracks.storage.am.rtree.impls.SearchPredicate;
 import org.apache.hyracks.storage.common.IIndexCursor;
 import org.apache.hyracks.storage.common.ISearchPredicate;
@@ -455,7 +457,8 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         }
     }
 
-    private List<ILSMDiskComponent> doSTROrderMerge(ILSMIOOperation operation) throws HyracksDataException {
+    private List<ILSMDiskComponent> doPartitionedMerge(ILSMIOOperation operation, boolean str)
+            throws HyracksDataException {
         LSMRTreeMergeOperation mergeOp = (LSMRTreeMergeOperation) operation;
         LSMRTreeWithAntiMatterTuplesSearchCursor cursor =
                 (LSMRTreeWithAntiMatterTuplesSearchCursor) (mergeOp.getCursor());
@@ -559,7 +562,8 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
                         }
                     }
                 }
-                List<List<TupleWithMBR>> partitions = partitionTuplesBySTR(allTuples, numTuplesInPartition);
+                List<List<TupleWithMBR>> partitions = str ? partitionTuplesBySTR(allTuples, numTuplesInPartition)
+                        : partitionTuplesByRSGrove(allTuples, numTuplesInPartition);
                 for (List<TupleWithMBR> partition : partitions) {
                     partition.sort(new Comparator<TupleWithMBR>() {
                         @Override
@@ -643,8 +647,14 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
 
     @Override
     public List<ILSMDiskComponent> merge(ILSMIOOperation operation) throws HyracksDataException {
-        return partition.compareTo(LevelRTreeMergePolicyFactory.PARTITION_STR) == 0 ? doSTROrderMerge(operation)
-                : doDefaultMerge(operation);
+        switch (partition) {
+            case LevelRTreeMergePolicyFactory.PARTITION_STR:
+                return doPartitionedMerge(operation, true);
+            case LevelRTreeMergePolicyFactory.PARTITION_RSGROVE:
+                return doPartitionedMerge(operation, false);
+            default:
+                return doDefaultMerge(operation);
+        }
     }
 
     public void orderTuplesBySTR(List<TupleWithMBR> tuplesToPartition, List<List<TupleWithMBR>> partitions,
@@ -731,11 +741,60 @@ public class LSMRTreeLevelMergePolicyHelper extends AbstractLevelMergePolicyHelp
         return partitions;
     }
 
+    public List<List<TupleWithMBR>> partitionTuplesByRSGrove(List<TupleWithMBR> tuplesToPartition,
+            long numTuplesInPartition) {
+        if (tuplesToPartition == null || tuplesToPartition.isEmpty()) {
+            return null;
+        }
+        int numPartitions = (int) Math.ceil((double) tuplesToPartition.size() / numTuplesInPartition);
+        if (numPartitions == 1) {
+            return Collections.singletonList(tuplesToPartition);
+        }
+        int dim = tuplesToPartition.get(0).getDim();
+        int num = tuplesToPartition.size();
+
+        Map<List<Double>, Integer> pTuples = new HashMap<>();
+        double[][] pts = new double[dim][num];
+        for (int i = 0; i < num; i++) {
+            TupleWithMBR t = tuplesToPartition.get(i);
+            pTuples.put(doubleArrayToList(t.getCenter()), i);
+            for (int d = 0; d < dim; d++) {
+                pts[d][i] = t.getCenter()[d];
+            }
+        }
+
+        EnvelopeNDLite[] results = RStarGrovePartitioner.partitionPoints(pts, (int) numTuplesInPartition,
+                (int) numTuplesInPartition, true, 0);
+
+        List<List<TupleWithMBR>> partitions = new ArrayList<>();
+        for (int i = 0; i < results.length; i++) {
+            partitions.add(new ArrayList<>());
+        }
+        for (TupleWithMBR t : tuplesToPartition) {
+            double[] center = t.getCenter();
+            for (int i = 0; i < results.length; i++) {
+                if (results[i].containsPoint(center)) {
+                    partitions.get(i).add(t);
+                    break;
+                }
+            }
+        }
+        return partitions;
+    }
+
+    private static List<Double> doubleArrayToList(double[] point) {
+        List<Double> ret = new ArrayList<>();
+        for (double v : point) {
+            ret.add(v);
+        }
+        return ret;
+    }
+
     private static class TupleWithMBR {
         private final ITupleReference tuple;
         private final double[] mbr;
         private final int dim;
-        private double[] center;
+        private final double[] center;
 
         public TupleWithMBR(ITupleReference tuple, double[] mbr) {
             this.tuple = tuple;
